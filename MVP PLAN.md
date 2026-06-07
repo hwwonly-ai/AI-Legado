@@ -109,6 +109,33 @@
 - 普通文本仍按现有朗读逻辑工作。
 - segment 的 `startPosition/plainLength` 能稳定对应原文纯文本位置。
 
+已完成实现记录：
+- 当前分支：`mvp2`。
+- 关键提交：
+  - `0bdd7240b Implement MVP2 read aloud segment mapping`
+- 已新增最小内存态 segment：
+  - 新增 `ReadAloudSegment`，字段为 `text`、`ssml`、`startPosition`、`plainLength`、`speaker`、`emotion`、`voice`。
+  - 当前 MVP2 只建立内存态基础，不做落库、不做剧本缓存、不接 AI。
+- `BaseReadAloudService` 当前行为：
+  - 新增 `readAloudSegments`，由 `rebuildContentPositionMap()` 与旧的 `contentStartPositions` / `contentPlainLengths` 同步生成。
+  - `contentStartPosition()` / `contentPlainLength()` 优先读取 segment，旧数组仍保留作为兼容输出。
+  - segment 的 `text` 使用 `stripReadAloudTags()` 后的纯文本，`ssml` 保存当前段原始带标签内容。
+  - 当章节存在 `readAloudContent` 且当前朗读列表包含标签时，映射从章节纯文本开头搜索，避免全章 SSML 块被当前页起点截断影响。
+  - 已从 `<voice name="...">`、`<speak voice="...">`、`<emotion category="...">` 中提取基础 `voice` / `emotion` 元数据。
+- `HttpReadAloudService` 当前行为：
+  - 文件播放和流式播放在识别到已有 SSML 后，会先将 SSML 内容合并/解析为朗读块，再重建 segment 映射。
+  - SSML 起始段选择优先使用 segment 的 `startPosition/plainLength`，并将 `readAloudNumber` 同步到纯文本起点。
+  - `ReadAloudProgress.chapterPos` 继续使用章节纯文本位置，不使用 SSML 标签位置。
+  - 原有 SSML 合成、普通文本预处理、缓存 key、失败回退和静音占位逻辑保持 MVP1 行为。
+- `TTSReadAloudService` 当前行为：
+  - 段落推进改为使用 `contentStartPosition()` / `contentPlainLength()`，避免未来遇到标签内容时按标签长度推进。
+- 已验证：
+  - `git diff --check` 通过。
+  - 已确认提交后工作区干净。
+- 未完成/注意：
+  - 本地 Gradle 编译仍未成功执行：默认 `~/.gradle` wrapper 缓存锁受权限限制；改用工作区 `.gradle` 会触发 Gradle 9.4.1 下载，但当前网络受限且提权审批超时。
+  - MVP2 只完成 segment/mapping 基础，尚未实现规则分角色、剧本缓存、实时预取队列或 AI 识别。
+
 ## MVP 3：规则分角色生成 SSML
 
 目标：先不用 AI，通过规则实现基础旁白/对白分角色朗读。
