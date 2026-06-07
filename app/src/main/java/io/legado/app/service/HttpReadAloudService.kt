@@ -75,6 +75,7 @@ import java.net.SocketTimeoutException
 import kotlin.time.Duration.Companion.seconds
 
 private const val MAX_SSML_PLAIN_TEXT_LENGTH = 280
+private const val PRE_DOWNLOAD_SEGMENT_LIMIT = 3
 
 private fun hasSpeakableText(text: String): Boolean {
     val plainText = text.replace(AppPattern.ssmlTagRegex, "")
@@ -477,9 +478,22 @@ class HttpReadAloudService : BaseReadAloudService(),
         
         // 匹配完整的<speak>...</speak>块
         val regex = Regex("<speak[^>]*>.*?</speak>", RegexOption.DOT_MATCHES_ALL)
-        regex.findAll(ssmlContent).forEach { matchResult ->
-            result.addAll(splitLongSSMLBlock(matchResult.value.trim()))
+        var lastEnd = 0
+        fun addPlainContent(content: String) {
+            val plainText = stripReadAloudTags(content).trim()
+            if (plainText.isBlank()) {
+                return
+            }
+            splitPlainText(plainText, MAX_SSML_PLAIN_TEXT_LENGTH).forEach {
+                result.add(ensureSpeakTags(escapeSSMLText(it.trim())))
+            }
         }
+        regex.findAll(ssmlContent).forEach { matchResult ->
+            addPlainContent(ssmlContent.substring(lastEnd, matchResult.range.first))
+            result.addAll(splitLongSSMLBlock(matchResult.value.trim()))
+            lastEnd = matchResult.range.last + 1
+        }
+        addPlainContent(ssmlContent.substring(lastEnd))
         
         android.util.Log.e("SSML_PARSE", "解析出 ${result.size} 个完整的speak块")
         if (result.isNotEmpty()) {
@@ -600,7 +614,7 @@ class HttpReadAloudService : BaseReadAloudService(),
             val foundIndex = findPlainTextStartInChapter(chapterContent, plainText, searchFrom)
             if (foundIndex != null) {
                 val blockEnd = foundIndex + plainText.length
-                if (blockEnd > readAloudNumber) {
+                if (blockEnd >= readAloudNumber) {
                     readAloudNumber = foundIndex
                     android.util.Log.e(
                         "SSML_FIND",
@@ -639,7 +653,8 @@ class HttpReadAloudService : BaseReadAloudService(),
             httpTts,
             chapterContent
         )
-        val contentList = getPreDownloadContentList(textChapter, useExistingSSML).take(10)
+        val contentList = getPreDownloadContentList(textChapter, useExistingSSML)
+            .take(PRE_DOWNLOAD_SEGMENT_LIMIT)
         contentList.forEach { content ->
             currentCoroutineContext().ensureActive()
             val speakText = content.replace(AppPattern.notReadAloudRegex, "")
@@ -811,6 +826,7 @@ class HttpReadAloudService : BaseReadAloudService(),
             chapterContent
         )
         val contentList = getPreDownloadContentList(textChapter, useExistingSSML)
+            .take(PRE_DOWNLOAD_SEGMENT_LIMIT)
         val flow = loadingState.debounce(1.seconds)
         contentList.forEach { content ->
             currentCoroutineContext().ensureActive()
