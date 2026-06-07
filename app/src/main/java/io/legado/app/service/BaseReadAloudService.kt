@@ -276,7 +276,11 @@ abstract class BaseReadAloudService : BaseService(),
                 readAloudByPage,
                 actualStartPos
             )
-            if (readAloudText.isBlank() && textChapter.readAloudContent.isNotBlank() && actualStartPos > 0) {
+            if (readAloudText.isBlank() && actualStartPos > 0) {
+                AppLog.putDebug(
+                    "朗读起始位置超出当前页内容，回退到页首重试: " +
+                            "chapter=$chapterIndex page=$actualPageIndex startPos=$actualStartPos"
+                )
                 actualStartPos = 0
                 readAloudNumber = textChapter.getReadLength(actualPageIndex)
                 lastProgress = ReadAloudProgress(
@@ -285,6 +289,13 @@ abstract class BaseReadAloudService : BaseService(),
                     actualPageIndex
                 )
                 readAloudText = textChapter.getNeedReadAloud(actualPageIndex, readAloudByPage, 0)
+            }
+            if (readAloudText.isBlank() && textChapter.readAloudContent.isNotBlank()) {
+                readAloudText = textChapter.getContent()
+                AppLog.putDebug(
+                    "朗读当前页文本为空，使用章节纯文本辅助 SSML 定位: " +
+                            "chapter=$chapterIndex page=$actualPageIndex"
+                )
             }
             contentList = readAloudText.split("\n")
                 .filter { it.isNotEmpty() }
