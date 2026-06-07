@@ -40,6 +40,7 @@ import io.legado.app.help.glide.ImageLoader
 import io.legado.app.lib.permission.Permissions
 import io.legado.app.lib.permission.PermissionsCompat
 import io.legado.app.model.ReadAloud
+import io.legado.app.model.ReadAloudProgress
 import io.legado.app.model.ReadBook
 import io.legado.app.receiver.MediaButtonReceiver
 import io.legado.app.ui.book.read.ReadBookActivity
@@ -58,6 +59,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import splitties.init.appCtx
 import splitties.systemservices.audioManager
 import splitties.systemservices.notificationManager
@@ -82,6 +84,10 @@ abstract class BaseReadAloudService : BaseService(),
 
         @JvmStatic
         var timeMinute: Int = 0
+            private set
+
+        @JvmStatic
+        var service: BaseReadAloudService? = null
             private set
 
         fun isPlay(): Boolean {
@@ -116,10 +122,16 @@ abstract class BaseReadAloudService : BaseService(),
         ReadAloudPhoneStateListener()
     }
     internal var contentList = emptyList<String>()
+    internal var contentStartPositions = emptyList<Int>()
+    internal var contentPlainLengths = emptyList<Int>()
     internal var nowSpeak: Int = 0
+    internal var contentParagraphOffset: Int = 0
     internal var readAloudNumber: Int = 0
     internal var textChapter: TextChapter? = null
+    internal var chapterIndex = 0
     internal var pageIndex = 0
+    @Volatile
+    private var lastProgress: ReadAloudProgress? = null
     private var needResumeOnAudioFocusGain = false
     private var needResumeOnCallStateIdle = false
     private var registeredPhoneStateListener = false
@@ -147,6 +159,7 @@ abstract class BaseReadAloudService : BaseService(),
         super.onCreate()
         isRun = true
         pause = false
+        service = this
         observeLiveBus()
         initMediaSession()
         initBroadcastReceiver()
@@ -172,9 +185,10 @@ abstract class BaseReadAloudService : BaseService(),
     fun observeLiveBus() {
         observeEvent<Bundle>(EventBus.READ_ALOUD_PLAY) {
             val play = it.getBoolean("play")
+            val chapterIndex = it.getInt("chapterIndex", ReadBook.durChapterIndex)
             val pageIndex = it.getInt("pageIndex")
             val startPos = it.getInt("startPos")
-            newReadAloud(play, pageIndex, startPos)
+            newReadAloud(play, chapterIndex, pageIndex, startPos)
         }
         observeSharedPreferences { _, key ->
             when (key) {
@@ -194,6 +208,7 @@ abstract class BaseReadAloudService : BaseService(),
         }
         isRun = false
         pause = true
+        service = null
         abandonFocus()
         unregisterReceiver(broadcastReceiver)
         postEvent(EventBus.ALOUD_STATE, Status.STOP)
@@ -211,6 +226,7 @@ abstract class BaseReadAloudService : BaseService(),
         when (intent?.action) {
             IntentAction.play -> newReadAloud(
                 intent.getBooleanExtra("play", true),
+                intent.getIntExtra("chapterIndex", ReadBook.durChapterIndex),
                 intent.getIntExtra("pageIndex", ReadBook.durPageIndex),
                 intent.getIntExtra("startPos", 0)
             )
@@ -229,21 +245,36 @@ abstract class BaseReadAloudService : BaseService(),
         return super.onStartCommand(intent, flags, startId)
     }
 
-    private fun newReadAloud(play: Boolean, pageIndex: Int, startPos: Int) {
+    private fun newReadAloud(play: Boolean, chapterIndex: Int, pageIndex: Int, startPos: Int) {
         execute(executeContext = IO) {
-            this@BaseReadAloudService.pageIndex = pageIndex
-            textChapter = ReadBook.curTextChapter
+            withContext(Main) {
+                playStop()
+            }
+            this@BaseReadAloudService.chapterIndex = chapterIndex
+            textChapter = if (chapterIndex == ReadBook.durChapterIndex) {
+                ReadBook.curTextChapter
+            } else {
+                ReadBook.loadReadAloudChapter(chapterIndex, lifecycleScope)
+            }
             val textChapter = textChapter ?: return@execute
             if (!textChapter.isCompleted) {
                 return@execute
             }
-            readAloudNumber = textChapter.getReadLength(pageIndex) + startPos
+            val actualPageIndex = if (pageIndex < 0) textChapter.lastIndex else pageIndex
+            this@BaseReadAloudService.pageIndex = actualPageIndex
+            readAloudNumber = textChapter.getReadLength(actualPageIndex) + startPos
+            lastProgress = ReadAloudProgress(
+                chapterIndex,
+                readAloudNumber + 1,
+                actualPageIndex
+            )
             readAloudByPage = getPrefBoolean(PreferKey.readAloudByPage)
-            contentList = textChapter.getNeedReadAloud(0, readAloudByPage, 0)
+            // 从当前页面开始获取内容，确保索引匹配
+            contentList = textChapter.getNeedReadAloud(actualPageIndex, readAloudByPage, startPos)
                 .split("\n")
                 .filter { it.isNotEmpty() }
             var pos = startPos
-            val page = textChapter.getPage(pageIndex)!!
+            val page = textChapter.getPage(actualPageIndex)!!
             if (pos > 0) {
                 for (paragraph in page.paragraphs) {
                     val tmp = pos - paragraph.length - 1
@@ -251,21 +282,35 @@ abstract class BaseReadAloudService : BaseService(),
                     pos = tmp
                 }
             }
-            nowSpeak = textChapter.getParagraphNum(readAloudNumber + 1, readAloudByPage) - 1
+            // 计算当前页面在章节中的起始段落索引
+            val pageStartParagraphNum = textChapter.getParagraphNum(
+                textChapter.getReadLength(actualPageIndex) + 1,
+                readAloudByPage
+            ) - 1
+            contentParagraphOffset = pageStartParagraphNum
+
+            // nowSpeak 是相对于 contentList 的索引
+            val chapterParagraphNum = textChapter.getParagraphNum(readAloudNumber + 1, readAloudByPage) - 1
+            nowSpeak = (chapterParagraphNum - pageStartParagraphNum).coerceAtLeast(0)
+
             if (!readAloudByPage && startPos == 0 && !toLast) {
+                // 使用相对于页面的段落索引
+                val relativeParagraphNum = nowSpeak + pageStartParagraphNum
                 pos = page.chapterPosition -
-                        textChapter.paragraphs[nowSpeak].chapterPosition
+                        textChapter.paragraphs[relativeParagraphNum].chapterPosition
             }
             if (toLast) {
                 toLast = false
                 readAloudNumber = textChapter.getLastParagraphPosition()
                 nowSpeak = contentList.lastIndex
                 if (page.paragraphs.size == 1) {
+                    val relativeParagraphNum = nowSpeak + pageStartParagraphNum
                     pos = page.chapterPosition -
-                            textChapter.paragraphs[nowSpeak].chapterPosition
+                            textChapter.paragraphs[relativeParagraphNum].chapterPosition
                 }
             }
             paragraphStartPos = pos
+            rebuildContentPositionMap()
             waitNewReadAloud = false
             launch(Main) {
                 if (play) play() else pageChanged = true
@@ -327,7 +372,95 @@ abstract class BaseReadAloudService : BaseService(),
     abstract fun upSpeechRate(reset: Boolean = false)
 
     fun upTtsProgress(progress: Int) {
-        postEvent(EventBus.TTS_PROGRESS, progress)
+        val chapter = textChapter ?: return
+        val currentPage = chapter.getPageIndexByCharIndex(progress)
+        pageIndex = currentPage
+        val readAloudProgress = ReadAloudProgress(chapterIndex, progress, currentPage)
+        lastProgress = readAloudProgress
+        postEvent(EventBus.TTS_PROGRESS, readAloudProgress)
+    }
+
+    fun currentProgress(): ReadAloudProgress? {
+        return lastProgress
+    }
+
+    internal fun stripReadAloudTags(content: String): String {
+        return content.replace(AppPattern.ssmlTagRegex, "")
+            .replace(Regex("<[^>]+>"), "")
+    }
+
+    private fun isReadAloudIgnoredChar(char: Char): Boolean {
+        return char.isWhitespace() || char == '　'
+    }
+
+    internal fun findPlainTextStartInChapter(
+        chapterContent: String,
+        plainText: String,
+        startPos: Int
+    ): Int? {
+        val normalizedNeedle = buildString {
+            plainText.forEach { char ->
+                if (!isReadAloudIgnoredChar(char)) {
+                    append(char)
+                }
+            }
+        }
+        if (normalizedNeedle.isBlank()) return null
+        val originalPositions = arrayListOf<Int>()
+        val normalizedChapter = buildString {
+            chapterContent.forEachIndexed { index, char ->
+                if (!isReadAloudIgnoredChar(char)) {
+                    append(char)
+                    originalPositions.add(index)
+                }
+            }
+        }
+        val normalizedStart = originalPositions
+            .indexOfFirst { it >= startPos.coerceAtLeast(0) }
+            .let { if (it >= 0) it else originalPositions.size }
+        val foundIndex = normalizedChapter.indexOf(normalizedNeedle, normalizedStart)
+        return if (foundIndex >= 0) originalPositions.getOrNull(foundIndex) else null
+    }
+
+    internal fun contentPlainLength(index: Int): Int {
+        return contentPlainLengths.getOrNull(index)
+            ?: stripReadAloudTags(contentList.getOrNull(index).orEmpty()).length
+    }
+
+    internal fun contentStartPosition(index: Int): Int? {
+        return contentStartPositions.getOrNull(index)
+    }
+
+    internal fun rebuildContentPositionMap() {
+        val chapter = textChapter ?: run {
+            contentStartPositions = emptyList()
+            contentPlainLengths = emptyList()
+            return
+        }
+        val paragraphs = chapter.getParagraphs(readAloudByPage && !getPrefBoolean(PreferKey.ssmlTagParse))
+        var runningPos = readAloudNumber
+        var searchFrom = readAloudNumber.coerceAtLeast(0)
+        val chapterContent = chapter.getContent()
+        contentStartPositions = contentList.mapIndexed { index, content ->
+            val paragraphIndex = contentParagraphOffset + index
+            val plainText = stripReadAloudTags(content)
+            val foundIndex = if (plainText.isNotBlank()) {
+                findPlainTextStartInChapter(chapterContent, plainText, searchFrom)
+            } else {
+                null
+            }
+            val start = when {
+                foundIndex != null -> foundIndex
+                index == nowSpeak -> readAloudNumber
+                paragraphIndex in paragraphs.indices -> paragraphs[paragraphIndex].chapterPosition
+                else -> runningPos
+            }
+            val plainLength = plainText.length
+            runningPos = start + plainLength + 1
+            searchFrom = (start + plainLength).coerceAtLeast(searchFrom)
+            start
+        }
+        contentPlainLengths = contentList.map { stripReadAloudTags(it).length }
     }
 
     private fun prevP() {
@@ -338,25 +471,31 @@ abstract class BaseReadAloudService : BaseService(),
             playStop()
             do {
                 nowSpeak--
-                readAloudNumber -= contentList[nowSpeak].length + 1 + paragraphStartPos
+                readAloudNumber = contentStartPosition(nowSpeak)
+                    ?: (readAloudNumber - contentPlainLength(nowSpeak) - 1 + paragraphStartPos)
                 paragraphStartPos = 0
             } while (contentList[nowSpeak].matches(AppPattern.notReadAloudRegex))
             textChapter?.let {
                 if (readAloudByPage) {
                     val paragraphs = it.getParagraphs(true)
-                    if (!paragraphs[nowSpeak].isParagraphEnd) readAloudNumber++
+                    val paragraphIndex = contentParagraphOffset + nowSpeak
+                    if (paragraphIndex in paragraphs.indices &&
+                        !paragraphs[paragraphIndex].isParagraphEnd
+                    ) {
+                        readAloudNumber++
+                    }
                 }
                 if (readAloudNumber < it.getReadLength(pageIndex)) {
                     pageIndex--
-                    ReadBook.moveToPrevPage()
                 }
             }
             upTtsProgress(readAloudNumber + 1)
             play()
         } else {
+            if (chapterIndex <= 0) return
             toLast = true
             waitNewReadAloud = true
-            ReadBook.moveToPrevChapter(true)
+            newReadAloud(true, chapterIndex - 1, -1, 0)
         }
     }
 
@@ -366,19 +505,25 @@ abstract class BaseReadAloudService : BaseService(),
         }
         if (nowSpeak < contentList.size - 1) {
             playStop()
-            readAloudNumber += contentList[nowSpeak].length.plus(1) - paragraphStartPos
+            val currentIndex = nowSpeak
             paragraphStartPos = 0
             nowSpeak++
+            readAloudNumber = contentStartPosition(nowSpeak)
+                ?: (readAloudNumber + contentPlainLength(currentIndex) + 1)
             textChapter?.let {
                 if (readAloudByPage) {
                     val paragraphs = it.getParagraphs(true)
-                    if (!paragraphs[nowSpeak].isParagraphEnd) readAloudNumber--
+                    val paragraphIndex = contentParagraphOffset + nowSpeak
+                    if (paragraphIndex in paragraphs.indices &&
+                        !paragraphs[paragraphIndex].isParagraphEnd
+                    ) {
+                        readAloudNumber--
+                    }
                 }
                 if (pageIndex + 1 < it.pageSize
                     && readAloudNumber >= it.getReadLength(pageIndex + 1)
                 ) {
                     pageIndex++
-                    ReadBook.moveToNextPage()
                 }
             }
             upTtsProgress(readAloudNumber + 1)
@@ -612,7 +757,7 @@ abstract class BaseReadAloudService : BaseService(),
             else -> getString(R.string.read_aloud_t)
         }
         nTitle += ": ${ReadBook.book?.name}"
-        var nSubtitle = ReadBook.curTextChapter?.title
+        var nSubtitle = textChapter?.title
         if (nSubtitle.isNullOrBlank())
             nSubtitle = getString(R.string.read_aloud_s)
         val builder = NotificationCompat
@@ -690,18 +835,21 @@ abstract class BaseReadAloudService : BaseService(),
     abstract fun aloudServicePendingIntent(actionStr: String): PendingIntent?
 
     open fun prevChapter() {
+        if (chapterIndex <= 0) return
         toLast = false
-        resumeReadAloudInternal()
-        ReadBook.moveToPrevChapter(true, toLast = false)
+        waitNewReadAloud = true
+        newReadAloud(true, chapterIndex - 1, 0, 0)
     }
 
     open fun nextChapter() {
         ReadBook.upReadTime()
-        AppLog.putDebug("${ReadBook.curTextChapter?.chapter?.title} 朗读结束跳转下一章并朗读")
-        resumeReadAloudInternal()
-        if (!ReadBook.moveToNextChapter(true)) {
+        AppLog.putDebug("${textChapter?.chapter?.title} 朗读结束后加载下一章")
+        if (chapterIndex + 1 >= ReadBook.simulatedChapterSize) {
             stopSelf()
+            return
         }
+        waitNewReadAloud = true
+        newReadAloud(true, chapterIndex + 1, 0, 0)
     }
 
     private fun initPhoneStateListener() {

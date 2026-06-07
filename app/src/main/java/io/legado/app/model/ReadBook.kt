@@ -25,7 +25,6 @@ import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.help.globalExecutor
 import io.legado.app.model.localBook.TextFile
 import io.legado.app.model.webBook.WebBook
-import io.legado.app.service.BaseReadAloudService
 import io.legado.app.service.CacheBookService
 import io.legado.app.ui.book.read.page.entities.TextChapter
 import io.legado.app.ui.book.read.page.provider.ChapterProvider
@@ -472,16 +471,6 @@ object ReadBook : CoroutineScope by MainScope() {
      */
     private fun curPageChanged(pageChanged: Boolean = false) {
         callBack?.pageChanged()
-        curTextChapter?.let {
-            if (BaseReadAloudService.isRun && it.isCompleted) {
-                val scrollPageAnim = pageAnim() == 3
-                if (scrollPageAnim && pageChanged) {
-                    ReadAloud.pause(appCtx)
-                } else {
-                    readAloud(!BaseReadAloudService.pause)
-                }
-            }
-        }
         upReadTime()
         preDownload()
     }
@@ -493,9 +482,48 @@ object ReadBook : CoroutineScope by MainScope() {
         book ?: return
         val textChapter = curTextChapter ?: return
         if (textChapter.isCompleted) {
-            ReadAloud.play(appCtx, play, startPos = startPos)
+            // 如果没有指定起始位置，自动计算从当前阅读位置开始
+            val actualStartPos = if (startPos > 0) {
+                startPos
+            } else {
+                // 计算当前阅读位置相对于当前页面的偏移量
+                durChapterPos - textChapter.getReadLength(durPageIndex)
+            }
+            ReadAloud.play(
+                appCtx,
+                play,
+                chapterIndex = durChapterIndex,
+                pageIndex = durPageIndex,
+                startPos = actualStartPos
+            )
         }
     }
+
+    /** Loads a chapter for speech without changing the chapter displayed by the reader. */
+    suspend fun loadReadAloudChapter(index: Int, scope: CoroutineScope): TextChapter? =
+        withContext(IO) {
+            if (index !in 0 until simulatedChapterSize) return@withContext null
+            val book = book ?: return@withContext null
+            val chapter = appDb.bookChapterDao.getChapter(book.bookUrl, index)
+                ?: return@withContext null
+            val content = BookHelp.getContent(book, chapter) ?: downloadAwait(chapter)
+            val processor = ContentProcessor.get(book.name, book.origin)
+            val displayTitle = chapter.getDisplayTitle(
+                processor.getTitleReplaceRules(),
+                book.getUseReplaceRule()
+            )
+            val bookContent = processor.getContent(book, chapter, content, includeTitle = false)
+            ChapterProvider.getTextChapterAsync(
+                scope,
+                book,
+                chapter,
+                displayTitle,
+                bookContent,
+                simulatedChapterSize
+            ).also { textChapter ->
+                textChapter.layoutChannel.receiveAsFlow().collect()
+            }
+        }
 
     /**
      * 当前页数

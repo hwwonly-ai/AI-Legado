@@ -157,6 +157,8 @@
     <string name="resume">Resume</string>
     <string name="set_timer">Timer</string>
     <string name="read_aloud_pause">Speak Paused</string>
+    <string name="return_to_read_aloud">Return to playback</string>
+    <string name="play_current_page">Play current page</string>
     <string name="read_aloud_timer">Speaking(%d min left)</string>
     <string name="playing_timer">Playing(%d min left)</string>
     <string name="ps_hide_navigation_bar">Hide virtual buttons when reading</string>
@@ -578,6 +580,8 @@
     <string name="timer_m">%d min</string>
     <string name="brightness_auto">Auto-Brightness %s</string>
     <string name="read_aloud_by_page">Speak by pages</string>
+    <string name="ssml_tag_parse">阿里云标签解析</string>
+    <string name="ssml_tag_parse_summary">开启后，朗读时自动从最近的 &lt;speak&gt; 标签开始</string>
     <string name="speak_engine">Speak Engine</string>
     <string name="bg_image">Background images</string>
     <string name="bg_color">Background color</string>

@@ -1,6 +1,7 @@
 package io.legado.app.model.localBook
 
 import io.legado.app.constant.AppLog
+import io.legado.app.constant.AppPattern
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
@@ -213,7 +214,7 @@ class TextFile(private var book: Book) {
                         bookWordCount += wordCount
                         //创建当前章节
                         val curChapter = BookChapter()
-                        curChapter.title = matcher.group()
+                        curChapter.title = matcher.group().replace(AppPattern.htmlTagRegex, "").trim()
                         curChapter.start = curOffset + chapterLength
                         curChapter.end = curChapter.start
                         toc.add(curChapter)
@@ -241,7 +242,7 @@ class TextFile(private var book: Book) {
                             }
                             //创建当前章节
                             val curChapter = BookChapter()
-                            curChapter.title = matcher.group()
+                            curChapter.title = matcher.group().replace(AppPattern.htmlTagRegex, "").trim()
                             curChapter.start = curOffset + chapterLength
                             curChapter.end = curChapter.start
                             toc.add(curChapter)
@@ -257,7 +258,7 @@ class TextFile(private var book: Book) {
                                 StringUtils.wordCountFormat(lastChapterWordCount)
                             //创建当前章节
                             val curChapter = BookChapter()
-                            curChapter.title = matcher.group()
+                            curChapter.title = matcher.group().replace(AppPattern.htmlTagRegex, "").trim()
                             curChapter.start = lastChapter.end
                             curChapter.end = curChapter.start
                             toc.add(curChapter)
@@ -276,13 +277,13 @@ class TextFile(private var book: Book) {
                                 StringUtils.wordCountFormat(chapterContent.length)
                             //创建当前章节
                             val curChapter = BookChapter()
-                            curChapter.title = matcher.group()
+                            curChapter.title = matcher.group().replace(AppPattern.htmlTagRegex, "").trim()
                             curChapter.start = lastChapter.end
                             curChapter.end = curChapter.start
                             toc.add(curChapter)
                         } else { //如果章节不存在则创建章节
                             val curChapter = BookChapter()
-                            curChapter.title = matcher.group()
+                            curChapter.title = matcher.group().replace(AppPattern.htmlTagRegex, "").trim()
                             curChapter.start = curOffset
                             curChapter.end = curOffset
                             curChapter.wordCount =

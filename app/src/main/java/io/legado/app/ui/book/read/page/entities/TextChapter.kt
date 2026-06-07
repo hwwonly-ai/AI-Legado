@@ -32,6 +32,9 @@ data class TextChapter(
 
     private val textPages = arrayListOf<TextPage>()
     val pages: List<TextPage> get() = textPages
+    
+    // 用于朗读的原始内容（保留SSML标签）
+    var readAloudContent: String = ""
 
     private var layout: TextChapterLayout? = null
 
@@ -172,7 +175,7 @@ data class TextChapter(
     }
 
     /**
-     * @return 需要朗读的文本列表
+     * @return 需要朗读的文本列表（纯文本，用于段落索引计算）
      * @param pageIndex 起始页
      * @param pageSplit 是否分页
      * @param startPos 从当前页什么地方开始朗读
@@ -183,6 +186,8 @@ data class TextChapter(
         startPos: Int,
         pageEndIndex: Int = pages.lastIndex
     ): String {
+        // getNeedReadAloud 始终返回纯文本，用于段落索引计算
+        // 包含标签的朗读内容通过 readAloudContent 单独获取
         val stringBuilder = StringBuilder()
         if (pages.isNotEmpty()) {
             for (index in pageIndex..min(pageEndIndex, pages.lastIndex)) {
@@ -191,6 +196,25 @@ data class TextChapter(
                     stringBuilder.append("\n")
                 }
             }
+        }
+        // 添加边界检查，防止 startPos 超出字符串长度
+        val length = stringBuilder.length
+        if (startPos >= length) {
+            // 如果当前页面内容不足，尝试读取后续页面
+            val remainingPages = (pageEndIndex + 1)..pages.lastIndex
+            if (remainingPages.any()) {
+                android.util.Log.e("TextChapter", "getNeedReadAloud: startPos($startPos) >= length($length)，尝试读取后续页面")
+                val nextStringBuilder = StringBuilder()
+                for (index in remainingPages) {
+                    nextStringBuilder.append(pages[index].text)
+                    if (pageSplit && !nextStringBuilder.endsWith("\n")) {
+                        nextStringBuilder.append("\n")
+                    }
+                }
+                return nextStringBuilder.toString()
+            }
+            android.util.Log.e("TextChapter", "getNeedReadAloud: startPos($startPos) >= length($length)，已是最后一页，返回空字符串")
+            return ""
         }
         return stringBuilder.substring(startPos).toString()
     }

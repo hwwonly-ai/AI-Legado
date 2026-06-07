@@ -28,6 +28,8 @@ data class HttpTTS(
     @ColumnInfo(defaultValue = "0")
     override var enabledCookieJar: Boolean? = false,
     var loginCheckJs: String? = null,
+    var responseType: String? = null,
+    var audioPath: String? = null,
     @ColumnInfo(defaultValue = "0")
     var lastUpdateTime: Long = System.currentTimeMillis()
 ) : BaseSource {
@@ -56,6 +58,8 @@ data class HttpTTS(
                     loginUi = if (loginUi is List<*>) GSON.toJson(loginUi) else loginUi?.toString(),
                     header = doc.readString("$.header"),
                     loginCheckJs = doc.readString("$.loginCheckJs"),
+                    responseType = doc.readString("$.responseType"),
+                    audioPath = doc.readString("$.audioPath"),
                     lastUpdateTime = doc.readLong("$.lastUpdateTime") ?: System.currentTimeMillis()
                 )
             }

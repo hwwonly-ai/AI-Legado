@@ -88,7 +88,7 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
         if (!requestFocus()) return
         if (contentList.isEmpty()) {
             AppLog.putDebug("朗读列表为空")
-            ReadBook.readAloud()
+            nextChapter()
             return
         }
         super.play()
@@ -203,7 +203,6 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
                     && readAloudNumber + 1 > it.getReadLength(pageIndex + 1)
                 ) {
                     pageIndex++
-                    ReadBook.moveToNextPage()
                 }
                 upTtsProgress(readAloudNumber + 1)
             }
@@ -224,7 +223,6 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
                     && readAloudNumber + start > it.getReadLength(pageIndex + 1)
                 ) {
                     pageIndex++
-                    ReadBook.moveToNextPage()
                     upTtsProgress(readAloudNumber + start)
                 }
             }

@@ -3,6 +3,7 @@ package io.legado.app.help.book
 import android.os.Build
 import io.legado.app.constant.AppLog
 import io.legado.app.constant.AppPattern.spaceRegex
+import io.legado.app.constant.AppPattern.htmlTagRegex
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
@@ -100,6 +101,8 @@ class ContentProcessor private constructor(
         var mContent = content
         var sameTitleRemoved = false
         var effectiveReplaceRules: ArrayList<ReplaceRule>? = null
+        var readAloudText = ""
+        
         if (content != "null") {
             //去除重复标题
             val fileName = chapter.getFileName("nr")
@@ -177,18 +180,43 @@ class ContentProcessor private constructor(
                 }
             }
         }
+        
+        // 当开启阿里云标签解析时，保存原始内容用于朗读
+        if (AppConfig.ssmlTagParse) {
+            readAloudText = mContent
+        }
+        
         if (includeTitle) {
             //重新添加标题
             mContent = chapter.getDisplayTitle(
                 getTitleReplaceRules(),
                 useReplace = useReplace && book.getUseReplaceRule()
             ) + "\n" + mContent
+            // 朗读内容也需要添加标题
+            if (AppConfig.ssmlTagParse && readAloudText.isNotEmpty()) {
+                readAloudText = chapter.getDisplayTitle(
+                    getTitleReplaceRules(),
+                    useReplace = useReplace && book.getUseReplaceRule()
+                ) + "\n" + readAloudText
+            }
         }
+        
         if (isAndroid8) {
             mContent = mContent.replace('\u00A0', ' ')
+            if (AppConfig.ssmlTagParse) {
+                readAloudText = readAloudText.replace('\u00A0', ' ')
+            }
         }
+        
+        // 当开启阿里云标签解析时，过滤显示文本中的所有标签
+        val displayContent = if (AppConfig.ssmlTagParse) {
+            mContent.replace(htmlTagRegex, "")
+        } else {
+            mContent
+        }
+        
         val contents = arrayListOf<String>()
-        mContent.split("\n").forEach { str ->
+        displayContent.split("\n").forEach { str ->
             val paragraph = str.trim {
                 it.code <= 0x20 || it == '　'
             }
@@ -200,7 +228,7 @@ class ContentProcessor private constructor(
                 }
             }
         }
-        return BookContent(sameTitleRemoved, contents, effectiveReplaceRules)
+        return BookContent(sameTitleRemoved, contents, effectiveReplaceRules, readAloudText)
     }
 
 }

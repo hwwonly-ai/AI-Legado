@@ -312,7 +312,9 @@ object ChapterProvider {
             bookChapter.isVip,
             bookChapter.isPay,
             bookContent.effectiveReplaceRules
-        )
+        ).apply {
+            readAloudContent = bookContent.readAloudText
+        }
     }
 
     fun getTextChapterAsync(
@@ -333,6 +335,7 @@ object ChapterProvider {
             bookChapter.isPay,
             bookContent.effectiveReplaceRules
         ).apply {
+            readAloudContent = bookContent.readAloudText
             createLayout(scope, book, bookContent)
         }
 

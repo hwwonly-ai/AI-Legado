@@ -58,6 +58,7 @@ import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.dialogs.selector
 import io.legado.app.lib.theme.accentColor
 import io.legado.app.model.ReadAloud
+import io.legado.app.model.ReadAloudProgress
 import io.legado.app.model.ReadBook
 import io.legado.app.model.analyzeRule.AnalyzeRule
 import io.legado.app.model.analyzeRule.AnalyzeRule.Companion.setChapter
@@ -237,6 +238,9 @@ class ReadBookActivity : BaseReadBookActivity(),
     private val prevPageDebounce by lazy { Debounce { keyPage(PageDirection.PREV) } }
     private var bookChanged = false
     private var pageChanged = false
+    private var isFollowingReadAloud = true
+    private var navigatingToReadAloud = false
+    private var lastAloudPageIndex = -1
     private val handler by lazy { buildMainHandler() }
     private val screenOffRunnable by lazy { Runnable { keepScreenOn(false) } }
     private val executor = ReadBook.executor
@@ -1051,9 +1055,16 @@ class ReadBookActivity : BaseReadBookActivity(),
      */
     override fun pageChanged() {
         pageChanged = true
+        val readAloudProgress = BaseReadAloudService.service?.currentProgress()
+        if (BaseReadAloudService.isRun && !navigatingToReadAloud) {
+            isFollowingReadAloud = false
+            ReadBook.curTextChapter?.pages?.forEach { it.removePageAloudSpan() }
+            lastAloudPageIndex = -1
+        }
         binding.readView.onPageChange()
         handler.post {
             upSeekBarProgress()
+            readAloudProgress?.let { showReadAloudProgress(it, force = true) }
         }
         executor.execute {
             startBackupJob()
@@ -1327,6 +1338,7 @@ class ReadBookActivity : BaseReadBookActivity(),
         autoPageStop()
         when {
             !BaseReadAloudService.isRun -> {
+                isFollowingReadAloud = true
                 ReadAloud.upReadAloudClass()
                 val scrollPageAnim = ReadBook.pageAnim() == 3
                 if (scrollPageAnim) {
@@ -1350,30 +1362,33 @@ class ReadBookActivity : BaseReadBookActivity(),
             }
 
             BaseReadAloudService.pause -> {
-                val scrollPageAnim = ReadBook.pageAnim() == 3
-                if (scrollPageAnim && pageChanged) {
-                    pageChanged = false
-                    val pos = binding.readView.getReadAloudPos()
-                    if (pos != null) {
-                        val (index, line) = pos
-                        if (ReadBook.durChapterIndex != index) {
-                            ReadBook.openChapter(index, line.chapterPosition, false) {
-                                ReadBook.readAloud(startPos = line.pagePosition)
-                            }
-                        } else {
-                            ReadBook.durChapterPos = line.chapterPosition
-                            ReadBook.readAloud(startPos = line.pagePosition)
-                        }
-                    } else {
-                        ReadBook.readAloud()
-                    }
-                } else {
-                    ReadAloud.resume(this)
-                }
+                ReadAloud.resume(this)
             }
 
             else -> ReadAloud.pause(this)
         }
+    }
+
+    override fun returnToReadAloud() {
+        val progress = BaseReadAloudService.service?.currentProgress() ?: return
+        isFollowingReadAloud = true
+        lastAloudPageIndex = -1
+        ReadBook.curTextChapter?.pages?.forEach { it.removePageAloudSpan() }
+        showReadAloudProgress(progress, force = true)
+    }
+
+    override fun playCurrentPage() {
+        val textChapter = ReadBook.curTextChapter ?: return
+        val pageIndex = ReadBook.durPageIndex.coerceIn(0, textChapter.lastIndex)
+        isFollowingReadAloud = true
+        pageChanged = false
+        ReadAloud.play(
+            this,
+            play = true,
+            chapterIndex = ReadBook.durChapterIndex,
+            pageIndex = pageIndex,
+            startPos = 0
+        )
     }
 
     override fun showHelp() {
@@ -1666,18 +1681,9 @@ class ReadBookActivity : BaseReadBookActivity(),
                 }
             }
         }
-        observeEventSticky<Int>(EventBus.TTS_PROGRESS) { chapterStart ->
-            lifecycleScope.launch(IO) {
-                if (BaseReadAloudService.isPlay()) {
-                    ReadBook.curTextChapter?.let { textChapter ->
-                        ReadBook.durChapterPos = chapterStart
-                        val pageIndex = ReadBook.durPageIndex
-                        val aloudSpanStart = chapterStart - textChapter.getReadLength(pageIndex)
-                        textChapter.getPage(pageIndex)
-                            ?.upPageAloudSpan(aloudSpanStart)
-                        upContent()
-                    }
-                }
+        observeEventSticky<ReadAloudProgress>(EventBus.TTS_PROGRESS) { progress ->
+            if (BaseReadAloudService.isPlay()) {
+                showReadAloudProgress(progress)
             }
         }
         observeEvent<Boolean>(PreferKey.keepLight) {
@@ -1698,6 +1704,45 @@ class ReadBookActivity : BaseReadBookActivity(),
         observeEvent<Boolean>(EventBus.UP_SEEK_BAR) {
             readMenu.upSeekBar()
         }
+    }
+
+    private fun showReadAloudProgress(progress: ReadAloudProgress, force: Boolean = false) {
+        if (navigatingToReadAloud && !force) return
+        if (isFollowingReadAloud && progress.chapterIndex != ReadBook.durChapterIndex) {
+            navigatingToReadAloud = true
+            ReadBook.openChapter(progress.chapterIndex, progress.chapterPos, false) {
+                navigatingToReadAloud = false
+                lastAloudPageIndex = -1
+                handler.post { showReadAloudProgress(progress, force = true) }
+            }
+            return
+        }
+        val textChapter = ReadBook.curTextChapter ?: return
+        if (progress.chapterIndex != ReadBook.durChapterIndex) return
+        val targetPageIndex = progress.pageIndex.coerceIn(0, textChapter.lastIndex)
+        if (isFollowingReadAloud && targetPageIndex != ReadBook.durPageIndex) {
+            navigatingToReadAloud = true
+            ReadBook.skipToPage(targetPageIndex) {
+                navigatingToReadAloud = false
+                lastAloudPageIndex = -1
+                handler.post { showReadAloudProgress(progress, force = true) }
+            }
+            return
+        }
+        if (!isFollowingReadAloud && targetPageIndex != ReadBook.durPageIndex) return
+
+        if (isFollowingReadAloud) {
+            ReadBook.durChapterPos = progress.chapterPos
+        }
+        if (lastAloudPageIndex != targetPageIndex) {
+            textChapter.getPage(lastAloudPageIndex)?.removePageAloudSpan()
+            lastAloudPageIndex = targetPageIndex
+        }
+        val page = textChapter.getPage(targetPageIndex) ?: return
+        val aloudSpanStart = (progress.chapterPos - textChapter.getReadLength(targetPageIndex))
+            .coerceIn(0, page.charSize - 1)
+        page.upPageAloudSpan(aloudSpanStart)
+        binding.readView.upContent(resetPageOffset = false)
     }
 
     private fun upScreenTimeOut() {

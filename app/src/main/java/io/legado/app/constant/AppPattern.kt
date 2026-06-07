@@ -55,4 +55,14 @@ object AppPattern {
     val regexCharRegex = "[{}()\\[\\].+*?^$\\\\|]".toRegex()
 
     val LFRegex = "\n".toRegex()
+
+    /**
+     * SSML标签正则，用于过滤显示文本中的SSML标签
+     */
+    val ssmlTagRegex = Regex("<[/]?(speak|emotion|break|prosody|voice|say-as|phoneme|sub|emphasis|lang|p|s|w|mark|audio|desc|metadata|lexicon|voice)[^>]*>")
+    
+    /**
+     * 通用HTML标签正则，用于过滤所有标签
+     */
+    val htmlTagRegex = Regex("<[^>]+>")
 }

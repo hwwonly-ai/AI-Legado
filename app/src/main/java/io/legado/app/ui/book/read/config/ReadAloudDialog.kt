@@ -17,7 +17,6 @@ import io.legado.app.lib.dialogs.selector
 import io.legado.app.lib.theme.bottomBackground
 import io.legado.app.lib.theme.getPrimaryTextColor
 import io.legado.app.model.ReadAloud
-import io.legado.app.model.ReadBook
 import io.legado.app.service.BaseReadAloudService
 import io.legado.app.ui.book.read.ReadBookActivity
 import io.legado.app.ui.widget.seekbar.SeekBarChangeListener
@@ -61,6 +60,8 @@ class ReadAloudDialog : BaseDialogFragment(R.layout.dialog_read_aloud) {
             rootView.setBackgroundColor(bg)
             tvPre.setTextColor(textColor)
             tvNext.setTextColor(textColor)
+            tvReturnToPlay.setTextColor(textColor)
+            tvPlayCurrentPage.setTextColor(textColor)
             ivPlayPrev.setColorFilter(textColor)
             ivPlayPause.setColorFilter(textColor)
             ivPlayNext.setColorFilter(textColor)
@@ -101,8 +102,10 @@ class ReadAloudDialog : BaseDialogFragment(R.layout.dialog_read_aloud) {
         llSetting.setOnClickListener {
             ReadAloudConfigDialog().show(childFragmentManager, "readAloudConfigDialog")
         }
-        tvPre.setOnClickListener { ReadBook.moveToPrevChapter(upContent = true, toLast = false) }
-        tvNext.setOnClickListener { ReadBook.moveToNextChapter(true) }
+        tvPre.setOnClickListener { ReadAloud.prevChapter(requireContext()) }
+        tvNext.setOnClickListener { ReadAloud.nextChapter(requireContext()) }
+        tvReturnToPlay.setOnClickListener { callBack?.returnToReadAloud() }
+        tvPlayCurrentPage.setOnClickListener { callBack?.playCurrentPage() }
         ivStop.setOnClickListener {
             ReadAloud.stop(requireContext())
             dismissAllowingStateLoss()
@@ -227,6 +230,8 @@ class ReadAloudDialog : BaseDialogFragment(R.layout.dialog_read_aloud) {
         fun showMenuBar()
         fun openChapterList()
         fun onClickReadAloud()
+        fun returnToReadAloud()
+        fun playCurrentPage()
         fun finish()
     }
 }

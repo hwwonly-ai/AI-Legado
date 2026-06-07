@@ -1,0 +1,3 @@
+<speak voice="zhifeng_emo">
+<emotion category="happy" intensity="1.0">你好世界</emotion>
+</speak>

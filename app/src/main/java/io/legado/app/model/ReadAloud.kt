@@ -46,12 +46,14 @@ object ReadAloud {
     fun play(
         context: Context,
         play: Boolean = true,
+        chapterIndex: Int = ReadBook.durChapterIndex,
         pageIndex: Int = ReadBook.durPageIndex,
         startPos: Int = 0
     ) {
         val intent = Intent(context, aloudClass)
         intent.action = IntentAction.play
         intent.putExtra("play", play)
+        intent.putExtra("chapterIndex", chapterIndex)
         intent.putExtra("pageIndex", pageIndex)
         intent.putExtra("startPos", startPos)
         LogUtils.d("ReadAloud", intent.toString())
@@ -66,11 +68,13 @@ object ReadAloud {
 
     fun playByEventBus(
         play: Boolean = true,
+        chapterIndex: Int = ReadBook.durChapterIndex,
         pageIndex: Int = ReadBook.durPageIndex,
         startPos: Int = 0
     ) {
         val bundle = Bundle().apply {
             putBoolean("play", play)
+            putInt("chapterIndex", chapterIndex)
             putInt("pageIndex", pageIndex)
             putInt("startPos", startPos)
         }
@@ -113,6 +117,22 @@ object ReadAloud {
         if (BaseReadAloudService.isRun) {
             val intent = Intent(context, aloudClass)
             intent.action = IntentAction.nextParagraph
+            context.startForegroundServiceCompat(intent)
+        }
+    }
+
+    fun prevChapter(context: Context) {
+        if (BaseReadAloudService.isRun) {
+            val intent = Intent(context, aloudClass)
+            intent.action = IntentAction.prev
+            context.startForegroundServiceCompat(intent)
+        }
+    }
+
+    fun nextChapter(context: Context) {
+        if (BaseReadAloudService.isRun) {
+            val intent = Intent(context, aloudClass)
+            intent.action = IntentAction.next
             context.startForegroundServiceCompat(intent)
         }
     }

@@ -26,5 +26,55 @@
       }
     ],
     "loginCheckJs": "var response = result;\nif (response.headers().get(\"Content-Type\") != \"audio/mpeg\") {\n    var body = JSON.parse(response.body().string())\n    if (body.status == 40000001) {\n        source.login()\n        java.getHeaderMap().putAll(source.getHeaderMap(true))\n        response = java.getResponse()\n    } else {\n        throw body.message\n    }\n}\nresponse"
+  },
+  {
+    "id": -30,
+    "name": "3.阿里云语音(SSML)V1.0",
+    "url": "https://nls-gateway.cn-shanghai.aliyuncs.com/stream/v1/tts,{\"method\": \"POST\",\"body\": {\"appkey\":\"pE3O7UT1W1mHCqHq\",\"text\":\"{{speakText}}\",\"format\":\"mp3\",\"volume\":100,\"speech_rate\":{{String((speakSpeed) * 20 - 400)}},\"voice_name\":\"zhifeng_emo\",\"ssml\":true}}",
+    "contentType": "audio/mpeg",
+    "loginUrl": "function login(){var accessKeyId='LTAI5t6c76sJ1APVcbgTBFrP';var accessKeySecret='HGsNUjSWnzlRm89GTOP9rIgWVVYROZ';var timestamp=java.timeFormatUTC(new Date().getTime(), \"yyyy-MM-dd'T'HH:mm:ss'Z'\", 0);\nvar aly=new JavaImporter(Packages.javax.crypto.Mac,Packages.javax.crypto.spec.SecretKeySpec,Packages.javax.xml.bind.DatatypeConverter,Packages.java.net.URLEncoder,Packages.java.lang.String,Packages.android.util.Base64);\nwith(aly){\n    function percentEncode(value){\n        return URLEncoder.encode(value,\"UTF-8\").replace(\"+\",\"%20\").replace(\"*\",\"%2A\").replace(\"%7E\",\"~\")\n    }\n    function sign(stringToSign,accessKeySecret){\n        var mac=Mac.getInstance('HmacSHA1');\n        mac.init(new SecretKeySpec(String(accessKeySecret+'&').getBytes(\"UTF-8\"),\"HmacSHA1\"));\n        var signData=mac.doFinal(String(stringToSign).getBytes(\"UTF-8\"));\n        var signBase64=Base64.encodeToString(signData,Base64.NO_WRAP);\n        var signUrlEncode=percentEncode(signBase64);\n        return signUrlEncode;\n    }\n}\nvar query='AccessKeyId='+accessKeyId+'&Action=CreateToken&Format=JSON&RegionId=cn-shanghai&SignatureMethod=HMAC-SHA1&SignatureNonce='+java.randomUUID()+'&SignatureVersion=1.0&Timestamp='+percentEncode(timestamp)+'&Version=2019-02-28';\nvar signStr=sign('GET&'+percentEncode('/')+'&'+percentEncode(query),accessKeySecret);\nvar queryStringWithSign=\"Signature=\"+signStr+\"&\"+query;\nvar body=java.ajax('http://nls-meta.cn-shanghai.aliyuncs.com/?'+queryStringWithSign);\nvar res=JSON.parse(body);\nif(res.Message)throw new Error(res.Message);\nvar header={\"X-NLS-Token\":res.Token.Id};\nsource.putLoginHeader(JSON.stringify(header));}",
+    "loginUi": [],
+    "loginCheckJs": "var response=result;\nif(response.headers().get(\"Content-Type\")!=\"audio/mpeg\"){\n    var body=JSON.parse(response.body().string());\n    if(body.status==40000001){\n        source.login();\n        java.getHeaderMap().putAll(source.getHeaderMap(true));\n        response=java.getResponse();\n    }else throw body.message;\n}\nresponse;"
+  },
+  {
+    "id": -31,
+    "name": "4.阿里云语音(SSML)V2.0",
+    "url": "{{\nvar text = speakText.trim().replace(/\\r\\n|\\r|\\n/g, '');\nvar hasSSMLTag = text.indexOf('<speak') >= 0 || text.indexOf('<emotion') >= 0 || text.indexOf('<break') >= 0 || text.indexOf('<prosody') >= 0;\nvar payload = {appkey: 'pE3O7UT1W1mHCqHq', text: text, format: 'mp3', volume: 100, speech_rate: speakSpeed * 20 - 400, voice_name: 'zhifeng_emo', ssml: hasSSMLTag};\nvar payloadStr = JSON.stringify(payload);\n'https://nls-gateway.cn-shanghai.aliyuncs.com/stream/v1/tts,{\"method\": \"POST\",\"body\": ' + payloadStr + '}';\n}}",
+    "contentType": "audio/mpeg",
+    "loginUrl": "function login(){var accessKeyId='LTAI5t6c76sJ1APVcbgTBFrP';var accessKeySecret='HGsNUjSWnzlRm89GTOP9rIgWVVYROZ';var timestamp=java.timeFormatUTC(new Date().getTime(), \"yyyy-MM-dd'T'HH:mm:ss'Z'\", 0);\nvar aly=new JavaImporter(Packages.javax.crypto.Mac,Packages.javax.crypto.spec.SecretKeySpec,Packages.javax.xml.bind.DatatypeConverter,Packages.java.net.URLEncoder,Packages.java.lang.String,Packages.android.util.Base64);\nwith(aly){\n    function percentEncode(value){\n        return URLEncoder.encode(value,\"UTF-8\").replace(\"+\",\"%20\").replace(\"*\",\"%2A\").replace(\"%7E\",\"~\")\n    }\n    function sign(stringToSign,accessKeySecret){\n        var mac=Mac.getInstance('HmacSHA1');\n        mac.init(new SecretKeySpec(String(accessKeySecret+'&').getBytes(\"UTF-8\"),\"HmacSHA1\"));\n        var signData=mac.doFinal(String(stringToSign).getBytes(\"UTF-8\"));\n        var signBase64=Base64.encodeToString(signData,Base64.NO_WRAP);\n        var signUrlEncode=percentEncode(signBase64);\n        return signUrlEncode;\n    }\n}\nvar query='AccessKeyId='+accessKeyId+'&Action=CreateToken&Format=JSON&RegionId=cn-shanghai&SignatureMethod=HMAC-SHA1&SignatureNonce='+java.randomUUID()+'&SignatureVersion=1.0&Timestamp='+percentEncode(timestamp)+'&Version=2019-02-28';\nvar signStr=sign('GET&'+percentEncode('/')+'&'+percentEncode(query),accessKeySecret);\nvar queryStringWithSign=\"Signature=\"+signStr+\"&\"+query;\nvar body=java.ajax('http://nls-meta.cn-shanghai.aliyuncs.com/?'+queryStringWithSign);\nvar res=JSON.parse(body);\nif(res.Message)throw new Error(res.Message);\nvar header={\"X-NLS-Token\":res.Token.Id};\nsource.putLoginHeader(JSON.stringify(header));\njava.put('ssml_token', res.Token.Id);}",
+    "loginUi": [],
+    "loginCheckJs": "var response=result;\nvar contentType = response.headers().get(\"Content-Type\");\njava.put('ssml_response_content_type', contentType);\nif(contentType!=\"audio/mpeg\"){\n    var body=response.body().string();\n    java.put('ssml_response_error', body);\n    if(body.indexOf('40000001')>=0){\n        source.login();\n        java.getHeaderMap().putAll(source.getHeaderMap(true));\n        response=java.getResponse();\n    }else throw 'SSML Error: ' + body;\n}\nresponse;"
+  },
+  {
+    "id": -32,
+    "name": "5.阿里云语音(SSML)V3.0-测试版",
+    "url": "{{\nvar text = String(speakText || '').trim().replace(/\\r\\n|\\r|\\n/g, '');\nvar payload = {appkey: 'pE3O7UT1W1mHCqHq', text: text, format: 'mp3', volume: 100, speech_rate: speakSpeed * 20 - 400, voice_name: 'zhifeng_emo', ssml: true};\nvar payloadStr = JSON.stringify(payload);\n'https://nls-gateway.cn-shanghai.aliyuncs.com/stream/v1/tts,{\"method\": \"POST\",\"body\": ' + payloadStr + '}';\n}}",
+    "contentType": "audio/mpeg",
+    "loginUrl": "function login(){var accessKeyId='LTAI5t6c76sJ1APVcbgTBFrP';var accessKeySecret='HGsNUjSWnzlRm89GTOP9rIgWVVYROZ';var timestamp=java.timeFormatUTC(new Date().getTime(), \"yyyy-MM-dd'T'HH:mm:ss'Z'\", 0);\nvar aly=new JavaImporter(Packages.javax.crypto.Mac,Packages.javax.crypto.spec.SecretKeySpec,Packages.javax.xml.bind.DatatypeConverter,Packages.java.net.URLEncoder,Packages.java.lang.String,Packages.android.util.Base64);\nwith(aly){\n    function percentEncode(value){\n        return URLEncoder.encode(value,\"UTF-8\").replace(\"+\",\"%20\").replace(\"*\",\"%2A\").replace(\"%7E\",\"~\")\n    }\n    function sign(stringToSign,accessKeySecret){\n        var mac=Mac.getInstance('HmacSHA1');\n        mac.init(new SecretKeySpec(String(accessKeySecret+'&').getBytes(\"UTF-8\"),\"HmacSHA1\"));\n        var signData=mac.doFinal(String(stringToSign).getBytes(\"UTF-8\"));\n        var signBase64=Base64.encodeToString(signData,Base64.NO_WRAP);\n        var signUrlEncode=percentEncode(signBase64);\n        return signUrlEncode;\n    }\n}\nvar query='AccessKeyId='+accessKeyId+'&Action=CreateToken&Format=JSON&RegionId=cn-shanghai&SignatureMethod=HMAC-SHA1&SignatureNonce='+java.randomUUID()+'&SignatureVersion=1.0&Timestamp='+percentEncode(timestamp)+'&Version=2019-02-28';\nvar signStr=sign('GET&'+percentEncode('/')+'&'+percentEncode(query),accessKeySecret);\nvar queryStringWithSign=\"Signature=\"+signStr+\"&\"+query;\nvar body=java.ajax('http://nls-meta.cn-shanghai.aliyuncs.com/?'+queryStringWithSign);\nvar res=JSON.parse(body);\nif(res.Message)throw new Error(res.Message);\nvar header={\"X-NLS-Token\":res.Token.Id};\nsource.putLoginHeader(JSON.stringify(header));}",
+    "loginUi": [],
+    "loginCheckJs": "var response=result;\nif(response.headers().get(\"Content-Type\")!=\"audio/mpeg\"){\n    var bodyText=response.body().string();\n    var body;\n    try{body=JSON.parse(bodyText);}catch(e){body={message:bodyText,status:0};}\n    if(body.status==40000001){\n        source.login();\n        java.getHeaderMap().putAll(source.getHeaderMap(true));\n        response=java.getResponse();\n    }else throw body.message;\n}\nresponse;"
+  },
+  {
+    "id": -33,
+    "name": "6.MiniMax单音色",
+    "url": "{{\nvar loginInfo = source.getLoginInfoMap() || new java.util.HashMap();\nvar text = String(speakText || '').trim();\nvar voiceId = String(loginInfo.get('voiceId') || 'male-qn-qingse');\nvar model = String(loginInfo.get('model') || 'speech-02-turbo');\nvar payload = {\n    model: model,\n    text: text,\n    stream: false,\n    voice_setting: {\n        voice_id: voiceId,\n        speed: Math.max(0.5, Math.min(2.0, (speakSpeed + 5) / 10)),\n        vol: 1,\n        pitch: 0\n    },\n    audio_setting: {\n        sample_rate: 32000,\n        bitrate: 128000,\n        format: 'mp3',\n        channel: 1\n    }\n};\n'https://api.minimax.chat/v1/t2a_v2,{\"method\":\"POST\",\"body\":' + JSON.stringify(payload) + '}';\n}}",
+    "contentType": "application/json",
+    "responseType": "jsonHex",
+    "audioPath": "$.data.audio",
+    "header": "@js:\nvar loginInfo = source.getLoginInfoMap() || new java.util.HashMap();\nJSON.stringify({\n    'Authorization': 'Bearer ' + String(loginInfo.get('apiKey') || ''),\n    'Content-Type': 'application/json'\n});",
+    "loginUi": [
+      {
+        "name": "apiKey",
+        "type": "text"
+      },
+      {
+        "name": "voiceId",
+        "type": "text"
+      },
+      {
+        "name": "model",
+        "type": "text"
+      }
+    ]
   }
 ]

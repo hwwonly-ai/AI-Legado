@@ -151,6 +151,8 @@
     <string name="resume">繼續</string>
     <string name="set_timer">定時</string>
     <string name="read_aloud_pause">朗讀暫停</string>
+    <string name="return_to_read_aloud">返回播放</string>
+    <string name="play_current_page">播放當頁</string>
     <string name="read_aloud_timer">正在朗讀(還剩%d分鐘)</string>
     <string name="playing_timer">正在播放(還剩%d分鐘)</string>
     <string name="ps_hide_navigation_bar">閱讀介面隱藏虛擬按鍵</string>

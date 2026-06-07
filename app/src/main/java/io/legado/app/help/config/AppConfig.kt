@@ -497,6 +497,8 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
 
     val streamReadAloudAudio get() = appCtx.getPrefBoolean(PreferKey.streamReadAloudAudio, false)
 
+    val ssmlTagParse get() = appCtx.getPrefBoolean(PreferKey.ssmlTagParse, false)
+
     val doublePageHorizontal: String?
         get() = appCtx.getPrefString(PreferKey.doublePageHorizontal)
 
@@ -739,4 +741,3 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
         }
 
 }
-
