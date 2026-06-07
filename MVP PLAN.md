@@ -160,6 +160,31 @@
 - 识别失败时回退旁白。
 - 不影响光标定位和章节跳转。
 
+已完成实现记录：
+- 当前分支：`mvp3`。
+- 已新增规则分段器：
+  - 新增 `ReadAloudRuleSegmenter`，输入普通纯文本和起始纯文本位置，输出 MVP2 的 `ReadAloudSegment`。
+  - `speaker` 固定为 `narrator` 或 `dialog`。
+  - 默认旁白音色 `zhifeng_emo`，默认对白音色 `zhixiaoxia`。
+  - 默认情绪 `neutral`，输出 `<emotion category="neutral" intensity="1.0">`。
+- 当前规则行为：
+  - 识别中文引号 `“...”`、`‘...’`、`「...」`、`『...』` 为对白。
+  - 引号外文本作为旁白。
+  - 遇到未闭合引号或异常嵌套引号时，整段回退为旁白 segment。
+  - 不识别具体人物，不维护角色音色表。
+- `HttpReadAloudService` 当前行为：
+  - 阿里云 HTTP TTS + 普通纯文本 + 无已有 SSML 时，自动生成规则 SSML。
+  - 文件播放和流式播放都会将规则 segments 的 `ssml` 作为播放列表，并复用 `startPosition/plainLength` 做进度映射。
+  - 下一章预下载也使用同一规则生成 SSML，保证音频缓存 key 与正式播放的最终 TTS 内容一致。
+  - 已有 SSML 章节继续走 MVP1/MVP2 的已有 SSML 解析和映射链路，不做二次规则分段。
+  - 非阿里云 HTTP TTS 和系统 TTS 不启用规则 SSML。
+- 已验证：
+  - `git diff --check` 通过。
+  - `kotlinc ReadAloudSegment.kt ReadAloudRuleSegmenter.kt` 独立语法编译通过。
+- 未完成/注意：
+  - 本地 Gradle 编译仍未成功执行：默认 `~/.gradle` wrapper 缓存锁受权限限制且提权审批超时；改用工作区 `.gradle` 会触发 Gradle 9.4.1 下载，但当前环境无法解析 `services.gradle.org`。
+  - MVP3 只完成规则旁白/对白 SSML 生成，不包含剧本缓存、实时预取队列、AI 识别或用户可配置音色。
+
 ## MVP 4：SSML 剧本缓存与音频缓存复用
 
 目标：让已生成的 segment/SSML 可复用，返回章节不重复处理。

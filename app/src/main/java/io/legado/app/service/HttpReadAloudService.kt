@@ -38,6 +38,7 @@ import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.help.exoplayer.InputStreamDataSource
 import io.legado.app.help.http.okHttpClient
 import io.legado.app.model.ReadAloud
+import io.legado.app.model.ReadAloudRuleSegmenter
 import io.legado.app.model.ReadBook
 import io.legado.app.model.analyzeRule.AnalyzeUrl
 import io.legado.app.ui.book.read.page.entities.TextChapter
@@ -226,6 +227,14 @@ private fun shouldUseAliyunPlainTextPreprocess(
     contentList: List<String>
 ): Boolean {
     return httpTts.isAliyunTTS() && !shouldUseExistingSSML(text, contentList)
+}
+
+private fun shouldUseRuleGeneratedSSML(
+    httpTts: HttpTTS,
+    useExistingSSML: Boolean,
+    usePlainTextPreprocess: Boolean
+): Boolean {
+    return httpTts.isAliyunTTS() && !useExistingSSML && usePlainTextPreprocess
 }
 
 private fun escapeSSMLText(text: String): String {
@@ -441,6 +450,11 @@ class HttpReadAloudService : BaseReadAloudService(),
                     chapterContent,
                     contentList
                 )
+                val useRuleSSML = shouldUseRuleGeneratedSSML(
+                    httpTts,
+                    useExistingSSML,
+                    usePlainTextPreprocess
+                )
                 logModeDecision(
                     mode = "file",
                     httpTts = httpTts,
@@ -464,27 +478,31 @@ class HttpReadAloudService : BaseReadAloudService(),
                 )
                 
                 // 获取处理后的内容列表（包含SSML标签或普通文本）
-                val processContentList = if (useExistingSSML) {
-                    mergeSSMLParagraphs(contentList)
-                } else {
-                    contentList
+                val processContentList = when {
+                    useExistingSSML -> mergeSSMLParagraphs(contentList)
+                    useRuleSSML -> buildRuleSSMLContentList("file")
+                    else -> contentList
                 }
                 
-                if (useExistingSSML) {
+                if (useExistingSSML || useRuleSSML) {
                     contentList = processContentList
-                    syncSSMLContentParagraphOffset()
+                    if (useExistingSSML) {
+                        syncSSMLContentParagraphOffset()
+                    }
                     paragraphStartPos = 0
-                    rebuildContentPositionMap()
+                    if (useExistingSSML) {
+                        rebuildContentPositionMap()
+                    }
                 }
 
                 // 计算起始段落索引
-                val startIndex = if (useExistingSSML && processContentList.isNotEmpty()) {
+                val startIndex = if ((useExistingSSML || useRuleSSML) && processContentList.isNotEmpty()) {
                     findSegmentStartIndex("file")
                 } else {
                     nowSpeak.coerceAtLeast(0)
                 }.let { safeStartIndex(it, processContentList.size, "file") }
 
-                if (useExistingSSML) {
+                if (useExistingSSML || useRuleSSML) {
                     nowSpeak = startIndex
                     readAloudNumber = contentStartPosition(startIndex) ?: readAloudNumber
                     logInfo("sync mode=file segment=$startIndex pos=$readAloudNumber")
@@ -508,7 +526,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                     val speakText = content.replace(AppPattern.notReadAloudRegex, "")
                     
                     val finalSpeakText = when {
-                        useExistingSSML -> normalizeAliyunSSML(speakText)
+                        useExistingSSML || useRuleSSML -> normalizeAliyunSSML(speakText)
                         usePlainTextPreprocess -> preprocessAliyunPlainText(speakText)
                         else -> speakText
                     }
@@ -525,7 +543,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                             fileName = fileName,
                             speakText = finalSpeakText,
                             originalContent = content,
-                            useSSMLRequest = useExistingSSML || usePlainTextPreprocess
+                            useSSMLRequest = useExistingSSML || useRuleSSML || usePlainTextPreprocess
                         )
                     }
                     val file = getSpeakFileAsMd5(fileName)
@@ -759,6 +777,55 @@ class HttpReadAloudService : BaseReadAloudService(),
         return result
     }
 
+    private fun buildRuleSSMLContentList(mode: String): List<String> {
+        val sourceList = contentList
+        val generatedSegments = mutableListOf<io.legado.app.model.ReadAloudSegment>()
+        var runningStart = readAloudNumber
+        sourceList.forEachIndexed { index, content ->
+            val startPosition = contentStartPosition(index) ?: runningStart
+            val plainText = stripReadAloudTags(content)
+            if (plainText.isNotBlank()) {
+                generatedSegments.addAll(
+                    ReadAloudRuleSegmenter.segment(
+                        text = plainText,
+                        startPosition = startPosition
+                    )
+                )
+            }
+            runningStart = startPosition + plainText.length + 1
+        }
+        if (generatedSegments.isEmpty()) {
+            return sourceList
+        }
+        readAloudSegments = generatedSegments
+        contentStartPositions = generatedSegments.map { it.startPosition }
+        contentPlainLengths = generatedSegments.map { it.plainLength }
+        logInfo(
+            "rule mode=$mode sourceSize=${sourceList.size} segments=${generatedSegments.size} " +
+                    "dialog=${generatedSegments.count { it.speaker == "dialog" }} " +
+                    "narrator=${generatedSegments.count { it.speaker == "narrator" }}"
+        )
+        return generatedSegments.map { it.ssml }
+    }
+
+    private fun buildRuleSSMLContentList(sourceList: List<String>, mode: String): List<String> {
+        val generated = mutableListOf<String>()
+        var runningStart = 0
+        sourceList.forEach { content ->
+            val plainText = stripReadAloudTags(content)
+            if (plainText.isNotBlank()) {
+                val segments = ReadAloudRuleSegmenter.segment(
+                    text = plainText,
+                    startPosition = runningStart
+                )
+                generated.addAll(segments.map { it.ssml })
+            }
+            runningStart += plainText.length + 1
+        }
+        logInfo("rule mode=$mode sourceSize=${sourceList.size} segments=${generated.size}")
+        return generated.ifEmpty { sourceList }
+    }
+
     private fun syncSSMLContentParagraphOffset() {
         val chapter = textChapter ?: return
         contentParagraphOffset = if (chapter.readAloudContent.isNotEmpty()) {
@@ -847,8 +914,18 @@ class HttpReadAloudService : BaseReadAloudService(),
         val textChapter = ReadBook.nextTextChapter ?: return
         val chapterContent = textChapter.readAloudContent.ifBlank { textChapter.getContent() }
         val chapterHasSSML = shouldUseExistingSSML(chapterContent)
-        val contentList = getPreDownloadContentList(textChapter, chapterHasSSML)
+        val preDownloadContentList = getPreDownloadContentList(textChapter, chapterHasSSML)
             .take(PRE_DOWNLOAD_SEGMENT_LIMIT)
+        val useRuleSSML = shouldUseRuleGeneratedSSML(
+            httpTts,
+            chapterHasSSML,
+            shouldUseAliyunPlainTextPreprocess(httpTts, chapterContent, preDownloadContentList)
+        )
+        val contentList = if (useRuleSSML) {
+            buildRuleSSMLContentList(preDownloadContentList, "predownload:${textChapter.title}")
+        } else {
+            preDownloadContentList
+        }
         val useExistingSSML = shouldUseExistingSSML(chapterContent, contentList)
         val usePlainTextPreprocess = shouldUseAliyunPlainTextPreprocess(
             httpTts,
@@ -859,7 +936,7 @@ class HttpReadAloudService : BaseReadAloudService(),
             currentCoroutineContext().ensureActive()
             val speakText = content.replace(AppPattern.notReadAloudRegex, "")
             val finalSpeakText = when {
-                useExistingSSML -> normalizeAliyunSSML(speakText)
+                useExistingSSML || useRuleSSML -> normalizeAliyunSSML(speakText)
                 usePlainTextPreprocess -> preprocessAliyunPlainText(speakText)
                 else -> speakText
             }
@@ -872,7 +949,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                     fileName = fileName,
                     speakText = finalSpeakText,
                     originalContent = content,
-                    useSSMLRequest = useExistingSSML || usePlainTextPreprocess
+                    useSSMLRequest = useExistingSSML || useRuleSSML || usePlainTextPreprocess
                 )
             }
         }
@@ -912,6 +989,11 @@ class HttpReadAloudService : BaseReadAloudService(),
                     chapterContent,
                     contentList
                 )
+                val useRuleSSML = shouldUseRuleGeneratedSSML(
+                    httpTts,
+                    useExistingSSML,
+                    usePlainTextPreprocess
+                )
                 logModeDecision(
                     mode = "stream",
                     httpTts = httpTts,
@@ -942,27 +1024,31 @@ class HttpReadAloudService : BaseReadAloudService(),
                 }
                 
                 // 获取处理后的内容列表（包含SSML标签或普通文本）
-                val processContentList = if (useExistingSSML) {
-                    mergeSSMLParagraphs(contentList)
-                } else {
-                    contentList
+                val processContentList = when {
+                    useExistingSSML -> mergeSSMLParagraphs(contentList)
+                    useRuleSSML -> buildRuleSSMLContentList("stream")
+                    else -> contentList
                 }
                 
-                if (useExistingSSML) {
+                if (useExistingSSML || useRuleSSML) {
                     contentList = processContentList
-                    syncSSMLContentParagraphOffset()
+                    if (useExistingSSML) {
+                        syncSSMLContentParagraphOffset()
+                    }
                     paragraphStartPos = 0
-                    rebuildContentPositionMap()
+                    if (useExistingSSML) {
+                        rebuildContentPositionMap()
+                    }
                 }
 
                 // 计算起始段落索引
-                val startIndex = if (useExistingSSML && processContentList.isNotEmpty()) {
+                val startIndex = if ((useExistingSSML || useRuleSSML) && processContentList.isNotEmpty()) {
                     findSegmentStartIndex("stream")
                 } else {
                     nowSpeak.coerceAtLeast(0)
                 }.let { safeStartIndex(it, processContentList.size, "stream") }
 
-                if (useExistingSSML) {
+                if (useExistingSSML || useRuleSSML) {
                     nowSpeak = startIndex
                     readAloudNumber = contentStartPosition(startIndex) ?: readAloudNumber
                     logInfo("sync mode=stream segment=$startIndex pos=$readAloudNumber")
@@ -988,7 +1074,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                     }
                     
                     val finalSpeakText = when {
-                        useExistingSSML -> normalizeAliyunSSML(speakText)
+                        useExistingSSML || useRuleSSML -> normalizeAliyunSSML(speakText)
                         usePlainTextPreprocess -> preprocessAliyunPlainText(speakText)
                         else -> speakText
                     }
@@ -1023,8 +1109,18 @@ class HttpReadAloudService : BaseReadAloudService(),
         val textChapter = ReadBook.nextTextChapter ?: return
         val chapterContent = textChapter.readAloudContent.ifBlank { textChapter.getContent() }
         val chapterHasSSML = shouldUseExistingSSML(chapterContent)
-        val contentList = getPreDownloadContentList(textChapter, chapterHasSSML)
+        val preDownloadContentList = getPreDownloadContentList(textChapter, chapterHasSSML)
             .take(PRE_DOWNLOAD_SEGMENT_LIMIT)
+        val useRuleSSML = shouldUseRuleGeneratedSSML(
+            httpTts,
+            chapterHasSSML,
+            shouldUseAliyunPlainTextPreprocess(httpTts, chapterContent, preDownloadContentList)
+        )
+        val contentList = if (useRuleSSML) {
+            buildRuleSSMLContentList(preDownloadContentList, "stream-predownload:${textChapter.title}")
+        } else {
+            preDownloadContentList
+        }
         val useExistingSSML = shouldUseExistingSSML(chapterContent, contentList)
         val usePlainTextPreprocess = shouldUseAliyunPlainTextPreprocess(
             httpTts,
@@ -1036,7 +1132,7 @@ class HttpReadAloudService : BaseReadAloudService(),
             currentCoroutineContext().ensureActive()
             val speakText = content.replace(AppPattern.notReadAloudRegex, "")
             val finalSpeakText = when {
-                useExistingSSML -> normalizeAliyunSSML(speakText)
+                useExistingSSML || useRuleSSML -> normalizeAliyunSSML(speakText)
                 usePlainTextPreprocess -> preprocessAliyunPlainText(speakText)
                 else -> speakText
             }
