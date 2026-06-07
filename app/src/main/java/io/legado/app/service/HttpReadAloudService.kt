@@ -76,6 +76,72 @@ import kotlin.time.Duration.Companion.seconds
 
 private const val MAX_SSML_PLAIN_TEXT_LENGTH = 280
 private const val PRE_DOWNLOAD_SEGMENT_LIMIT = 3
+private const val SSML_LOG_TAG = "SSML_TTS"
+private const val LOG_PREVIEW_LENGTH = 80
+
+private fun logInfo(message: String) {
+    android.util.Log.i(SSML_LOG_TAG, message)
+}
+
+private fun logWarn(message: String) {
+    android.util.Log.w(SSML_LOG_TAG, message)
+}
+
+private fun String.logPreview(limit: Int = LOG_PREVIEW_LENGTH): String {
+    val oneLine = replace(Regex("\\s+"), " ").trim()
+    return oneLine.take(limit) + if (oneLine.length > limit) "..." else ""
+}
+
+private fun logReadAloudStart(
+    mode: String,
+    title: String?,
+    pageIndex: Int,
+    readAloudNumber: Int,
+    nowSpeak: Int,
+    paragraphStartPos: Int,
+    contentSize: Int,
+    useExistingSSML: Boolean,
+    usePlainTextPreprocess: Boolean,
+    hasReadAloudContent: Boolean
+) {
+    logInfo(
+        "start mode=$mode title=${title.orEmpty()} page=$pageIndex pos=$readAloudNumber " +
+                "nowSpeak=$nowSpeak paragraphStart=$paragraphStartPos contentSize=$contentSize " +
+                "existingSSML=$useExistingSSML aliyunPlain=$usePlainTextPreprocess " +
+                "readAloudContent=$hasReadAloudContent"
+    )
+}
+
+private fun logReadAloudResolved(
+    mode: String,
+    startIndex: Int,
+    readAloudNumber: Int,
+    sourceSize: Int,
+    resolvedSize: Int
+) {
+    logInfo(
+        "resolved mode=$mode startIndex=$startIndex pos=$readAloudNumber " +
+                "sourceSize=$sourceSize resolvedSize=$resolvedSize"
+    )
+}
+
+private fun logSegmentQueued(
+    mode: String,
+    index: Int,
+    text: String
+) {
+    logInfo(
+        "segment mode=$mode index=$index plainLength=${text.replace(AppPattern.ssmlTagRegex, "").length} " +
+                "hash=${MD5Utils.md5Encode16(text)} preview=${text.logPreview()}"
+    )
+}
+
+private fun logTtsRequest(speakText: String) {
+    logInfo(
+        "request textLength=${speakText.length} hash=${MD5Utils.md5Encode16(speakText)} " +
+                "preview=${speakText.logPreview()}"
+    )
+}
 
 private fun hasSpeakableText(text: String): Boolean {
     val plainText = text.replace(AppPattern.ssmlTagRegex, "")
@@ -279,23 +345,22 @@ class HttpReadAloudService : BaseReadAloudService(),
                     chapterContent
                 )
                 
-                // 日志：基本配置信息
-                android.util.Log.e("SSML_DEBUG", "========== 开始下载并播放音频 ==========")
-                android.util.Log.e("SSML_DEBUG", "当前章节: ${textChapter?.title}")
-                android.util.Log.e("SSML_DEBUG", "当前页面索引: $pageIndex")
-                android.util.Log.e("SSML_DEBUG", "当前阅读位置: $readAloudNumber")
-                android.util.Log.e("SSML_DEBUG", "当前段落索引(nowSpeak): $nowSpeak")
-                android.util.Log.e("SSML_DEBUG", "段落起始位置: $paragraphStartPos")
-                android.util.Log.e("SSML_DEBUG", "使用已有SSML: $useExistingSSML")
-                android.util.Log.e("SSML_DEBUG", "阿里云普通文本预处理: $usePlainTextPreprocess")
-                android.util.Log.e("SSML_DEBUG", "contentList大小: ${contentList.size}")
-                android.util.Log.e("SSML_DEBUG", "readAloudContent是否为空: ${textChapter?.readAloudContent.isNullOrEmpty()}")
+                logReadAloudStart(
+                    mode = "file",
+                    title = textChapter?.title,
+                    pageIndex = pageIndex,
+                    readAloudNumber = readAloudNumber,
+                    nowSpeak = nowSpeak,
+                    paragraphStartPos = paragraphStartPos,
+                    contentSize = contentList.size,
+                    useExistingSSML = useExistingSSML,
+                    usePlainTextPreprocess = usePlainTextPreprocess,
+                    hasReadAloudContent = textChapter?.readAloudContent?.isNotBlank() == true
+                )
                 
                 // 获取处理后的内容列表（包含SSML标签或普通文本）
                 val processContentList = if (useExistingSSML) {
-                    val merged = mergeSSMLParagraphs(contentList)
-                    android.util.Log.e("SSML_DEBUG", "SSML合并后列表大小: ${merged.size}")
-                    merged
+                    mergeSSMLParagraphs(contentList)
                 } else {
                     contentList
                 }
@@ -329,7 +394,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                             // 只有当偏差较大时才同步，避免小范围内的回弹
                             if (Math.abs(readAloudNumber - targetPos) > 100 || readAloudNumber < targetPos) {
                                 readAloudNumber = targetPos
-                                android.util.Log.e("SSML_DEBUG", "同步 readAloudNumber 到段落 $absoluteIndex 起始位置: $readAloudNumber")
+                                logInfo("sync mode=file paragraph=$absoluteIndex pos=$readAloudNumber")
                             }
                         }
                     }
@@ -338,7 +403,13 @@ class HttpReadAloudService : BaseReadAloudService(),
                     rebuildContentPositionMap()
                 }
                 
-                android.util.Log.e("SSML_DEBUG", "计算后的起始段落索引: $startIndex, readAloudNumber: $readAloudNumber")
+                logReadAloudResolved(
+                    mode = "file",
+                    startIndex = startIndex,
+                    readAloudNumber = readAloudNumber,
+                    sourceSize = contentList.size,
+                    resolvedSize = processContentList.size
+                )
 
                 processContentList.forEachIndexed { index, content ->
                     ensureActive()
@@ -356,10 +427,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                     }
                     val fileName = md5SpeakFileName(finalSpeakText)
                     
-                    if (useExistingSSML || usePlainTextPreprocess) {
-                        android.util.Log.e("SSML_FINAL", "speakText: [${finalSpeakText.take(100)}${if (finalSpeakText.length > 100) "..." else ""}]")
-                        android.util.Log.e("SSML_FINAL", "hasSSML: ${finalSpeakText.contains("<speak")}")
-                    }
+                    logSegmentQueued("file", index, finalSpeakText)
                     
                     if (!hasSpeakableText(finalSpeakText)) {
                         AppLog.put("阅读段落内容为空，使用无声音频代替。\n朗读文本：$content")
@@ -425,17 +493,19 @@ class HttpReadAloudService : BaseReadAloudService(),
     }
 
     private fun mergeSSMLParagraphs(contentList: List<String>): List<String> {
-        android.util.Log.e("SSML_MERGE", "原始段落数: ${contentList.size}")
-        
         val currentChapter = textChapter
         
         if (currentChapter?.readAloudContent?.isNotEmpty() == true) {
             // 使用readAloudContent中的完整SSML内容，按完整的speak块分割
-            val ssmlBlocks = parseSSMLContent(currentChapter.readAloudContent)
+            val ssmlBlocks = parseSSMLContent(
+                ssmlContent = currentChapter.readAloudContent,
+                chapterTitle = currentChapter.title,
+                logSource = "play:${currentChapter.title}"
+            )
             if (ssmlBlocks.isNotEmpty()) {
                 return ssmlBlocks
             }
-            android.util.Log.e("SSML_MERGE", "readAloudContent中未找到speak标签，回退到普通段落处理")
+            logWarn("merge fallback title=${currentChapter.title} reason=no-speak-block")
         }
         
         // 回退逻辑：处理contentList中的普通文本或跨行SSML标签
@@ -466,14 +536,18 @@ class HttpReadAloudService : BaseReadAloudService(),
                 i++
             }
         }
-        android.util.Log.e("SSML_MERGE", "合并后段落数: ${mergedList.size}")
+        logInfo("merge sourceSize=${contentList.size} resolvedSize=${mergedList.size}")
         return mergedList
     }
     
     /**
      * 解析SSML内容，按完整的<speak>块分割
      */
-    private fun parseSSMLContent(ssmlContent: String): List<String> {
+    private fun parseSSMLContent(
+        ssmlContent: String,
+        chapterTitle: String? = null,
+        logSource: String = "chapter"
+    ): List<String> {
         val result = mutableListOf<String>()
         
         // 匹配完整的<speak>...</speak>块
@@ -494,10 +568,17 @@ class HttpReadAloudService : BaseReadAloudService(),
             lastEnd = matchResult.range.last + 1
         }
         addPlainContent(ssmlContent.substring(lastEnd))
+        val title = chapterTitle?.trim().orEmpty()
+        if (title.isNotBlank()) {
+            val firstPlainText = result.firstOrNull()?.let { stripReadAloudTags(it).trim() }.orEmpty()
+            if (!firstPlainText.startsWith(title)) {
+                result.add(0, ensureSpeakTags(escapeSSMLText(title)))
+            }
+        }
         
-        android.util.Log.e("SSML_PARSE", "解析出 ${result.size} 个完整的speak块")
+        logInfo("parse source=$logSource segments=${result.size}")
         if (result.isNotEmpty()) {
-            android.util.Log.e("SSML_PARSE", "第一个speak块: [${result[0].take(100)}${if (result[0].length > 100) "..." else ""}]")
+            logInfo("parse source=$logSource first=${result[0].logPreview()}")
         }
         
         return result
@@ -512,10 +593,7 @@ class HttpReadAloudService : BaseReadAloudService(),
             .replace(Regex("^<speak[^>]*>", RegexOption.IGNORE_CASE), "")
             .replace(Regex("</speak>$", RegexOption.IGNORE_CASE), "")
         val chunks = splitSSMLInnerContent(innerContent, MAX_SSML_PLAIN_TEXT_LENGTH)
-        android.util.Log.e(
-            "SSML_SPLIT",
-            "SSML块过长 plainLength=$plainLength, 拆分为 ${chunks.size} 块"
-        )
+        logInfo("split plainLength=$plainLength chunks=${chunks.size}")
         return chunks.map { "<speak>${it.trim()}</speak>" }
     }
 
@@ -616,10 +694,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                 val blockEnd = foundIndex + plainText.length
                 if (blockEnd >= readAloudNumber) {
                     readAloudNumber = foundIndex
-                    android.util.Log.e(
-                        "SSML_FIND",
-                        "按文本匹配定位: index=$index, start=$foundIndex, end=$blockEnd"
-                    )
+                    logInfo("find matched index=$index start=$foundIndex end=$blockEnd")
                     return index
                 }
                 searchFrom = blockEnd.coerceAtLeast(searchFrom)
@@ -630,7 +705,7 @@ class HttpReadAloudService : BaseReadAloudService(),
         val absoluteParagraphIndex = textChapter.getParagraphNum(readAloudNumber + 1, false) - 1
         
         if (isFullChapter) {
-            android.util.Log.e("SSML_FIND", "全章节模式: readAloudNumber=$readAloudNumber, paragraphIndex=$absoluteParagraphIndex")
+            logInfo("find fallback=fullChapter pos=$readAloudNumber paragraph=$absoluteParagraphIndex")
             return absoluteParagraphIndex.coerceIn(0, ssmlContentList.lastIndex)
         } else {
             // 非全章节模式（单页模式）
@@ -640,7 +715,7 @@ class HttpReadAloudService : BaseReadAloudService(),
             // 计算相对于当前页面列表的索引
             val relativeIndex = absoluteParagraphIndex - pageStartParagraphIndex
             
-            android.util.Log.e("SSML_FIND", "单页模式: currentPos=$readAloudNumber, pageStart=$pageStartPos, relativeIndex=$relativeIndex")
+            logInfo("find fallback=page pos=$readAloudNumber pageStart=$pageStartPos relative=$relativeIndex")
             return relativeIndex.coerceIn(0, ssmlContentList.lastIndex)
         }
     }
@@ -683,7 +758,11 @@ class HttpReadAloudService : BaseReadAloudService(),
         useExistingSSML: Boolean
     ): List<String> {
         if (useExistingSSML && textChapter.readAloudContent.isNotBlank()) {
-            parseSSMLContent(textChapter.readAloudContent).takeIf { it.isNotEmpty() }?.let {
+            parseSSMLContent(
+                ssmlContent = textChapter.readAloudContent,
+                chapterTitle = textChapter.title,
+                logSource = "predownload:${textChapter.title}"
+            ).takeIf { it.isNotEmpty() }?.let {
                 return it
             }
         }
@@ -708,16 +787,18 @@ class HttpReadAloudService : BaseReadAloudService(),
                     chapterContent
                 )
                 
-                // 日志：基本配置信息
-                android.util.Log.e("SSML_DEBUG_STREAM", "========== 开始流模式下载并播放音频 ==========")
-                android.util.Log.e("SSML_DEBUG_STREAM", "当前章节: ${textChapter?.title}")
-                android.util.Log.e("SSML_DEBUG_STREAM", "当前页面索引: $pageIndex")
-                android.util.Log.e("SSML_DEBUG_STREAM", "当前阅读位置: $readAloudNumber")
-                android.util.Log.e("SSML_DEBUG_STREAM", "当前段落索引(nowSpeak): $nowSpeak")
-                android.util.Log.e("SSML_DEBUG_STREAM", "段落起始位置: $paragraphStartPos")
-                android.util.Log.e("SSML_DEBUG_STREAM", "使用已有SSML: $useExistingSSML")
-                android.util.Log.e("SSML_DEBUG_STREAM", "阿里云普通文本预处理: $usePlainTextPreprocess")
-                android.util.Log.e("SSML_DEBUG_STREAM", "contentList大小: ${contentList.size}")
+                logReadAloudStart(
+                    mode = "stream",
+                    title = textChapter?.title,
+                    pageIndex = pageIndex,
+                    readAloudNumber = readAloudNumber,
+                    nowSpeak = nowSpeak,
+                    paragraphStartPos = paragraphStartPos,
+                    contentSize = contentList.size,
+                    useExistingSSML = useExistingSSML,
+                    usePlainTextPreprocess = usePlainTextPreprocess,
+                    hasReadAloudContent = textChapter?.readAloudContent?.isNotBlank() == true
+                )
                 
                 val downloaderChannel = Channel<Downloader>()
                 launch {
@@ -728,9 +809,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                 
                 // 获取处理后的内容列表（包含SSML标签或普通文本）
                 val processContentList = if (useExistingSSML) {
-                    val merged = mergeSSMLParagraphs(contentList)
-                    android.util.Log.e("SSML_DEBUG_STREAM", "SSML合并后列表大小: ${merged.size}")
-                    merged
+                    mergeSSMLParagraphs(contentList)
                 } else {
                     contentList
                 }
@@ -741,7 +820,13 @@ class HttpReadAloudService : BaseReadAloudService(),
                 } else {
                     nowSpeak.coerceAtLeast(0)
                 }
-                android.util.Log.e("SSML_DEBUG_STREAM", "计算后的起始段落索引: $startIndex, 使用已有SSML: $useExistingSSML")
+                logReadAloudResolved(
+                    mode = "stream",
+                    startIndex = startIndex,
+                    readAloudNumber = readAloudNumber,
+                    sourceSize = contentList.size,
+                    resolvedSize = processContentList.size
+                )
 
                 if (useExistingSSML) {
                     contentList = processContentList
@@ -764,7 +849,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                             val targetPos = paragraphs[absoluteIndex].chapterPosition
                             if (Math.abs(readAloudNumber - targetPos) > 100 || readAloudNumber < targetPos) {
                                 readAloudNumber = targetPos
-                                android.util.Log.e("SSML_DEBUG_STREAM", "同步 readAloudNumber 到段落 $absoluteIndex 起始位置: $readAloudNumber")
+                                logInfo("sync mode=stream paragraph=$absoluteIndex pos=$readAloudNumber")
                             }
                         }
                     }
@@ -790,8 +875,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                         else -> speakText
                     }
                     
-                    android.util.Log.e("SSML_FINAL", "speakText: [${finalSpeakText.take(100)}${if (finalSpeakText.length > 100) "..." else ""}]")
-                    android.util.Log.e("SSML_FINAL", "hasSSML: ${finalSpeakText.contains("<speak")}")
+                    logSegmentQueued("stream", index, finalSpeakText)
                     
                     if (!hasSpeakableText(finalSpeakText)) {
                         AppLog.put("阅读段落无可朗读文字，使用无声音频代替。\n朗读文本：$content")
@@ -909,9 +993,7 @@ class HttpReadAloudService : BaseReadAloudService(),
     ): InputStream? {
         while (true) {
             try {
-                // 打印调试日志：显示实际发送给 TTS 服务器的内容
-                android.util.Log.e("SSML_URL", "TTS URL: ${httpTts.url}")
-                android.util.Log.e("SSML_TEXT", "speakText length: ${speakText.length}, content: [${speakText.take(200)}${if (speakText.length > 200) "..." else ""}]")
+                logTtsRequest(speakText)
                 
                 val analyzeUrl = AnalyzeUrl(
                     httpTts.url,
