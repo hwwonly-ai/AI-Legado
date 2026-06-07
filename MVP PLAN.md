@@ -166,7 +166,7 @@
   - 新增 `ReadAloudRuleSegmenter`，输入普通纯文本和起始纯文本位置，输出 MVP2 的 `ReadAloudSegment`。
   - `speaker` 固定为 `narrator` 或 `dialog`。
   - 默认旁白音色 `zhifeng_emo`，默认对白音色 `zhixiaoxia`。
-  - 默认情绪 `neutral`，输出 `<emotion category="neutral" intensity="1.0">`。
+  - 默认情绪 `neutral`；仅对 `_emo` 情绪音色输出 `<emotion category="neutral" intensity="1.0">`，普通音色只输出 `<voice>`。
 - 当前规则行为：
   - 识别中文引号 `“...”`、`‘...’`、`「...」`、`『...』` 为对白。
   - 引号外文本作为旁白。
@@ -182,6 +182,7 @@
   - `git diff --check` 通过。
   - `kotlinc ReadAloudSegment.kt ReadAloudRuleSegmenter.kt` 独立语法编译通过。
 - 未完成/注意：
+  - 实测 `zhixiaoxia` 搭配 `<emotion>` 会触发阿里云 `Engine return error code: 423`，已改为普通音色不包 emotion。
   - 本地 Gradle 编译仍未成功执行：默认 `~/.gradle` wrapper 缓存锁受权限限制且提权审批超时；改用工作区 `.gradle` 会触发 Gradle 9.4.1 下载，但当前环境无法解析 `services.gradle.org`。
   - MVP3 只完成规则旁白/对白 SSML 生成，不包含剧本缓存、实时预取队列、AI 识别或用户可配置音色。
 

@@ -112,8 +112,13 @@ object ReadAloudRuleSegmenter {
     }
 
     private fun toAliyunSSML(text: String, voice: String): String {
-        return "<speak><voice name=\"$voice\"><emotion category=\"$DEFAULT_EMOTION\" " +
-                "intensity=\"1.0\">${escapeSSMLText(text)}</emotion></voice></speak>"
+        val escapedText = escapeSSMLText(text)
+        val voiceContent = if (voice.endsWith("_emo")) {
+            "<emotion category=\"$DEFAULT_EMOTION\" intensity=\"1.0\">$escapedText</emotion>"
+        } else {
+            escapedText
+        }
+        return "<speak><voice name=\"$voice\">$voiceContent</voice></speak>"
     }
 
     private fun escapeSSMLText(text: String): String {
