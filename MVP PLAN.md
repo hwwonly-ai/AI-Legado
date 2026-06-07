@@ -19,6 +19,55 @@
 - 已生成音频可缓存复用。
 - SSML 标签不会显示在阅读页面。
 
+已完成实现记录：
+- 当前分支：`mvp1`。
+- 关键提交：
+  - `39dfd740c Implement Aliyun SSML TTS MVP1`
+  - `cba4a03b2 Unify Aliyun SSML TTS config`
+- 已移除 MiniMax 默认 HTTP TTS 配置，当前 MVP1 路线只保留阿里云 SSML TTS。
+- 已移除“阿里云标签解析”手动开关：
+  - 删除设置页 `pref_config_aloud.xml` 中的 `ssmlTagParse` 开关。
+  - 删除 `PreferKey.ssmlTagParse`。
+  - 删除 `AppConfig.ssmlTagParse`。
+  - 后续 MVP 不应再依赖该开关判断 SSML。
+- 已改为自动识别朗读模式：
+  - 章节内容含 `<speak>`、`<voice>`、`<emotion>`、`<break>`、`<prosody>`、`<p>`、`<s>`、`<sub>`、`<phoneme>`、`<say-as>` 等标签时，自动作为已有 SSML 处理。
+  - 普通文本且当前 HTTP TTS 是阿里云时，自动进入阿里云普通文本预处理模式。
+  - 非阿里云 HTTP TTS 保持普通文本朗读，不做 SSML 预处理。
+- `ContentProcessor` 当前行为：
+  - 自动检测章节中是否存在 SSML 标签。
+  - 仅当章节包含 SSML 标签时，将带标签原文保存到 `BookContent.readAloudText` / `TextChapter.readAloudContent`。
+  - 阅读页面显示文本会过滤 SSML/HTML 标签，保证标签不显示在阅读页。
+  - 普通章节不会因为阿里云能力而改变显示排版。
+- `HttpReadAloudService` 当前行为：
+  - 非流式播放、流式播放、下一章预下载统一使用同一套识别逻辑。
+  - 已有 SSML 内容会经过 `mergeSSMLParagraphs()`、`parseSSMLContent()`、`ensureSpeakTags()` 后送入 TTS。
+  - 普通文本 + 阿里云 TTS 会经过 `preprocessAliyunPlainText()`，先做 XML 转义，再包装为 `<speak>...</speak>`。
+  - SSML 请求失败时会剥离标签回退普通文本朗读。
+  - 普通文本回退仍失败时创建静音音频，避免朗读服务中断。
+  - 音频缓存文件名已按最终送入 TTS 的文本计算，避免普通文本与 SSML 预处理文本共用错误缓存。
+  - 缓存 key 已包含 TTS URL、contentType、responseType、audioPath、登录信息、header、语速、最终朗读内容等关键参数。
+- `BaseReadAloudService` 当前行为：
+  - 光标进度映射不再读取 `ssmlTagParse`。
+  - 是否按页映射由 `TextChapter.readAloudContent` 是否为空自动决定。
+  - `stripReadAloudTags()` 继续用于计算纯文本长度和定位。
+- 默认 `httpTTS.json` 当前保留：
+  - `2.阿里云语音`：普通阿里云 TTS，保留作测试备用。
+  - `4.阿里云语音(SSML)V2.0`：旧自动判断 SSML 的配置，保留作测试备用。
+  - `5.阿里云语音(统一SSML)`：当前推荐统一配置。
+- `5.阿里云语音(统一SSML)` 配置约定：
+  - 使用用户填写的 `AppKey`、`AccessKeyId`、`AccessKeySecret`。
+  - 支持可选 `VoiceName`，未填写时默认 `zhifeng_emo`。
+  - 请求固定 `ssml: true`。
+  - 不再在配置 JS 中使用 `hasSSMLTag` 判断。
+  - 是否普通文本预处理、是否已有 SSML，由 Kotlin 代码统一决定。
+- 已验证：
+  - `httpTTS.json` JSON 格式校验通过。
+  - `git diff --check` 通过。
+- 未完成/注意：
+  - 本地 Gradle 编译未成功执行，原因是当前环境访问 `~/.gradle` wrapper 缓存锁需要提权且审批超时。
+  - MVP1 只实现阿里云 SSML 基线和自动识别，尚未实现规则分角色、AI 识别、结构化剧本缓存和实时预取队列。
+
 ## MVP 2：SSML 朗读剧本缓存
 
 目标：将章节预处理结果保存为可复用的 SSML 朗读剧本。

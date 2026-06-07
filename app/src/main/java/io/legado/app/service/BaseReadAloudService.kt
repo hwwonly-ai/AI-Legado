@@ -262,7 +262,8 @@ abstract class BaseReadAloudService : BaseService(),
             }
             val actualPageIndex = if (pageIndex < 0) textChapter.lastIndex else pageIndex
             this@BaseReadAloudService.pageIndex = actualPageIndex
-            readAloudNumber = textChapter.getReadLength(actualPageIndex) + startPos
+            var actualStartPos = startPos
+            readAloudNumber = textChapter.getReadLength(actualPageIndex) + actualStartPos
             lastProgress = ReadAloudProgress(
                 chapterIndex,
                 readAloudNumber + 1,
@@ -270,10 +271,24 @@ abstract class BaseReadAloudService : BaseService(),
             )
             readAloudByPage = getPrefBoolean(PreferKey.readAloudByPage)
             // 从当前页面开始获取内容，确保索引匹配
-            contentList = textChapter.getNeedReadAloud(actualPageIndex, readAloudByPage, startPos)
-                .split("\n")
+            var readAloudText = textChapter.getNeedReadAloud(
+                actualPageIndex,
+                readAloudByPage,
+                actualStartPos
+            )
+            if (readAloudText.isBlank() && textChapter.readAloudContent.isNotBlank() && actualStartPos > 0) {
+                actualStartPos = 0
+                readAloudNumber = textChapter.getReadLength(actualPageIndex)
+                lastProgress = ReadAloudProgress(
+                    chapterIndex,
+                    readAloudNumber + 1,
+                    actualPageIndex
+                )
+                readAloudText = textChapter.getNeedReadAloud(actualPageIndex, readAloudByPage, 0)
+            }
+            contentList = readAloudText.split("\n")
                 .filter { it.isNotEmpty() }
-            var pos = startPos
+            var pos = actualStartPos
             val page = textChapter.getPage(actualPageIndex)!!
             if (pos > 0) {
                 for (paragraph in page.paragraphs) {
@@ -293,7 +308,7 @@ abstract class BaseReadAloudService : BaseService(),
             val chapterParagraphNum = textChapter.getParagraphNum(readAloudNumber + 1, readAloudByPage) - 1
             nowSpeak = (chapterParagraphNum - pageStartParagraphNum).coerceAtLeast(0)
 
-            if (!readAloudByPage && startPos == 0 && !toLast) {
+            if (!readAloudByPage && actualStartPos == 0 && !toLast) {
                 // 使用相对于页面的段落索引
                 val relativeParagraphNum = nowSpeak + pageStartParagraphNum
                 pos = page.chapterPosition -
