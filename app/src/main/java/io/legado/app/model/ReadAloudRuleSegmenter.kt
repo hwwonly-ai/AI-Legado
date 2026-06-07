@@ -1,9 +1,9 @@
 package io.legado.app.model
 
+import io.legado.app.model.tts.AliyunSsmlRenderer
+
 object ReadAloudRuleSegmenter {
 
-    private const val NARRATOR = "narrator"
-    private const val DIALOG = "dialog"
     private const val NARRATOR_VOICE = "zhifeng_emo"
     private const val DIALOG_VOICE = "zhixiaoxia"
     private const val DEFAULT_EMOTION = "neutral"
@@ -19,7 +19,8 @@ object ReadAloudRuleSegmenter {
         text: String,
         startPosition: Int,
         narratorVoice: String = NARRATOR_VOICE,
-        dialogVoice: String = DIALOG_VOICE
+        dialogVoice: String = DIALOG_VOICE,
+        renderAliyunSsml: Boolean = true
     ): List<ReadAloudSegment> {
         if (text.isBlank()) {
             return emptyList()
@@ -29,25 +30,35 @@ object ReadAloudRuleSegmenter {
         while (cursor < text.length) {
             val openIndex = text.indexOfFirstQuote(cursor)
             if (openIndex < 0) {
-                segments.addNarrator(text.substring(cursor), startPosition + cursor, narratorVoice)
+                segments.addNarrator(
+                    text.substring(cursor),
+                    startPosition + cursor,
+                    narratorVoice,
+                    renderAliyunSsml
+                )
                 break
             }
             if (openIndex > cursor) {
-                segments.addNarrator(text.substring(cursor, openIndex), startPosition + cursor, narratorVoice)
+                segments.addNarrator(
+                    text.substring(cursor, openIndex),
+                    startPosition + cursor,
+                    narratorVoice,
+                    renderAliyunSsml
+                )
             }
             val closeQuote = quotePairs[text[openIndex]] ?: return listOf(
-                narratorSegment(text, startPosition, narratorVoice)
+                narratorSegment(text, startPosition, narratorVoice, renderAliyunSsml)
             )
             val closeIndex = text.indexOf(closeQuote, openIndex + 1)
             if (closeIndex < 0 || hasNestedOpeningQuote(text, openIndex + 1, closeIndex)) {
-                return listOf(narratorSegment(text, startPosition, narratorVoice))
+                return listOf(narratorSegment(text, startPosition, narratorVoice, renderAliyunSsml))
             }
             val dialogText = text.substring(openIndex, closeIndex + 1)
-            segments.addDialog(dialogText, startPosition + openIndex, dialogVoice)
+            segments.addDialog(dialogText, startPosition + openIndex, dialogVoice, renderAliyunSsml)
             cursor = closeIndex + 1
         }
         return segments.filter { it.plainLength > 0 }
-            .ifEmpty { listOf(narratorSegment(text, startPosition, narratorVoice)) }
+            .ifEmpty { listOf(narratorSegment(text, startPosition, narratorVoice, renderAliyunSsml)) }
     }
 
     private fun String.indexOfFirstQuote(startIndex: Int): Int {
@@ -73,59 +84,55 @@ object ReadAloudRuleSegmenter {
     private fun MutableList<ReadAloudSegment>.addNarrator(
         text: String,
         startPosition: Int,
-        voice: String
+        voice: String,
+        renderAliyunSsml: Boolean
     ) {
         if (text.isNotBlank()) {
-            add(narratorSegment(text, startPosition, voice))
+            add(narratorSegment(text, startPosition, voice, renderAliyunSsml))
         }
     }
 
     private fun MutableList<ReadAloudSegment>.addDialog(
         text: String,
         startPosition: Int,
-        voice: String
+        voice: String,
+        renderAliyunSsml: Boolean
     ) {
         if (text.isNotBlank()) {
-            add(createSegment(text, startPosition, DIALOG, voice))
+            add(createSegment(text, startPosition, ReadAloudRole.DIALOG, voice, renderAliyunSsml))
         }
     }
 
-    private fun narratorSegment(text: String, startPosition: Int, voice: String): ReadAloudSegment {
-        return createSegment(text, startPosition, NARRATOR, voice)
+    private fun narratorSegment(
+        text: String,
+        startPosition: Int,
+        voice: String,
+        renderAliyunSsml: Boolean
+    ): ReadAloudSegment {
+        return createSegment(text, startPosition, ReadAloudRole.NARRATOR, voice, renderAliyunSsml)
     }
 
     private fun createSegment(
         text: String,
         startPosition: Int,
         speaker: String,
-        voice: String
+        voice: String,
+        renderAliyunSsml: Boolean
     ): ReadAloudSegment {
-        return ReadAloudSegment(
+        val segment = ReadAloudSegment(
             text = text,
-            ssml = toAliyunSSML(text, voice),
+            ssml = "",
             startPosition = startPosition,
             plainLength = text.length,
             speaker = speaker,
+            speakerName = if (speaker == ReadAloudRole.NARRATOR) "旁白" else "对白",
             emotion = DEFAULT_EMOTION,
             voice = voice
         )
-    }
-
-    private fun toAliyunSSML(text: String, voice: String): String {
-        val escapedText = escapeSSMLText(text)
-        val voiceContent = if (voice.endsWith("_emo")) {
-            "<emotion category=\"$DEFAULT_EMOTION\" intensity=\"1.0\">$escapedText</emotion>"
+        return if (renderAliyunSsml) {
+            segment.copy(ssml = AliyunSsmlRenderer.render(segment))
         } else {
-            escapedText
+            segment
         }
-        return "<speak><voice name=\"$voice\">$voiceContent</voice></speak>"
-    }
-
-    private fun escapeSSMLText(text: String): String {
-        return text.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace("\"", "&quot;")
-            .replace("'", "&apos;")
     }
 }

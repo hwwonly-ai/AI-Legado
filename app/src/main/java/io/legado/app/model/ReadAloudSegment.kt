@@ -6,6 +6,11 @@ data class ReadAloudSegment(
     val startPosition: Int,
     val plainLength: Int,
     val speaker: String = "",
+    val speakerName: String = "",
     val emotion: String = "",
-    val voice: String = ""
-)
+    val voice: String = "",
+    val styleTag: String = ""
+) {
+    val endPosition: Int
+        get() = startPosition + plainLength
+}

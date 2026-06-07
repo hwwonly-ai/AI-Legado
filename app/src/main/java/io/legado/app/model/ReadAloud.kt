@@ -9,7 +9,9 @@ import io.legado.app.constant.IntentAction
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.HttpTTS
 import io.legado.app.help.config.AppConfig
+import io.legado.app.model.tts.DoubaoTtsEngine
 import io.legado.app.service.BaseReadAloudService
+import io.legado.app.service.DoubaoReadAloudService
 import io.legado.app.service.HttpReadAloudService
 import io.legado.app.service.TTSReadAloudService
 import io.legado.app.utils.LogUtils
@@ -28,6 +30,9 @@ object ReadAloud {
         val ttsEngine = ttsEngine
         if (ttsEngine.isNullOrBlank()) {
             return TTSReadAloudService::class.java
+        }
+        if (DoubaoTtsEngine.isSelected(ttsEngine)) {
+            return DoubaoReadAloudService::class.java
         }
         if (StringUtils.isNumeric(ttsEngine)) {
             httpTTS = appDb.httpTTSDao.get(ttsEngine.toLong())

@@ -1,4 +1,15 @@
-# 阿里云 SSML AI 分角色朗读 MVP 拆分
+# 多 TTS Provider 分角色朗读 MVP 拆分（阿里云 SSML + 豆包 TTS）
+
+## 规划调整原则
+
+加入豆包 TTS 后，朗读链路不再只围绕“生成阿里云 SSML”设计，而应拆成两层：
+
+- 通用层：小说文本切段、原文位置映射、speaker/voice/emotion/styleTag/context 元数据、缓存 key 和播放进度。
+- Provider 层：将通用 segment 渲染为不同 TTS 平台的请求。
+  - 阿里云：渲染为 `<speak><voice><emotion>...</emotion></voice></speak>`。
+  - 豆包：渲染为 `text + voiceType + emotion + contextTexts + useTagParser + instruction`。
+
+后续 MVP 应避免把“分角色”“情绪识别”“进度映射”“倒回重听”绑定到某一个 TTS 平台。阿里云 SSML 和豆包 TTS 都应消费同一套通用 segment。
 
 ## MVP 1：阿里云 SSML TTS 基线优化
 
@@ -186,25 +197,203 @@
   - 本地 Gradle 编译仍未成功执行：默认 `~/.gradle` wrapper 缓存锁受权限限制且提权审批超时；改用工作区 `.gradle` 会触发 Gradle 9.4.1 下载，但当前环境无法解析 `services.gradle.org`。
   - MVP3 只完成规则旁白/对白 SSML 生成，不包含剧本缓存、实时预取队列、AI 识别或用户可配置音色。
 
-## MVP 4：SSML 剧本缓存与音频缓存复用
+## MVP 3.1：通用朗读段与豆包渲染基础
 
-目标：让已生成的 segment/SSML 可复用，返回章节不重复处理。
+目标：将 MVP3 中绑定阿里云 SSML 的分段结果抽象成通用朗读段，让阿里云和豆包语音合成模型 2.0 可以复用同一套分段、角色和原文位置映射。
 
 内容：
-- 缓存结构化 segment 剧本。
+- 保留 MVP3 的旁白/对白规则分段能力。
+- 将 `ReadAloudSegment` 扩展为平台无关的朗读段：
+  - 原文文本 `text`
+  - 阿里云兼容 SSML `ssml`
+  - 原文起始位置 `startPosition`
+  - 原文结束位置 `endPosition`
+  - 纯文本长度 `plainLength`
+  - 角色标识 `speaker`
+  - 角色名称 `speakerName`
+  - 情绪 `emotion`
+  - 平台音色 `voice`
+  - 语音标签 `styleTag`
+- 新增统一角色常量：
+  - `narrator`
+  - `dialog`
+- 将阿里云 SSML 输出从 `ReadAloudRuleSegmenter` 中拆出，改由 `AliyunSsmlRenderer` 负责。
+- 新增豆包渲染基础：
+  - `DoubaoTtsRequest`
+  - `DoubaoVoiceConfig`
+  - `DoubaoTtsRenderer`
+  - `DoubaoNovelTtsPlanner`
+- 豆包请求规划支持：
+  - 旁白/对白映射不同 `voiceType`
+  - 情绪字段 `emotion`
+  - 可选语音指令 `instruction`
+  - 可选语音标签 `styleTag`
+  - 上下文窗口 `contextTexts`
+  - 原文位置 `rawStartPosition/rawEndPosition`
+  - 缓存 key seed
+- 当前阶段只做模型层和渲染层，不直接接入豆包网络请求和播放链路。
+
+验收：
+- MVP3 原有阿里云规则分角色行为保持兼容。
+- 普通文本仍能生成阿里云 `<speak><voice>...</voice></speak>` SSML。
+- 豆包规划器能基于同一段落生成 `DoubaoTtsRequest`。
+- 豆包请求中不包含阿里云 `<emotion>` / `<voice>` SSML 标签。
+- 豆包请求保留原文起止位置，用于后续朗读进度、倒回和缓存。
+- 上下文承接只进入 `contextTexts`，不会被拼进当前朗读文本。
+
+已完成实现记录：
+- 当前分支：`mvp3.1`。
+- 已创建并切换到分支 `mvp3.1`。
+- 已扩展 `ReadAloudSegment`：
+  - 新增 `speakerName`。
+  - 新增 `styleTag`。
+  - 新增计算属性 `endPosition`。
+- 已新增 `ReadAloudRole`，统一管理 `narrator/dialog` 常量。
+- 已新增通用渲染接口 `ReadAloudSegmentRenderer<T>`。
+- 已新增 `AliyunSsmlRenderer`：
+  - 继续输出阿里云兼容 `<speak><voice name="...">...</voice></speak>`。
+  - `_emo` 音色继续包裹 `<emotion category="...">`。
+  - 普通音色不包 `<emotion>`，保持 MVP3 对 `zhixiaoxia` 的兼容修复。
+- 已改造 `ReadAloudRuleSegmenter`：
+  - 默认仍生成阿里云 SSML，保证现有 `HttpReadAloudService` 行为不变。
+  - 新增 `renderAliyunSsml` 参数；传 `false` 时只生成通用 segment，不生成阿里云 SSML。
+  - `speakerName` 当前规则值为 `旁白` 或 `对白`。
+- 已新增豆包模型层：
+  - `DoubaoTtsRequest` 保存豆包合成所需的文本、音色、情绪、上下文、标签开关、原文位置和缓存 seed。
+  - `DoubaoVoiceConfig` 保存旁白音色、对白音色、语音标签开关、语音指令和上下文窗口大小。
+  - `DoubaoTtsRenderer` 将通用 segment 渲染成豆包请求。
+  - `DoubaoNovelTtsPlanner` 将章节文本切成通用 segment，再批量生成豆包请求。
+- 已新增豆包 API 测试客户端：
+  - `DoubaoApiConfig` 保存 `AppID`、`AccessToken`、`cluster`、音频格式、采样率、语速、音量、音调和 additions 默认配置。
+  - `DoubaoTtsClient` 接入火山 `https://openspeech.bytedance.com/api/v1/tts` HTTP 非流式接口，用于后续真实账号测试。
+  - `DoubaoTtsClient.synthesize()` 输入 `DoubaoTtsRequest`，输出 `DoubaoTtsAudio`。
+  - `DoubaoTtsClient.synthesizeStream()` 可直接返回音频 `InputStream`，便于后续接入朗读服务。
+  - 请求体按 V1 非流式接口生成 `app/user/audio/request` 四段结构，`operation` 固定为 `query`。
+  - 鉴权 Header 使用 `Authorization: Bearer; <AccessToken>`。
+  - 响应 `data` 字段按 base64 解码为音频 bytes。
+  - `contextTexts`、`useTagParser`、`explicitLanguage`、Markdown/emoji 过滤配置会写入 `request.extra_param`。
+- 已验证：
+  - `./gradlew :app:compileAppDebugKotlin` 编译通过。
+  - 编译仅出现既有 `HttpReadAloudService.kt` 的非空断言 warning，与 MVP3.1 改动无关。
+- 已新增可自动化验证：
+  - `DoubaoTtsClientTest.buildPayloadKeepsDoubaoRequestFreeFromAliyunSsml`
+  - `DoubaoTtsClientTest.buildPayloadAddsContextTextsAndTagParserIntoExtraParam`
+  - `DoubaoTtsClientTest.authorizationHeaderAddsBearerPrefixOnce`
+- 未完成/注意：
+  - 豆包 V1 HTTP 非流式客户端已完成，但尚未接入 UI 和主朗读播放链路。
+  - V1 HTTP 非流式接口用于 MVP3.1 测试；正式低延迟朗读仍建议后续接 V3 HTTP Chunked / WebSocket。
+  - 尚未把豆包请求接入 `HttpReadAloudService` 或新的专用朗读服务。
+  - 尚未实现具体人物识别；当前仍为旁白/对白双角色。
+  - 尚未实现用户 UI 配置豆包 `AppID`、`AccessToken`、音色、情绪和语音标签开关。
+
+可验证测试案例：
+- 用例 1：阿里云兼容回归，普通旁白。
+  - 输入：`夜色渐深，院子里只剩下风声。`
+  - 调用：`ReadAloudRuleSegmenter.segment(text, 0)`。
+  - 期望：
+    - 返回 1 个 segment。
+    - `speaker == "narrator"`。
+    - `speakerName == "旁白"`。
+    - `startPosition == 0`。
+    - `plainLength == text.length`。
+    - `ssml` 包含 `<speak><voice name="zhifeng_emo">`。
+    - `ssml` 包含 `<emotion category="neutral" intensity="1.0">`。
+- 用例 2：阿里云兼容回归，旁白 + 对白。
+  - 输入：`她停下脚步，说：“你终于来了。”风从门缝里吹进来。`
+  - 调用：`ReadAloudRuleSegmenter.segment(text, 10)`。
+  - 期望：
+    - 返回 3 个 segment：旁白、对白、旁白。
+    - 第一段 `speaker == "narrator"`，`startPosition == 10`。
+    - 第二段 `speaker == "dialog"`，`voice == "zhixiaoxia"`。
+    - 第二段 `ssml` 包含 `<voice name="zhixiaoxia">`。
+    - 第二段 `ssml` 不包含 `<emotion`，避免普通音色触发阿里云 423。
+    - 三段 `startPosition/plainLength` 能覆盖各自原文片段。
+- 用例 3：豆包通用 segment，不生成阿里云 SSML。
+  - 输入：`他说：“别怕。”她点了点头。`
+  - 调用：`ReadAloudRuleSegmenter.segment(text, 0, renderAliyunSsml = false)`。
+  - 期望：
+    - 返回旁白、对白、旁白 segment。
+    - 所有 segment 的 `ssml` 都为空。
+    - `text/startPosition/plainLength/speaker/speakerName` 正常。
+- 用例 4：豆包请求规划，旁白/对白音色不同。
+  - 输入：`雨停了。“我们走吧。”他低声说。`
+  - 配置：`DoubaoVoiceConfig(narratorVoiceType = "BV700_V2_streaming", dialogVoiceType = "BV001_V2_streaming")`。
+  - 调用：`DoubaoNovelTtsPlanner(DoubaoTtsRenderer(config)).buildRequests(text, 100)`。
+  - 期望：
+    - 旁白请求 `voiceType == "BV700_V2_streaming"`。
+    - 对白请求 `voiceType == "BV001_V2_streaming"`。
+    - 请求 `text` 不包含 `<speak>`、`<voice>`、`<emotion>`。
+    - 请求 `rawStartPosition/rawEndPosition` 对应原文位置。
+- 用例 5：豆包上下文承接。
+  - 输入：`他低下头。“对不起。”她没有回答。`
+  - 配置：`contextWindowSize = 2`。
+  - 调用：同用例 4。
+  - 期望：
+    - 第 1 个请求 `contextTexts` 为空。
+    - 第 2 个请求 `contextTexts` 包含前一个旁白片段，格式类似 `旁白：他低下头。`。
+    - 第 3 个请求 `contextTexts` 至多包含前 2 个片段。
+    - 上下文文本不会拼入当前请求的 `text`。
+- 用例 6：豆包语音指令和语音标签开关。
+  - 构造 segment：`text = "你骗我！"`，`speaker = "dialog"`，`styleTag = "生气地"`。
+  - 配置 A：`enableVoiceTags = false`，`instruction = "以自然有声书风格朗读"`。
+  - 期望 A：请求 `text` 以 `[#以自然有声书风格朗读]` 开头，但不包含 `[生气地]`。
+  - 配置 B：`enableVoiceTags = true`。
+  - 期望 B：请求 `text` 包含 `[生气地]你骗我！`。
+- 用例 7：豆包 V1 HTTP payload 结构。
+  - 输入：用 `DoubaoNovelTtsPlanner` 生成一段对白请求。
+  - 调用：`DoubaoTtsClient.buildPayload(request, "fixed-req-id")`。
+  - 期望：
+    - 顶层包含 `app/user/audio/request`。
+    - `app.appid` 等于配置的 `AppID`。
+    - `audio.voice_type` 等于当前 segment 的 `voiceType`。
+    - `request.reqid == "fixed-req-id"`。
+    - `request.operation == "query"`。
+    - `request.text` 不包含阿里云 `<speak>`、`<voice>`、`<emotion>`。
+- 用例 8：豆包 V1 鉴权头。
+  - 输入：`DoubaoApiConfig(appId = "app", accessToken = "token")`。
+  - 期望：`authorizationHeader() == "Bearer; token"`。
+  - 输入：`accessToken = "Bearer; token"`。
+  - 期望：不会重复追加 `Bearer;`。
+- 用例 9：豆包真实账号冒烟测试。
+  - 前提：提供真实 `AppID`、`AccessToken`、开通可用的 `voiceType`。
+  - 调用：`DoubaoTtsClient.synthesize(request)`。
+  - 期望：
+    - 返回 `DoubaoTtsAudio.bytes` 非空。
+    - `contentType == "audio/mpeg"`。
+    - 将 bytes 写为 `.mp3` 后可播放。
+  - 注意：该用例需要真实火山账号和网络，不应放入默认 CI。
+
+## MVP 4：通用剧本缓存与音频缓存复用
+
+目标：让已生成的通用 segment 剧本、阿里云 SSML 和豆包请求计划可复用，返回章节不重复处理。
+
+内容：
+- 缓存结构化通用 segment 剧本。
+- 缓存 provider 渲染结果：
+  - 阿里云 SSML
+  - 豆包请求计划
 - 缓存 key：
   - `bookId`
   - `chapterIndex`
   - `contentHash`
   - `ruleVersion/promptVersion`
   - `voiceProfileVersion`
+- Provider 渲染缓存 key 还需要包含：
+  - `provider`
+  - `rendererVersion`
+  - `voiceName/voiceType`
+  - `emotion`
+  - `instruction`
+  - `useTagParser`
 - 音频缓存继续按最终送入 TTS 的内容和 TTS 参数计算。
 - 返回已处理章节时直接读取缓存，不重复预处理。
 - 原文、规则版本、提示词版本、音色配置变化时重新生成。
 - 剧本缓存不改变原阅读排版，只服务朗读链路。
 
 验收：
-- 第一次读章节时生成 SSML 剧本。
+- 第一次读章节时生成通用 segment 剧本。
+- 阿里云路径能从通用剧本渲染 SSML。
+- 豆包路径能从通用剧本渲染请求计划。
 - 返回已处理章节时不重新预处理。
 - 原文变化后能重新生成。
 - 剧本缓存不会影响原阅读排版。
@@ -236,20 +425,25 @@
 - 跳到其他章节后旧任务能停止。
 - 返回已处理章节时直接用缓存。
 
-## MVP 6：AI 角色与情绪识别生成 SSML
+## MVP 6：AI 角色与情绪识别生成通用 segment
 
 目标：在规则链路、剧本缓存和预取队列稳定后，用 AI 判断具体角色、情绪和朗读风格。
 
 内容：
 - 接入 AI API 或后端代理。
 - 输入当前章节窗口文本。
-- AI 输出结构化 JSON，再转换成 MVP2 segment：
+- AI 输出结构化 JSON，再转换成通用 segment：
   - `text`
   - `speaker`
+  - `speakerName`
   - `emotion`
   - `voice`
+  - `styleTag`
   - `startPosition`
-- 将 AI 结果转换为阿里云 SSML。
+- AI 结果不直接绑定阿里云或豆包。
+- 通过 provider renderer 将 AI segment 转换为：
+  - 阿里云 SSML
+  - 豆包 TTS 请求
 - 维护每本书的角色音色表。
 - 同一角色跨章节复用同一音色。
 - AI 失败时回退 MVP3 规则结果。
@@ -257,13 +451,13 @@
 验收：
 - 能识别主要角色。
 - 同一角色使用一致音色。
-- 情绪能映射到 SSML 标签或音色参数。
+- 情绪能映射到阿里云 SSML 标签或豆包 `emotion/styleTag`。
 - AI 失败不影响基础朗读。
 - AI 结果能进入 MVP4 剧本缓存和 MVP5 预取队列。
 
 ## MVP 7：用户配置、管理与调试
 
-目标：让阿里云 SSML AI 朗读能力可长期使用、管理和排错。
+目标：让多 provider AI 分角色朗读能力可长期使用、管理和排错。
 
 内容：
 - 阿里云 TTS 配置：
@@ -271,6 +465,15 @@
   - AccessKeyId
   - AccessKeySecret
   - 默认 voice
+- 豆包 TTS 配置：
+  - AppID
+  - AccessToken
+  - 默认旁白 voiceType
+  - 默认对白 voiceType
+  - 默认 emotion
+  - 语音指令 instruction
+  - 是否启用语音标签 useTagParser
+  - 上下文窗口大小 contextWindowSize
 - AI 配置：
   - API Key
   - 模型
@@ -283,12 +486,15 @@
   - 儿童
   - 自定义角色
 - 缓存管理：
-  - 清理 SSML 剧本缓存
+  - 清理通用剧本缓存
+  - 清理 provider 渲染缓存
   - 清理 TTS 音频缓存
   - 手动刷新当前章节
   - 手动刷新整本
 - 调试能力：
   - 查看当前片段 SSML
+  - 查看当前片段豆包请求
+  - 查看当前片段原文位置映射
   - 查看 AI JSON
   - 查看 TTS 错误日志
 
@@ -303,10 +509,11 @@
 1. MVP 1：先稳定阿里云 SSML TTS。
 2. MVP 2：建立 SSML Segment 与纯文本位置映射基础。
 3. MVP 3：实现规则分角色。
-4. MVP 4：建立 SSML 剧本缓存与音频缓存复用。
-5. MVP 5：实现实时预处理和预取队列。
-6. MVP 6：接入 AI 角色/情绪识别。
-7. MVP 7：完善配置、管理和调试。
+4. MVP 3.1：抽象通用朗读段，并建立豆包渲染基础。
+5. MVP 4：建立 SSML/豆包请求剧本缓存与音频缓存复用。
+6. MVP 5：实现实时预处理和预取队列。
+7. MVP 6：接入 AI 角色/情绪识别。
+8. MVP 7：完善配置、管理和调试。
 
 ## 最小可上线版本
 
@@ -315,6 +522,7 @@
 - MVP 1
 - MVP 2
 - MVP 3
+- MVP 3.1
 - MVP 4
 - MVP 5
 
@@ -323,5 +531,6 @@
 - 阿里云 SSML 能稳定朗读。
 - Segment 与纯文本位置映射稳定。
 - 旁白/对白能用不同音色。
+- 同一套分段结果能渲染为阿里云 SSML 或豆包请求。
 - 章节剧本和音频能缓存复用。
 - 不需要整本离线预处理，可以边读边预处理。
