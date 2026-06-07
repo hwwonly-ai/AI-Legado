@@ -31,8 +31,6 @@ import com.script.ScriptException
 import io.legado.app.R
 import io.legado.app.constant.AppLog
 import io.legado.app.constant.AppPattern
-import io.legado.app.constant.PreferKey
-import io.legado.app.utils.getPrefBoolean
 import io.legado.app.data.entities.HttpTTS
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.config.AppConfig
@@ -85,8 +83,41 @@ private fun hasSpeakableText(text: String): Boolean {
     return plainText.isNotEmpty() && !plainText.matches(AppPattern.notReadAloudRegex)
 }
 
+private fun hasSSMLTags(text: String): Boolean {
+    return Regex(
+        "</?(speak|voice|emotion|break|prosody|p|s|sub|phoneme|say-as)\\b",
+        RegexOption.IGNORE_CASE
+    ).containsMatchIn(text)
+}
+
+private fun HttpTTS.isAliyunTTS(): Boolean {
+    return name.contains("阿里云", ignoreCase = true)
+            || url.contains("nls-gateway", ignoreCase = true)
+            || url.contains("aliyuncs.com", ignoreCase = true)
+}
+
+private fun shouldUseExistingSSML(text: String): Boolean {
+    return hasSSMLTags(text)
+}
+
+private fun shouldUseAliyunPlainTextPreprocess(httpTts: HttpTTS, text: String): Boolean {
+    return httpTts.isAliyunTTS() && !hasSSMLTags(text)
+}
+
+private fun escapeSSMLText(text: String): String {
+    return text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&apos;")
+}
+
+private fun preprocessAliyunPlainText(text: String): String {
+    return ensureSpeakTags(escapeSSMLText(text.trim()))
+}
+
 /**
- * 确保朗读内容正确包裹在 speak 标签中，并转义JSON特殊字符
+ * 确保朗读内容正确包裹在 speak 标签中。
  */
 private fun ensureSpeakTags(text: String): String {
     val trimmedText = text.trim()
@@ -239,7 +270,13 @@ class HttpReadAloudService : BaseReadAloudService(),
             downloadTaskActiveLock.withLock {
                 ensureActive()
                 val httpTts = ReadAloud.httpTTS ?: throw NoStackTraceException("tts is null")
-                val enableSSMLTagParse = appCtx.getPrefBoolean(PreferKey.ssmlTagParse, false)
+                val chapterContent = textChapter?.readAloudContent.orEmpty()
+                    .ifBlank { textChapter?.getContent().orEmpty() }
+                val useExistingSSML = shouldUseExistingSSML(chapterContent)
+                val usePlainTextPreprocess = shouldUseAliyunPlainTextPreprocess(
+                    httpTts,
+                    chapterContent
+                )
                 
                 // 日志：基本配置信息
                 android.util.Log.e("SSML_DEBUG", "========== 开始下载并播放音频 ==========")
@@ -248,12 +285,13 @@ class HttpReadAloudService : BaseReadAloudService(),
                 android.util.Log.e("SSML_DEBUG", "当前阅读位置: $readAloudNumber")
                 android.util.Log.e("SSML_DEBUG", "当前段落索引(nowSpeak): $nowSpeak")
                 android.util.Log.e("SSML_DEBUG", "段落起始位置: $paragraphStartPos")
-                android.util.Log.e("SSML_DEBUG", "启用SSML标签解析: $enableSSMLTagParse")
+                android.util.Log.e("SSML_DEBUG", "使用已有SSML: $useExistingSSML")
+                android.util.Log.e("SSML_DEBUG", "阿里云普通文本预处理: $usePlainTextPreprocess")
                 android.util.Log.e("SSML_DEBUG", "contentList大小: ${contentList.size}")
                 android.util.Log.e("SSML_DEBUG", "readAloudContent是否为空: ${textChapter?.readAloudContent.isNullOrEmpty()}")
                 
                 // 获取处理后的内容列表（包含SSML标签或普通文本）
-                val processContentList = if (enableSSMLTagParse) {
+                val processContentList = if (useExistingSSML) {
                     val merged = mergeSSMLParagraphs(contentList)
                     android.util.Log.e("SSML_DEBUG", "SSML合并后列表大小: ${merged.size}")
                     merged
@@ -262,13 +300,13 @@ class HttpReadAloudService : BaseReadAloudService(),
                 }
                 
                 // 计算起始段落索引
-                val startIndex = if (enableSSMLTagParse && processContentList.isNotEmpty()) {
+                val startIndex = if (useExistingSSML && processContentList.isNotEmpty()) {
                     findSSMLStartIndex(processContentList)
                 } else {
                     nowSpeak.coerceAtLeast(0)
                 }
 
-                if (enableSSMLTagParse) {
+                if (useExistingSSML) {
                     contentList = processContentList
                     nowSpeak = startIndex
                     // 同步 readAloudNumber 到段落起始位置，确保进度条和定位准确
@@ -308,18 +346,16 @@ class HttpReadAloudService : BaseReadAloudService(),
                         return@forEachIndexed
                     }
                     
-                    // processContentList 已经包含正确的SSML内容，直接使用
                     val speakText = content.replace(AppPattern.notReadAloudRegex, "")
-                    val fileName = md5SpeakFileName(content)
                     
-                    // 确保内容正确包裹在 speak 标签中
-                    val finalSpeakText = if (enableSSMLTagParse) {
-                        ensureSpeakTags(speakText)
-                    } else {
-                        speakText
+                    val finalSpeakText = when {
+                        useExistingSSML -> ensureSpeakTags(speakText)
+                        usePlainTextPreprocess -> preprocessAliyunPlainText(speakText)
+                        else -> speakText
                     }
+                    val fileName = md5SpeakFileName(finalSpeakText)
                     
-                    if (enableSSMLTagParse) {
+                    if (useExistingSSML || usePlainTextPreprocess) {
                         android.util.Log.e("SSML_FINAL", "speakText: [${finalSpeakText.take(100)}${if (finalSpeakText.length > 100) "..." else ""}]")
                         android.util.Log.e("SSML_FINAL", "hasSSML: ${finalSpeakText.contains("<speak")}")
                     }
@@ -328,20 +364,13 @@ class HttpReadAloudService : BaseReadAloudService(),
                         AppLog.put("阅读段落内容为空，使用无声音频代替。\n朗读文本：$content")
                         createSilentSound(fileName)
                     } else if (!hasSpeakFile(fileName)) {
-                        runCatching {
-                            val inputStream = getSpeakStream(httpTts, finalSpeakText)
-                            if (inputStream != null) {
-                                createSpeakFile(fileName, inputStream)
-                            } else {
-                                createSilentSound(fileName)
-                            }
-                        }.onFailure {
-                            when (it) {
-                                is CancellationException -> Unit
-                                else -> pauseReadAloud()
-                            }
-                            return@execute
-                        }
+                        createSpeakFileWithFallback(
+                            httpTts = httpTts,
+                            fileName = fileName,
+                            speakText = finalSpeakText,
+                            originalContent = content,
+                            useSSMLRequest = useExistingSSML || usePlainTextPreprocess
+                        )
                     }
                     val file = getSpeakFileAsMd5(fileName)
                     val mediaItem = MediaItem.fromUri(Uri.fromFile(file))
@@ -356,14 +385,50 @@ class HttpReadAloudService : BaseReadAloudService(),
         }
     }
 
+    private suspend fun createSpeakFileWithFallback(
+        httpTts: HttpTTS,
+        fileName: String,
+        speakText: String,
+        originalContent: String,
+        useSSMLRequest: Boolean
+    ) {
+        runCatching {
+            getSpeakStream(httpTts, speakText)
+        }.recoverCatching { error ->
+            if (error is CancellationException) {
+                throw error
+            }
+            if (useSSMLRequest) {
+                val plainText = stripReadAloudTags(speakText)
+                    .replace(AppPattern.notReadAloudRegex, "")
+                    .trim()
+                if (hasSpeakableText(plainText)) {
+                    AppLog.put("SSML合成失败，回退普通文本朗读。\n${error.localizedMessage}")
+                    return@recoverCatching getSpeakStream(httpTts, plainText)
+                }
+            }
+            throw error
+        }.onSuccess { inputStream ->
+            if (inputStream != null) {
+                createSpeakFile(fileName, inputStream)
+            } else {
+                createSilentSound(fileName)
+            }
+        }.onFailure { error ->
+            if (error is CancellationException) {
+                throw error
+            }
+            AppLog.put("TTS下载音频出错，使用无声音频代替。\n朗读文本：$originalContent")
+            createSilentSound(fileName)
+        }
+    }
+
     private fun mergeSSMLParagraphs(contentList: List<String>): List<String> {
         android.util.Log.e("SSML_MERGE", "原始段落数: ${contentList.size}")
         
-        // 检查是否启用SSML标签解析
-        val enableSSMLTagParse = appCtx.getPrefBoolean(PreferKey.ssmlTagParse, false)
         val currentChapter = textChapter
         
-        if (enableSSMLTagParse && currentChapter?.readAloudContent?.isNotEmpty() == true) {
+        if (currentChapter?.readAloudContent?.isNotEmpty() == true) {
             // 使用readAloudContent中的完整SSML内容，按完整的speak块分割
             val ssmlBlocks = parseSSMLContent(currentChapter.readAloudContent)
             if (ssmlBlocks.isNotEmpty()) {
@@ -522,8 +587,7 @@ class HttpReadAloudService : BaseReadAloudService(),
         val textChapter = this.textChapter ?: return 0
         
         // 检查是否使用了全章节的SSML内容
-        val enableSSMLTagParse = appCtx.getPrefBoolean(PreferKey.ssmlTagParse, false)
-        val isFullChapter = enableSSMLTagParse && textChapter.readAloudContent.isNotEmpty()
+        val isFullChapter = textChapter.readAloudContent.isNotEmpty()
         val chapterContent = textChapter.getContent()
         var searchFrom = if (isFullChapter) {
             0
@@ -569,28 +633,49 @@ class HttpReadAloudService : BaseReadAloudService(),
 
     private suspend fun preDownloadAudios(httpTts: HttpTTS) {
         val textChapter = ReadBook.nextTextChapter ?: return
-        val contentList = textChapter.getNeedReadAloud(0, readAloudByPage, 0, 1)
-            .splitToSequence("\n")
-            .filter { it.isNotEmpty() }
-            .take(10)
-            .toList()
+        val chapterContent = textChapter.readAloudContent.ifBlank { textChapter.getContent() }
+        val useExistingSSML = shouldUseExistingSSML(chapterContent)
+        val usePlainTextPreprocess = shouldUseAliyunPlainTextPreprocess(
+            httpTts,
+            chapterContent
+        )
+        val contentList = getPreDownloadContentList(textChapter, useExistingSSML).take(10)
         contentList.forEach { content ->
             currentCoroutineContext().ensureActive()
-            val fileName = md5SpeakFileName(content, textChapter)
             val speakText = content.replace(AppPattern.notReadAloudRegex, "")
-            if (speakText.isEmpty()) {
+            val finalSpeakText = when {
+                useExistingSSML -> ensureSpeakTags(speakText)
+                usePlainTextPreprocess -> preprocessAliyunPlainText(speakText)
+                else -> speakText
+            }
+            val fileName = md5SpeakFileName(finalSpeakText, textChapter)
+            if (!hasSpeakableText(finalSpeakText)) {
                 createSilentSound(fileName)
             } else if (!hasSpeakFile(fileName)) {
-                runCatching {
-                    val inputStream = getSpeakStream(httpTts, speakText)
-                    if (inputStream != null) {
-                        createSpeakFile(fileName, inputStream)
-                    } else {
-                        createSilentSound(fileName)
-                    }
-                }
+                createSpeakFileWithFallback(
+                    httpTts = httpTts,
+                    fileName = fileName,
+                    speakText = finalSpeakText,
+                    originalContent = content,
+                    useSSMLRequest = useExistingSSML || usePlainTextPreprocess
+                )
             }
         }
+    }
+
+    private fun getPreDownloadContentList(
+        textChapter: TextChapter,
+        useExistingSSML: Boolean
+    ): List<String> {
+        if (useExistingSSML && textChapter.readAloudContent.isNotBlank()) {
+            parseSSMLContent(textChapter.readAloudContent).takeIf { it.isNotEmpty() }?.let {
+                return it
+            }
+        }
+        return textChapter.getNeedReadAloud(0, readAloudByPage, 0, 1)
+            .splitToSequence("\n")
+            .filter { it.isNotEmpty() }
+            .toList()
     }
 
     private fun downloadAndPlayAudiosStream() {
@@ -600,7 +685,13 @@ class HttpReadAloudService : BaseReadAloudService(),
             downloadTaskActiveLock.withLock {
                 ensureActive()
                 val httpTts = ReadAloud.httpTTS ?: throw NoStackTraceException("tts is null")
-                val enableSSMLTagParse = appCtx.getPrefBoolean(PreferKey.ssmlTagParse, false)
+                val chapterContent = textChapter?.readAloudContent.orEmpty()
+                    .ifBlank { textChapter?.getContent().orEmpty() }
+                val useExistingSSML = shouldUseExistingSSML(chapterContent)
+                val usePlainTextPreprocess = shouldUseAliyunPlainTextPreprocess(
+                    httpTts,
+                    chapterContent
+                )
                 
                 // 日志：基本配置信息
                 android.util.Log.e("SSML_DEBUG_STREAM", "========== 开始流模式下载并播放音频 ==========")
@@ -609,7 +700,8 @@ class HttpReadAloudService : BaseReadAloudService(),
                 android.util.Log.e("SSML_DEBUG_STREAM", "当前阅读位置: $readAloudNumber")
                 android.util.Log.e("SSML_DEBUG_STREAM", "当前段落索引(nowSpeak): $nowSpeak")
                 android.util.Log.e("SSML_DEBUG_STREAM", "段落起始位置: $paragraphStartPos")
-                android.util.Log.e("SSML_DEBUG_STREAM", "启用SSML标签解析: $enableSSMLTagParse")
+                android.util.Log.e("SSML_DEBUG_STREAM", "使用已有SSML: $useExistingSSML")
+                android.util.Log.e("SSML_DEBUG_STREAM", "阿里云普通文本预处理: $usePlainTextPreprocess")
                 android.util.Log.e("SSML_DEBUG_STREAM", "contentList大小: ${contentList.size}")
                 
                 val downloaderChannel = Channel<Downloader>()
@@ -620,7 +712,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                 }
                 
                 // 获取处理后的内容列表（包含SSML标签或普通文本）
-                val processContentList = if (enableSSMLTagParse) {
+                val processContentList = if (useExistingSSML) {
                     val merged = mergeSSMLParagraphs(contentList)
                     android.util.Log.e("SSML_DEBUG_STREAM", "SSML合并后列表大小: ${merged.size}")
                     merged
@@ -629,14 +721,14 @@ class HttpReadAloudService : BaseReadAloudService(),
                 }
                 
                 // 计算起始段落索引
-                val startIndex = if (enableSSMLTagParse && processContentList.isNotEmpty()) {
+                val startIndex = if (useExistingSSML && processContentList.isNotEmpty()) {
                     findSSMLStartIndex(processContentList)
                 } else {
                     nowSpeak.coerceAtLeast(0)
                 }
-                android.util.Log.e("SSML_DEBUG_STREAM", "计算后的起始段落索引: $startIndex, 启用SSML: $enableSSMLTagParse")
+                android.util.Log.e("SSML_DEBUG_STREAM", "计算后的起始段落索引: $startIndex, 使用已有SSML: $useExistingSSML")
 
-                if (enableSSMLTagParse) {
+                if (useExistingSSML) {
                     contentList = processContentList
                     nowSpeak = startIndex
                     // 同步 readAloudNumber 到段落起始位置
@@ -672,17 +764,15 @@ class HttpReadAloudService : BaseReadAloudService(),
                         return@forEachIndexed
                     }
                     
-                    // processContentList 已经包含正确的SSML内容，直接使用
                     val speakText = content.replace(AppPattern.notReadAloudRegex, "")
                     if (speakText.isEmpty()) {
                         AppLog.put("阅读段落内容为空，使用无声音频代替。\n朗读文本：$speakText")
                     }
                     
-                    // 确保内容正确包裹在 speak 标签中
-                    val finalSpeakText = if (enableSSMLTagParse) {
-                        ensureSpeakTags(speakText)
-                    } else {
-                        speakText
+                    val finalSpeakText = when {
+                        useExistingSSML -> ensureSpeakTags(speakText)
+                        usePlainTextPreprocess -> preprocessAliyunPlainText(speakText)
+                        else -> speakText
                     }
                     
                     android.util.Log.e("SSML_FINAL", "speakText: [${finalSpeakText.take(100)}${if (finalSpeakText.length > 100) "..." else ""}]")
@@ -691,7 +781,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                     if (!hasSpeakableText(finalSpeakText)) {
                         AppLog.put("阅读段落无可朗读文字，使用无声音频代替。\n朗读文本：$content")
                     }
-                    val fileName = md5SpeakFileName(content)
+                    val fileName = md5SpeakFileName(finalSpeakText)
                     val dataSourceFactory = createDataSourceFactory(
                         httpTts,
                         finalSpeakText.takeIf { hasSpeakableText(it) }.orEmpty()
@@ -714,16 +804,24 @@ class HttpReadAloudService : BaseReadAloudService(),
         downloaderChannel: Channel<Downloader>
     ) {
         val textChapter = ReadBook.nextTextChapter ?: return
-        val contentList = textChapter.getNeedReadAloud(0, readAloudByPage, 0, 1)
-            .splitToSequence("\n")
-            .filter { it.isNotEmpty() }
-            .toList()
+        val chapterContent = textChapter.readAloudContent.ifBlank { textChapter.getContent() }
+        val useExistingSSML = shouldUseExistingSSML(chapterContent)
+        val usePlainTextPreprocess = shouldUseAliyunPlainTextPreprocess(
+            httpTts,
+            chapterContent
+        )
+        val contentList = getPreDownloadContentList(textChapter, useExistingSSML)
         val flow = loadingState.debounce(1.seconds)
         contentList.forEach { content ->
             currentCoroutineContext().ensureActive()
-            val fileName = md5SpeakFileName(content, textChapter)
             val speakText = content.replace(AppPattern.notReadAloudRegex, "")
-            val dataSourceFactory = createDataSourceFactory(httpTts, speakText)
+            val finalSpeakText = when {
+                useExistingSSML -> ensureSpeakTags(speakText)
+                usePlainTextPreprocess -> preprocessAliyunPlainText(speakText)
+                else -> speakText
+            }
+            val fileName = md5SpeakFileName(finalSpeakText, textChapter)
+            val dataSourceFactory = createDataSourceFactory(httpTts, finalSpeakText)
             val downloader = createDownloader(dataSourceFactory, fileName)
             downloaderChannel.send(downloader)
             flow.first { !it }
@@ -743,14 +841,28 @@ class HttpReadAloudService : BaseReadAloudService(),
                         runBlocking(lifecycleScope.coroutineContext[Job]!!) {
                             getSpeakStream(httpTts, speakText)
                         }
+                    }.recoverCatching { error ->
+                        if (error is InterruptedException || error is CancellationException) {
+                            throw error
+                        }
+                        val plainText = stripReadAloudTags(speakText)
+                            .replace(AppPattern.notReadAloudRegex, "")
+                            .trim()
+                        if (plainText != speakText && hasSpeakableText(plainText)) {
+                            AppLog.put("SSML流式合成失败，回退普通文本朗读。\n${error.localizedMessage}")
+                            runBlocking(lifecycleScope.coroutineContext[Job]!!) {
+                                getSpeakStream(httpTts, plainText)
+                            }
+                        } else {
+                            throw error
+                        }
                     }.onFailure {
                         when (it) {
                             is InterruptedException,
                             is CancellationException -> Unit
-
-                            else -> pauseReadAloud()
+                            else -> AppLog.put("流式TTS下载音频出错，使用无声音频代替。\n${it.localizedMessage}")
                         }
-                    }.getOrThrow()
+                    }.getOrNull()
                 } ?: resources.openRawResource(R.raw.silent_sound)
             }
         }
@@ -916,8 +1028,9 @@ class HttpReadAloudService : BaseReadAloudService(),
         val httpTts = ReadAloud.httpTTS
         return MD5Utils.md5Encode16(textChapter?.title ?: "") + "_" +
                 MD5Utils.md5Encode16(
-                    "${httpTts?.url}-|-${httpTts?.responseType}-|-${httpTts?.audioPath}" +
-                            "-|-${httpTts?.getLoginInfo()}-|-$speechRate-|-$content"
+                    "${httpTts?.url}-|-${httpTts?.contentType}-|-${httpTts?.responseType}" +
+                            "-|-${httpTts?.audioPath}-|-${httpTts?.getLoginInfo()}" +
+                            "-|-${httpTts?.getLoginHeader()}-|-$speechRate-|-$content"
                 )
     }
 

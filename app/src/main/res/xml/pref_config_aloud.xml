@@ -50,13 +50,6 @@
 
         <io.legado.app.lib.prefs.SwitchPreference
             android:defaultValue="false"
-            android:title="@string/ssml_tag_parse"
-            android:summary="@string/ssml_tag_parse_summary"
-            android:key="ssmlTagParse"
-            app:iconSpaceReserved="false" />
-
-        <io.legado.app.lib.prefs.SwitchPreference
-            android:defaultValue="false"
             android:title="@string/stream_read_aloud_audio"
             android:summary="@string/stream_read_aloud_audio_summary"
             android:key="streamReadAloudAudio"

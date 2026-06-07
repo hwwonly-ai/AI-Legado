@@ -437,7 +437,7 @@ abstract class BaseReadAloudService : BaseService(),
             contentPlainLengths = emptyList()
             return
         }
-        val paragraphs = chapter.getParagraphs(readAloudByPage && !getPrefBoolean(PreferKey.ssmlTagParse))
+        val paragraphs = chapter.getParagraphs(readAloudByPage && chapter.readAloudContent.isBlank())
         var runningPos = readAloudNumber
         var searchFrom = readAloudNumber.coerceAtLeast(0)
         val chapterContent = chapter.getContent()
