@@ -241,11 +241,30 @@ private fun preprocessAliyunPlainText(text: String): String {
 }
 
 /**
- * 保留阿里云 SSML 原始标签，只补齐缺失的 speak 外壳。
- * 阿里云支持 <speak voice="xxx">，不能改写成其他音色标签格式。
+ * 统一为阿里云 SSML 推荐结构。
+ * 兼容测试文本里常见的 <speak voice="xxx">...</speak>，
+ * 发送前转换为 <speak><voice name="xxx">...</voice></speak>。
  */
 private fun normalizeAliyunSSML(text: String): String {
-    return ensureSpeakTags(text)
+    val trimmedText = text.trim()
+    val speakVoiceRegex = Regex(
+        "<speak([^>]*)\\svoice\\s*=\\s*['\"]([^'\"]+)['\"]([^>]*)>(.*?)</speak>",
+        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+    )
+    val normalizedText = speakVoiceRegex.replace(trimmedText) { match ->
+        val voiceName = match.groupValues[2].trim()
+        val innerContent = match.groupValues[4].trim()
+        val speakAttrs = (match.groupValues[1] + match.groupValues[3])
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        val speakOpen = if (speakAttrs.isBlank()) "<speak>" else "<speak $speakAttrs>"
+        if (innerContent.contains(Regex("<voice\\b", RegexOption.IGNORE_CASE))) {
+            "$speakOpen$innerContent</speak>"
+        } else {
+            "$speakOpen<voice name=\"$voiceName\">$innerContent</voice></speak>"
+        }
+    }
+    return ensureSpeakTags(normalizedText)
 }
 
 /**
