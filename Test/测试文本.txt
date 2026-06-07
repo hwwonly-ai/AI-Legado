@@ -1,11 +1,35 @@
-<speak voice="zhifeng_emo"><emotion category="happy" intensity="1.0">太好了！我终于完成了这个任务。</emotion></speak>
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="happy" intensity="1.0">太好了！我终于完成了这个任务。</emotion>
+  </voice>
+</speak>
 
-<speak voice="zhimi_emo"><emotion category="angry" intensity="0.8">你怎么能这样做？这太过分了！</emotion></speak>
+<speak>
+  <voice name="zhimi_emo">
+    <emotion category="angry" intensity="0.8">你怎么能这样做？这太过分了！</emotion>
+  </voice>
+</speak>
 
-<speak voice="zhifeng_emo"><emotion category="sad" intensity="1.0">他默默地说："我已经尽力了..."</emotion></speak>
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="sad" intensity="1.0">他默默地说："我已经尽力了..."</emotion>
+  </voice>
+</speak>
 
-<speak voice="zhifeng_emo"><emotion category="neutral" intensity="1.0">今天下午三点有一个重要的会议。</emotion></speak>
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">今天下午三点有一个重要的会议。</emotion>
+  </voice>
+</speak>
 
-<speak voice="zhimi_emo"><emotion category="fear" intensity="0.8">"这太可怕了！"她害怕地说道。</emotion></speak>
+<speak>
+  <voice name="zhimi_emo">
+    <emotion category="fear" intensity="0.8">"这太可怕了！"她害怕地说道。</emotion>
+  </voice>
+</speak>
 
-<speak voice="zhifeng_emo"><emotion category="surprise" intensity="1.0">什么？你居然赢了比赛！</emotion></speak>
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="surprise" intensity="1.0">什么？你居然赢了比赛！</emotion>
+  </voice>
+</speak>
