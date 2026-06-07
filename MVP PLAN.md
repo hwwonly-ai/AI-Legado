@@ -42,15 +42,21 @@
 - `HttpReadAloudService` 当前行为：
   - 非流式播放、流式播放、下一章预下载统一使用同一套识别逻辑。
   - 已有 SSML 内容会经过 `mergeSSMLParagraphs()`、`parseSSMLContent()`、`ensureSpeakTags()` 后送入 TTS。
+  - 已增加 `normalizeAliyunSSML()`，用于兼容并规范阿里云音色标签；若输入存在 `<speak voice="xxx">...</speak>`，发送前会统一为 `<speak><voice name="xxx">...</voice></speak>`。
   - 普通文本 + 阿里云 TTS 会经过 `preprocessAliyunPlainText()`，先做 XML 转义，再包装为 `<speak>...</speak>`。
   - SSML 请求失败时会剥离标签回退普通文本朗读。
   - 普通文本回退仍失败时创建静音音频，避免朗读服务中断。
   - 音频缓存文件名已按最终送入 TTS 的文本计算，避免普通文本与 SSML 预处理文本共用错误缓存。
   - 缓存 key 已包含 TTS URL、contentType、responseType、audioPath、登录信息、header、语速、最终朗读内容等关键参数。
+  - 已清理并增强 `SSML_TTS` 诊断日志：
+    - `modeDecision`：定位章节/当前段是否识别到 SSML，以及是否进入阿里云普通文本预处理。
+    - `segment` / `request`：输出 `speakVoice`、`voiceTag`、`emotion`、纯文本长度、hash 和短预览，避免直接泄露完整正文或密钥。
+    - `response`：记录阿里云返回的 `Content-Type`、HTTP code 和 message，便于区分 TTS 配置错误与播放队列问题。
 - `BaseReadAloudService` 当前行为：
   - 光标进度映射不再读取 `ssmlTagParse`。
   - 是否按页映射由 `TextChapter.readAloudContent` 是否为空自动决定。
   - `stripReadAloudTags()` 继续用于计算纯文本长度和定位。
+  - 当朗读入口传入的 `startPos` 已越过当前页可读文本长度时，会回退到当前页页首重试，避免直接得到空内容并销毁朗读服务。
 - 默认 `httpTTS.json` 当前保留：
   - `2.阿里云语音`：普通阿里云 TTS，保留作测试备用。
   - `4.阿里云语音(SSML)V2.0`：旧自动判断 SSML 的配置，保留作测试备用。
@@ -59,8 +65,19 @@
   - 使用用户填写的 `AppKey`、`AccessKeyId`、`AccessKeySecret`。
   - 支持可选 `VoiceName`，未填写时默认 `zhifeng_emo`。
   - 请求固定 `ssml: true`。
+  - 若最终朗读文本已经包含 `<voice>` 或 `<speak ... voice=...>`，配置 JS 不再追加顶层默认 `voice_name`，避免覆盖标签内音色。
+  - 配置 JS 会记录 `aliyun_ssml_has_tag_voice`、`aliyun_ssml_use_default_voice` 和短预览，便于排查音色未生效问题。
   - 不再在配置 JS 中使用 `hasSSMLTag` 判断。
   - 是否普通文本预处理、是否已有 SSML，由 Kotlin 代码统一决定。
+- 测试文本约定：
+  - `Test/测试文本.txt` 已改为与 `Test/chapter_0275_ssml.txt` 一致的标准结构：
+    - `<speak>`
+    - `<voice name="zhifeng_emo">`
+    - `<emotion category="neutral" intensity="1.0">文本</emotion>`
+    - `</voice>`
+    - `</speak>`
+  - 后续 SSML 测试应优先使用 `<speak><voice name="..."><emotion ...>...</emotion></voice></speak>`，不再依赖 `<speak voice="...">` 作为测试输入。
+  - 如果 APP 中已经导入过旧测试文本，需要重新导入或刷新章节缓存，否则日志可能显示 `chapterHasSSML=false`、`readAloudContent=false`，说明服务拿到的是旧的纯文本缓存。
 - 已验证：
   - `httpTTS.json` JSON 格式校验通过。
   - `git diff --check` 通过。

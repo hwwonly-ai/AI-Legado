@@ -41,6 +41,7 @@ import io.legado.app.lib.permission.Permissions
 import io.legado.app.lib.permission.PermissionsCompat
 import io.legado.app.model.ReadAloud
 import io.legado.app.model.ReadAloudProgress
+import io.legado.app.model.ReadAloudSegment
 import io.legado.app.model.ReadBook
 import io.legado.app.receiver.MediaButtonReceiver
 import io.legado.app.ui.book.read.ReadBookActivity
@@ -122,6 +123,7 @@ abstract class BaseReadAloudService : BaseService(),
         ReadAloudPhoneStateListener()
     }
     internal var contentList = emptyList<String>()
+    internal var readAloudSegments = emptyList<ReadAloudSegment>()
     internal var contentStartPositions = emptyList<Int>()
     internal var contentPlainLengths = emptyList<Int>()
     internal var nowSpeak: Int = 0
@@ -449,25 +451,30 @@ abstract class BaseReadAloudService : BaseService(),
     }
 
     internal fun contentPlainLength(index: Int): Int {
-        return contentPlainLengths.getOrNull(index)
+        return readAloudSegments.getOrNull(index)?.plainLength
+            ?: contentPlainLengths.getOrNull(index)
             ?: stripReadAloudTags(contentList.getOrNull(index).orEmpty()).length
     }
 
     internal fun contentStartPosition(index: Int): Int? {
-        return contentStartPositions.getOrNull(index)
+        return readAloudSegments.getOrNull(index)?.startPosition
+            ?: contentStartPositions.getOrNull(index)
     }
 
     internal fun rebuildContentPositionMap() {
         val chapter = textChapter ?: run {
+            readAloudSegments = emptyList()
             contentStartPositions = emptyList()
             contentPlainLengths = emptyList()
             return
         }
         val paragraphs = chapter.getParagraphs(readAloudByPage && chapter.readAloudContent.isBlank())
-        var runningPos = readAloudNumber
-        var searchFrom = readAloudNumber.coerceAtLeast(0)
+        val mapFromChapterStart = chapter.readAloudContent.isNotBlank() &&
+                contentList.any { it.contains('<') }
+        var runningPos = if (mapFromChapterStart) 0 else readAloudNumber
+        var searchFrom = if (mapFromChapterStart) 0 else readAloudNumber.coerceAtLeast(0)
         val chapterContent = chapter.getContent()
-        contentStartPositions = contentList.mapIndexed { index, content ->
+        readAloudSegments = contentList.mapIndexed { index, content ->
             val paragraphIndex = contentParagraphOffset + index
             val plainText = stripReadAloudTags(content)
             val foundIndex = if (plainText.isNotBlank()) {
@@ -484,9 +491,27 @@ abstract class BaseReadAloudService : BaseService(),
             val plainLength = plainText.length
             runningPos = start + plainLength + 1
             searchFrom = (start + plainLength).coerceAtLeast(searchFrom)
-            start
+            ReadAloudSegment(
+                text = plainText,
+                ssml = content.takeIf { it != plainText && it.contains('<') }.orEmpty(),
+                startPosition = start,
+                plainLength = plainLength,
+                emotion = readAloudTagAttribute(content, "emotion", "category"),
+                voice = readAloudTagAttribute(content, "voice", "name")
+                    .ifBlank { readAloudTagAttribute(content, "speak", "voice") }
+            )
         }
-        contentPlainLengths = contentList.map { stripReadAloudTags(it).length }
+        contentStartPositions = readAloudSegments.map { it.startPosition }
+        contentPlainLengths = readAloudSegments.map { it.plainLength }
+    }
+
+    private fun readAloudTagAttribute(content: String, tagName: String, attrName: String): String {
+        val tagRegex = Regex("<\\s*$tagName\\b[^>]*>", RegexOption.IGNORE_CASE)
+        val attrRegex = Regex("""\b$attrName\s*=\s*(['"])(.*?)\1""", RegexOption.IGNORE_CASE)
+        return tagRegex.find(content)
+            ?.value
+            ?.let { attrRegex.find(it)?.groupValues?.getOrNull(2) }
+            .orEmpty()
     }
 
     private fun prevP() {

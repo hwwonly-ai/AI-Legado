@@ -470,42 +470,24 @@ class HttpReadAloudService : BaseReadAloudService(),
                     contentList
                 }
                 
+                if (useExistingSSML) {
+                    contentList = processContentList
+                    syncSSMLContentParagraphOffset()
+                    paragraphStartPos = 0
+                    rebuildContentPositionMap()
+                }
+
                 // 计算起始段落索引
                 val startIndex = if (useExistingSSML && processContentList.isNotEmpty()) {
-                    findSSMLStartIndex(processContentList)
+                    findSegmentStartIndex("file")
                 } else {
                     nowSpeak.coerceAtLeast(0)
                 }.let { safeStartIndex(it, processContentList.size, "file") }
 
                 if (useExistingSSML) {
-                    contentList = processContentList
                     nowSpeak = startIndex
-                    // 同步 readAloudNumber 到段落起始位置，确保进度条和定位准确
-                    textChapter?.let {
-                        val paragraphs = it.getParagraphs(false)
-                        val isFullChapter = it.readAloudContent.isNotEmpty()
-                        val absoluteIndex = if (isFullChapter) {
-                            contentParagraphOffset = 0
-                            -1
-                        } else {
-                            val pageStartPos = it.getReadLength(pageIndex)
-                            val pageStartParagraphIndex = it.getParagraphNum(pageStartPos + 1, false) - 1
-                            contentParagraphOffset = pageStartParagraphIndex
-                            pageStartParagraphIndex + startIndex
-                        }
-                        
-                        if (absoluteIndex in paragraphs.indices) {
-                            val targetPos = paragraphs[absoluteIndex].chapterPosition
-                            // 只有当偏差较大时才同步，避免小范围内的回弹
-                            if (Math.abs(readAloudNumber - targetPos) > 100 || readAloudNumber < targetPos) {
-                                readAloudNumber = targetPos
-                                logInfo("sync mode=file paragraph=$absoluteIndex pos=$readAloudNumber")
-                            }
-                        }
-                    }
-                    // 重置偏移量，因为 SSML 块始终从头朗读
-                    paragraphStartPos = 0
-                    rebuildContentPositionMap()
+                    readAloudNumber = contentStartPosition(startIndex) ?: readAloudNumber
+                    logInfo("sync mode=file segment=$startIndex pos=$readAloudNumber")
                 }
                 
                 logReadAloudResolved(
@@ -776,6 +758,42 @@ class HttpReadAloudService : BaseReadAloudService(),
         }
         return result
     }
+
+    private fun syncSSMLContentParagraphOffset() {
+        val chapter = textChapter ?: return
+        contentParagraphOffset = if (chapter.readAloudContent.isNotEmpty()) {
+            0
+        } else {
+            val pageStartPos = chapter.getReadLength(pageIndex)
+            chapter.getParagraphNum(pageStartPos + 1, false) - 1
+        }
+    }
+
+    private fun findSegmentStartIndex(mode: String): Int {
+        if (readAloudSegments.isEmpty()) {
+            return findSSMLStartIndex(contentList)
+        }
+        val currentPos = readAloudNumber
+        readAloudSegments.forEachIndexed { index, segment ->
+            if (segment.plainLength <= 0) {
+                return@forEachIndexed
+            }
+            val segmentEnd = segment.startPosition + segment.plainLength
+            if (segmentEnd >= currentPos) {
+                logInfo(
+                    "find mode=$mode segment=$index start=${segment.startPosition} " +
+                            "end=$segmentEnd voice=${segment.voice} emotion=${segment.emotion}"
+                )
+                return index
+            }
+        }
+        val fallbackIndex = textChapter
+            ?.getParagraphNum(currentPos + 1, false)
+            ?.minus(1)
+            ?: 0
+        logInfo("find mode=$mode fallback=paragraph pos=$currentPos paragraph=$fallbackIndex")
+        return fallbackIndex.coerceIn(0, contentList.lastIndex)
+    }
     
     /**
      * 根据当前阅读位置查找SSML内容中的起始索引
@@ -930,12 +948,25 @@ class HttpReadAloudService : BaseReadAloudService(),
                     contentList
                 }
                 
+                if (useExistingSSML) {
+                    contentList = processContentList
+                    syncSSMLContentParagraphOffset()
+                    paragraphStartPos = 0
+                    rebuildContentPositionMap()
+                }
+
                 // 计算起始段落索引
                 val startIndex = if (useExistingSSML && processContentList.isNotEmpty()) {
-                    findSSMLStartIndex(processContentList)
+                    findSegmentStartIndex("stream")
                 } else {
                     nowSpeak.coerceAtLeast(0)
                 }.let { safeStartIndex(it, processContentList.size, "stream") }
+
+                if (useExistingSSML) {
+                    nowSpeak = startIndex
+                    readAloudNumber = contentStartPosition(startIndex) ?: readAloudNumber
+                    logInfo("sync mode=stream segment=$startIndex pos=$readAloudNumber")
+                }
                 logReadAloudResolved(
                     mode = "stream",
                     startIndex = startIndex,
@@ -943,35 +974,6 @@ class HttpReadAloudService : BaseReadAloudService(),
                     sourceSize = contentList.size,
                     resolvedSize = processContentList.size
                 )
-
-                if (useExistingSSML) {
-                    contentList = processContentList
-                    nowSpeak = startIndex
-                    // 同步 readAloudNumber 到段落起始位置
-                    textChapter?.let {
-                        val paragraphs = it.getParagraphs(false)
-                        val isFullChapter = it.readAloudContent.isNotEmpty()
-                        val absoluteIndex = if (isFullChapter) {
-                            contentParagraphOffset = 0
-                            -1
-                        } else {
-                            val pageStartPos = it.getReadLength(pageIndex)
-                            val pageStartParagraphIndex = it.getParagraphNum(pageStartPos + 1, false) - 1
-                            contentParagraphOffset = pageStartParagraphIndex
-                            pageStartParagraphIndex + startIndex
-                        }
-                        
-                        if (absoluteIndex in paragraphs.indices) {
-                            val targetPos = paragraphs[absoluteIndex].chapterPosition
-                            if (Math.abs(readAloudNumber - targetPos) > 100 || readAloudNumber < targetPos) {
-                                readAloudNumber = targetPos
-                                logInfo("sync mode=stream paragraph=$absoluteIndex pos=$readAloudNumber")
-                            }
-                        }
-                    }
-                    paragraphStartPos = 0
-                    rebuildContentPositionMap()
-                }
 
                 processContentList.forEachIndexed { index, content ->
                     ensureActive()
