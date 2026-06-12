@@ -118,5 +118,60 @@ class DoubaoTtsClient(
     companion object {
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
         private const val ERROR_PREVIEW_LENGTH = 500
+
+        fun buildPayloadForConfig(
+            config: DoubaoApiConfig,
+            request: DoubaoTtsRequest,
+            reqId: String = UUID.randomUUID().toString()
+        ): Map<String, Any> {
+            val audio = linkedMapOf<String, Any>(
+                "voice_type" to request.voiceType,
+                "encoding" to config.encoding,
+                "rate" to config.rate,
+                "speed_ratio" to config.speedRatio,
+                "volume_ratio" to config.volumeRatio,
+                "pitch_ratio" to config.pitchRatio
+            )
+            request.emotion?.takeIf { it.isNotBlank() }?.let {
+                audio["emotion"] = it
+            }
+            val requestBody = linkedMapOf<String, Any>(
+                "reqid" to reqId,
+                "text" to request.text,
+                "text_type" to "plain",
+                "operation" to "query"
+            )
+            buildAdditionsForRequest(config, request).takeIf { it.isNotEmpty() }?.let {
+                requestBody["extra_param"] = GSON.toJson(it)
+            }
+            return linkedMapOf(
+                "app" to linkedMapOf(
+                    "appid" to config.appId,
+                    "token" to config.accessToken,
+                    "cluster" to config.cluster
+                ),
+                "user" to linkedMapOf(
+                    "uid" to config.uid
+                ),
+                "audio" to audio,
+                "request" to requestBody
+            )
+        }
+
+        private fun buildAdditionsForRequest(config: DoubaoApiConfig, request: DoubaoTtsRequest): Map<String, Any> {
+            val additions = linkedMapOf<String, Any>()
+            if (config.explicitLanguage.isNotBlank()) {
+                additions["explicit_language"] = config.explicitLanguage
+            }
+            additions["disable_markdown_filter"] = config.disableMarkdownFilter
+            additions["disable_emoji_filter"] = config.disableEmojiFilter
+            if (request.contextTexts.isNotEmpty()) {
+                additions["context_texts"] = request.contextTexts
+            }
+            if (request.useTagParser) {
+                additions["use_tag_parser"] = true
+            }
+            return additions
+        }
     }
 }
