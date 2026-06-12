@@ -6,6 +6,8 @@ data class DoubaoApiConfig(
     val cluster: String = "volcano_tts",
     val uid: String = "legado_doubao_tts",
     val endpoint: String = "https://openspeech.bytedance.com/api/v1/tts",
+    val endpointV3: String = "https://openspeech.bytedance.com/api/v3/tts/unidirectional",
+    val resourceIdV3: String = "seed-tts-2.0",
     val encoding: String = "mp3",
     val rate: Int = 24000,
     val speedRatio: Double = 1.0,
@@ -20,6 +22,13 @@ data class DoubaoApiConfig(
             accessToken
         } else {
             "Bearer; $accessToken"
+        }
+    }
+
+    fun formatV3(): String {
+        return when (encoding.lowercase()) {
+            "ogg_opus" -> "ogg_opus"
+            else -> encoding.lowercase()
         }
     }
 }

@@ -77,6 +77,39 @@ class DoubaoTtsClientTest {
     }
 
     @Test
+    fun buildPayloadV3UsesReqParamsShape() {
+        val request = DoubaoTtsRequest(
+            text = "你好，这是 V3 测试。",
+            voiceType = "zh_female_vv_uranus_bigtts",
+            emotion = null,
+            contextTexts = emptyList(),
+            useTagParser = false,
+            rawStartPosition = 0,
+            rawEndPosition = 10,
+            speaker = "narrator",
+            speakerName = "旁白",
+            cacheKeySeed = "seed"
+        )
+        val client = DoubaoTtsClientV3(
+            DoubaoApiConfig(appId = "app", accessToken = "token"),
+            client = OkHttpClient()
+        )
+        val payload = client.buildPayloadV3(request, "fixed-req-id")
+        val reqParams = payload.mapValue<Map<String, Any>>("req_params")
+        val audioParams = reqParams.mapValue<Map<String, Any>>("audio_params")
+
+        assertFalse(payload.containsKey("app"))
+        assertFalse(payload.containsKey("audio"))
+        assertFalse(payload.containsKey("request"))
+        assertEquals("你好，这是 V3 测试。", reqParams["text"])
+        assertEquals("zh_female_vv_uranus_bigtts", reqParams["speaker"])
+        assertEquals("mp3", audioParams["format"])
+        assertEquals(24000, audioParams["sample_rate"])
+        assertEquals("https://openspeech.bytedance.com/api/v3/tts/unidirectional", clientConfig().endpointV3)
+        assertEquals("seed-tts-2.0", clientConfig().resourceIdV3)
+    }
+
+    @Test
     fun synthesizeWithRealCredentialsWhenProvided() {
         val appId = secret("DOUBAO_TTS_APP_ID", "doubao.tts.appId")
         val accessToken = secret("DOUBAO_TTS_ACCESS_TOKEN", "doubao.tts.accessToken")
@@ -112,11 +145,15 @@ class DoubaoTtsClientTest {
 
     private fun testClient(): DoubaoTtsClient {
         return DoubaoTtsClient(
-            DoubaoApiConfig(
-                appId = "app",
-                accessToken = "token"
-            ),
+            clientConfig(),
             client = OkHttpClient()
+        )
+    }
+
+    private fun clientConfig(): DoubaoApiConfig {
+        return DoubaoApiConfig(
+            appId = "app",
+            accessToken = "token"
         )
     }
 
