@@ -4,22 +4,24 @@ import io.legado.app.model.tts.AliyunSsmlRenderer
 
 object ReadAloudRuleSegmenter {
 
-    private const val NARRATOR_VOICE = "zhifeng_emo"
-    private const val DIALOG_VOICE = "zhixiaoxia"
+    const val DEFAULT_NARRATOR_VOICE = "zhifeng_emo"
+    const val DEFAULT_DIALOG_VOICE = "zhixiaoxia"
     private const val DEFAULT_EMOTION = "neutral"
 
     private val quotePairs = mapOf(
         '“' to '”',
         '‘' to '’',
         '「' to '」',
-        '『' to '』'
+        '『' to '』',
+        '"' to '"',
+        '＂' to '＂'
     )
 
     fun segment(
         text: String,
         startPosition: Int,
-        narratorVoice: String = NARRATOR_VOICE,
-        dialogVoice: String = DIALOG_VOICE,
+        narratorVoice: String = DEFAULT_NARRATOR_VOICE,
+        dialogVoice: String = DEFAULT_DIALOG_VOICE,
         renderAliyunSsml: Boolean = true
     ): List<ReadAloudSegment> {
         if (text.isBlank()) {
@@ -50,7 +52,7 @@ object ReadAloudRuleSegmenter {
                 narratorSegment(text, startPosition, narratorVoice, renderAliyunSsml)
             )
             val closeIndex = text.indexOf(closeQuote, openIndex + 1)
-            if (closeIndex < 0 || hasNestedOpeningQuote(text, openIndex + 1, closeIndex)) {
+            if (closeIndex < 0 || hasNestedOpeningQuote(text, openIndex + 1, closeIndex, text[openIndex])) {
                 return listOf(narratorSegment(text, startPosition, narratorVoice, renderAliyunSsml))
             }
             val dialogText = text.substring(openIndex, closeIndex + 1)
@@ -72,7 +74,15 @@ object ReadAloudRuleSegmenter {
         return -1
     }
 
-    private fun hasNestedOpeningQuote(text: String, startIndex: Int, endIndex: Int): Boolean {
+    private fun hasNestedOpeningQuote(
+        text: String,
+        startIndex: Int,
+        endIndex: Int,
+        openQuote: Char
+    ): Boolean {
+        if (quotePairs[openQuote] == openQuote) {
+            return false
+        }
         for (index in startIndex until endIndex) {
             if (text[index] in quotePairs.keys) {
                 return true

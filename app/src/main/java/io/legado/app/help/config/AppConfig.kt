@@ -371,12 +371,6 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
             appCtx.putPrefString(PreferKey.ttsEngine, value)
         }
 
-    var doubaoTtsConfig: String?
-        get() = appCtx.getPrefString("doubaoTtsConfig")
-        set(value) {
-            appCtx.putPrefString("doubaoTtsConfig", value)
-        }
-
     var webPort: Int
         get() = appCtx.getPrefInt(PreferKey.webPort, 1122)
         set(value) {

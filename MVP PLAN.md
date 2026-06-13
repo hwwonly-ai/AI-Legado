@@ -1,4 +1,9 @@
-# 多 TTS Provider 分角色朗读 MVP 拆分（阿里云 SSML + 豆包 TTS）
+# AI 分角色朗读 MVP 执行计划（V1）
+
+本文档定义 MVP 1-7 的**技术实现细节、架构设计、依赖关系和验收标准**。
+配套的 PRD（AI_IMMERSIVE_READING_PRD.md）定义**产品功能、用户体验和业务目标**。
+
+---
 
 ## 规划调整原则
 
@@ -25,7 +30,13 @@
 - AI 分角色朗读：识别旁白、具体角色、情绪、停顿和角色音色，这是优先上线目标。
 - AI 沉浸朗读：在分角色朗读基础上加入音效、环境音、BGM 和可选图片。
 
-## MVP 1：阿里云 SSML TTS 基线优化
+---
+
+## MVP 1-3.1：已完成（分支 mvp3.1）
+
+**状态：✅ 已完成并验证**
+
+### MVP 1：阿里云 SSML TTS 基线优化
 
 目标：稳定现有阿里云 SSML TTS 朗读能力，作为后续 AI 分角色朗读的基础。
 
@@ -211,9 +222,9 @@
   - 本地 Gradle 编译仍未成功执行：默认 `~/.gradle` wrapper 缓存锁受权限限制且提权审批超时；改用工作区 `.gradle` 会触发 Gradle 9.4.1 下载，但当前环境无法解析 `services.gradle.org`。
   - MVP3 只完成规则旁白/对白 SSML 生成，不包含剧本缓存、实时预取队列、AI 识别或用户可配置音色。
 
-## MVP 3.1：通用朗读段与豆包渲染基础
+## MVP 3.1：通用朗读段与豆包 HTTP_TTS 集成
 
-目标：将 MVP3 中绑定阿里云 SSML 的分段结果抽象成通用朗读段，让阿里云和豆包语音合成模型 2.0 可以复用同一套分段、角色和原文位置映射。
+目标：将 MVP3 中绑定阿里云 SSML 的分段结果抽象成通用朗读段，让阿里云和豆包可以复用同一套分段、角色和原文位置映射。
 
 内容：
 - 保留 MVP3 的旁白/对白规则分段能力。
@@ -232,338 +243,427 @@
   - `narrator`
   - `dialog`
 - 将阿里云 SSML 输出从 `ReadAloudRuleSegmenter` 中拆出，改由 `AliyunSsmlRenderer` 负责。
-- 新增豆包渲染基础：
-  - `DoubaoTtsRequest`
-  - `DoubaoVoiceConfig`
-  - `DoubaoTtsRenderer`
-  - `DoubaoNovelTtsPlanner`
-- 豆包请求规划支持：
-  - 旁白/对白映射不同 `voiceType`
-  - 情绪字段 `emotion`
-  - 可选语音指令 `instruction`
-  - 可选语音标签 `styleTag`
-  - 上下文窗口 `contextTexts`
-  - 原文位置 `rawStartPosition/rawEndPosition`
-  - 缓存 key seed
-- 当前阶段只做模型层和渲染层，不直接接入豆包网络请求和播放链路。
+- 豆包 TTS 已完全集成到 HTTP_TTS 框架：
+  - 在 `httpTTS.json` 中添加"豆包 TTS(新版)"条目（ID: -33）
+  - 支持 API Key 鉴权（新版豆包控制台）
+  - 支持自定义 Speaker、Resource ID
+  - 用户通过"朗读引擎"列表配置，与其他 TTS（百度、阿里云）保持一致
 
 验收：
 - MVP3 原有阿里云规则分角色行为保持兼容。
 - 普通文本仍能生成阿里云 `<speak><voice>...</voice></speak>` SSML。
-- 豆包规划器能基于同一段落生成 `DoubaoTtsRequest`。
+- 豆包 TTS 通过 HTTP_TTS 框架可用（用户在"朗读引擎"列表中配置）。
 - 豆包请求中不包含阿里云 `<emotion>` / `<voice>` SSML 标签。
 - 豆包请求保留原文起止位置，用于后续朗读进度、倒回和缓存。
-- 上下文承接只进入 `contextTexts`，不会被拼进当前朗读文本。
 
 已完成实现记录：
 - 当前分支：`mvp3.1`。
-- 已创建并切换到分支 `mvp3.1`。
-- 已扩展 `ReadAloudSegment`：
-  - 新增 `speakerName`。
-  - 新增 `styleTag`。
-  - 新增计算属性 `endPosition`。
-- 已新增 `ReadAloudRole`，统一管理 `narrator/dialog` 常量。
-- 已新增通用渲染接口 `ReadAloudSegmentRenderer<T>`。
-- 已新增 `AliyunSsmlRenderer`：
-  - 继续输出阿里云兼容 `<speak><voice name="...">...</voice></speak>`。
-  - `_emo` 音色继续包裹 `<emotion category="...">`。
-  - 普通音色不包 `<emotion>`，保持 MVP3 对 `zhixiaoxia` 的兼容修复。
-- 已改造 `ReadAloudRuleSegmenter`：
-  - 默认仍生成阿里云 SSML，保证现有 `HttpReadAloudService` 行为不变。
-  - 新增 `renderAliyunSsml` 参数；传 `false` 时只生成通用 segment，不生成阿里云 SSML。
-  - `speakerName` 当前规则值为 `旁白` 或 `对白`。
-- 已新增豆包模型层：
-  - `DoubaoTtsRequest` 保存豆包合成所需的文本、音色、情绪、上下文、标签开关、原文位置和缓存 seed。
-  - `DoubaoVoiceConfig` 保存旁白音色、对白音色、语音标签开关、语音指令和上下文窗口大小。
-  - `DoubaoTtsRenderer` 将通用 segment 渲染成豆包请求。
-  - `DoubaoNovelTtsPlanner` 将章节文本切成通用 segment，再批量生成豆包请求。
-- 已新增豆包 API 测试客户端：
-  - `DoubaoApiConfig` 保存 `AppID`、`AccessToken`、`cluster`、音频格式、采样率、语速、音量、音调和 additions 默认配置。
-  - `DoubaoTtsClient` 接入火山 `https://openspeech.bytedance.com/api/v1/tts` HTTP 非流式接口，用于后续真实账号测试。
-  - `DoubaoTtsClient.synthesize()` 输入 `DoubaoTtsRequest`，输出 `DoubaoTtsAudio`。
-  - `DoubaoTtsClient.synthesizeStream()` 可直接返回音频 `InputStream`，便于后续接入朗读服务。
-  - 请求体按 V1 非流式接口生成 `app/user/audio/request` 四段结构，`operation` 固定为 `query`。
-  - 鉴权 Header 使用 `Authorization: Bearer; <AccessToken>`。
-  - 响应 `data` 字段按 base64 解码为音频 bytes。
-  - `contextTexts`、`useTagParser`、`explicitLanguage`、Markdown/emoji 过滤配置会写入 `request.extra_param`。
+- 已扩展 `ReadAloudSegment` 与通用渲染：
+  - 新增 `speakerName`、`styleTag` 等字段。
+  - 已新增 `ReadAloudRole` 统一管理 `narrator/dialog` 常量。
+  - 已新增通用渲染接口 `ReadAloudSegmentRenderer<T>`。
+  - 已新增 `AliyunSsmlRenderer` 负责输出阿里云兼容 SSML。
+- 豆包 TTS 架构改造（2026-06-13）：
+  - ✅ 删除独立豆包引擎（DoubaoTtsEngine、DoubaoReadAloudService 等 13 个文件）
+  - ✅ 将豆包完全集成到 HTTP_TTS 框架
+  - ✅ 在 `httpTTS.json` 中添加"豆包 TTS(新版)"条目，支持 API Key 鉴权
+  - ✅ 简化架构，减少代码重复和特殊情况处理
+  - ✅ 用户配置方式与其他 TTS 保持一致
+- 豆包 API 适配：
+  - 新版豆包控制台鉴权：`X-Api-Key`（替代旧的 `X-Api-App-Key` + `X-Api-Access-Key`）
+  - 支持流式响应（HTTP Chunked）处理
+  - `additions` 字段为 JSON 字符串格式
+  - 已验证集成测试通过：使用真实 API Key 成功调用豆包 API
 - 已验证：
-  - `./gradlew :app:compileAppDebugKotlin` 编译通过。
-  - 编译仅出现既有 `HttpReadAloudService.kt` 的非空断言 warning，与 MVP3.1 改动无关。
-- 已新增可自动化验证：
-  - `DoubaoTtsClientTest.buildPayloadKeepsDoubaoRequestFreeFromAliyunSsml`
-  - `DoubaoTtsClientTest.buildPayloadAddsContextTextsAndTagParserIntoExtraParam`
-  - `DoubaoTtsClientTest.authorizationHeaderAddsBearerPrefixOnce`
+  - ✅ 编译成功（BUILD SUCCESSFUL）
+  - ✅ 所有单元测试通过（0 failures, 0 errors）
+  - ✅ APK 构建成功（assembleAppDebug）
 - 未完成/注意：
-  - 豆包 V1 HTTP 非流式客户端已完成，但尚未接入 UI 和主朗读播放链路。
-  - V1 HTTP 非流式接口用于 MVP3.1 测试；正式低延迟朗读仍建议后续接 V3 HTTP Chunked / WebSocket。
-  - 尚未把豆包请求接入 `HttpReadAloudService` 或新的专用朗读服务。
   - 尚未实现具体人物识别；当前仍为旁白/对白双角色。
-  - 尚未实现用户 UI 配置豆包 `AppID`、`AccessToken`、音色、情绪和语音标签开关。
+  - 豆包配置现在由用户在"朗读引擎"列表中进行，无需单独设置界面。
 
-可验证测试案例：
-- 用例 1：阿里云兼容回归，普通旁白。
+可验证测试案例（MVP 3.1 已删除，豆包完全集成到 HTTP_TTS 框架）：
+
+- 用例 1：通用 Segment - 普通旁白（阿里云兼容）。
   - 输入：`夜色渐深，院子里只剩下风声。`
   - 调用：`ReadAloudRuleSegmenter.segment(text, 0)`。
-  - 期望：
-    - 返回 1 个 segment。
-    - `speaker == "narrator"`。
-    - `speakerName == "旁白"`。
-    - `startPosition == 0`。
-    - `plainLength == text.length`。
-    - `ssml` 包含 `<speak><voice name="zhifeng_emo">`。
-    - `ssml` 包含 `<emotion category="neutral" intensity="1.0">`。
-- 用例 2：阿里云兼容回归，旁白 + 对白。
-  - 输入：`她停下脚步，说：“你终于来了。”风从门缝里吹进来。`
-  - 调用：`ReadAloudRuleSegmenter.segment(text, 10)`。
-  - 期望：
-    - 返回 3 个 segment：旁白、对白、旁白。
-    - 第一段 `speaker == "narrator"`，`startPosition == 10`。
-    - 第二段 `speaker == "dialog"`，`voice == "zhixiaoxia"`。
-    - 第二段 `ssml` 包含 `<voice name="zhixiaoxia">`。
-    - 第二段 `ssml` 不包含 `<emotion`，避免普通音色触发阿里云 423。
-    - 三段 `startPosition/plainLength` 能覆盖各自原文片段。
-- 用例 3：豆包通用 segment，不生成阿里云 SSML。
-  - 输入：`他说：“别怕。”她点了点头。`
+  - **Segment 结构**（旁白）：
+    ```
+    speaker: “narrator”
+    speakerName: “旁白”
+    text: “夜色渐深，院子里只剩下风声。”
+    ssml: <speak><voice name=”zhifeng_emo”><emotion category=”neutral” intensity=”1.0”>夜色渐深，院子里只剩下风声。</emotion></voice></speak>
+    startPosition: 0
+    plainLength: 文本长度
+    ```
+
+- 用例 2：通用 Segment - 旁白 + 对白（阿里云兼容）。
+  - 输入：`她停下脚步，说：”你终于来了。”风从门缝里吹进来。`
+  - 调用：`ReadAloudRuleSegmenter.segment(text, 0)`。
+  - **Segment 结构**（3 个 segment）：
+    1. **旁白段**：
+       ```
+       speaker: “narrator”
+       speakerName: “旁白”
+       text: “她停下脚步，说：”
+       ssml: <speak><voice name=”zhifeng_emo”><emotion category=”neutral” intensity=”1.0”>她停下脚步，说：”</emotion></voice></speak>
+       startPosition: 0
+       plainLength: 对应长度
+       ```
+    2. **对白段**：
+       ```
+       speaker: “dialog”
+       speakerName: “对白”
+       text: “你终于来了。”
+       ssml: <speak><voice name=”zhixiaoxia”>你终于来了。</voice></speak>  // 普通音色不包 <emotion>
+       startPosition: (对应位置)
+       plainLength: (对应长度)
+       ```
+    3. **旁白段**：
+       ```
+       speaker: “narrator”
+       speakerName: “旁白”
+       text: “风从门缝里吹进来。”
+       ssml: <speak><voice name=”zhifeng_emo”><emotion category=”neutral” intensity=”1.0”>风从门缝里吹进来。</emotion></voice></speak>
+       startPosition: (对应位置)
+       plainLength: (对应长度)
+       ```
+
+- 用例 3：通用 Segment - 纯 segment（不生成阿里云 SSML，用于豆包/其他 TTS）。
+  - 输入：`他说：”别怕。”她点了点头。`
   - 调用：`ReadAloudRuleSegmenter.segment(text, 0, renderAliyunSsml = false)`。
-  - 期望：
-    - 返回旁白、对白、旁白 segment。
-    - 所有 segment 的 `ssml` 都为空。
-    - `text/startPosition/plainLength/speaker/speakerName` 正常。
-- 用例 4：豆包请求规划，旁白/对白音色不同。
-  - 输入：`雨停了。“我们走吧。”他低声说。`
-  - 配置：`DoubaoVoiceConfig(narratorVoiceType = "BV700_V2_streaming", dialogVoiceType = "BV001_V2_streaming")`。
-  - 调用：`DoubaoNovelTtsPlanner(DoubaoTtsRenderer(config)).buildRequests(text, 100)`。
-  - 期望：
-    - 旁白请求 `voiceType == "BV700_V2_streaming"`。
-    - 对白请求 `voiceType == "BV001_V2_streaming"`。
-    - 请求 `text` 不包含 `<speak>`、`<voice>`、`<emotion>`。
-    - 请求 `rawStartPosition/rawEndPosition` 对应原文位置。
-- 用例 5：豆包上下文承接。
-  - 输入：`他低下头。“对不起。”她没有回答。`
-  - 配置：`contextWindowSize = 2`。
-  - 调用：同用例 4。
-  - 期望：
-    - 第 1 个请求 `contextTexts` 为空。
-    - 第 2 个请求 `contextTexts` 包含前一个旁白片段，格式类似 `旁白：他低下头。`。
-    - 第 3 个请求 `contextTexts` 至多包含前 2 个片段。
-    - 上下文文本不会拼入当前请求的 `text`。
-- 用例 6：豆包语音指令和语音标签开关。
-  - 构造 segment：`text = "你骗我！"`，`speaker = "dialog"`，`styleTag = "生气地"`。
-  - 配置 A：`enableVoiceTags = false`，`instruction = "以自然有声书风格朗读"`。
-  - 期望 A：请求 `text` 以 `[#以自然有声书风格朗读]` 开头，但不包含 `[生气地]`。
-  - 配置 B：`enableVoiceTags = true`。
-  - 期望 B：请求 `text` 包含 `[生气地]你骗我！`。
-- 用例 7：豆包 V1 HTTP payload 结构。
-  - 输入：用 `DoubaoNovelTtsPlanner` 生成一段对白请求。
-  - 调用：`DoubaoTtsClient.buildPayload(request, "fixed-req-id")`。
-  - 期望：
-    - 顶层包含 `app/user/audio/request`。
-    - `app.appid` 等于配置的 `AppID`。
-    - `audio.voice_type` 等于当前 segment 的 `voiceType`。
-    - `request.reqid == "fixed-req-id"`。
-    - `request.operation == "query"`。
-    - `request.text` 不包含阿里云 `<speak>`、`<voice>`、`<emotion>`。
-- 用例 8：豆包 V1 鉴权头。
-  - 输入：`DoubaoApiConfig(appId = "app", accessToken = "token")`。
-  - 期望：`authorizationHeader() == "Bearer; token"`。
-  - 输入：`accessToken = "Bearer; token"`。
-  - 期望：不会重复追加 `Bearer;`。
-- 用例 9：豆包真实账号冒烟测试。
-  - 前提：提供真实 `AppID`、`AccessToken`、开通可用的 `voiceType`。
-  - 调用：`DoubaoTtsClient.synthesize(request)`。
-  - 期望：
-    - 返回 `DoubaoTtsAudio.bytes` 非空。
-    - `contentType == "audio/mpeg"`。
-    - 将 bytes 写为 `.mp3` 后可播放。
-  - 注意：该用例需要真实火山账号和网络，不应放入默认 CI。
+  - **Segment 结构**（3 个 segment，无 SSML）：
+    ```
+    旁白段: speaker=”narrator”, speakerName=”旁白”, ssml=””
+    对白段: speaker=”dialog”, speakerName=”对白”, ssml=””
+    旁白段: speaker=”narrator”, speakerName=”旁白”, ssml=””
+    ```
 
-## MVP 4：通用剧本缓存与音频缓存复用
+- 用例 4：**豆包通过 HTTP_TTS 框架**（新版架构）。
+  - 输入：`雨停了。”我们走吧。”他低声说。`
+  - 配置位置：`httpTTS.json` 中的”豆包 TTS(新版)”条目
+  - 配置 JavaScript 会：
+    1. 从 `speaker` 字段判断是旁白还是对白
+    2. 映射到不同的 voiceType：
+       - 旁白 (`speaker == “narrator”`) → `zh_female_vv_uranus_bigtts`
+       - 对白 (`speaker == “dialog”`) → `zh_female_vv_uranus_bigtts`（可配置不同）
+    3. 构建豆包 API 请求：
+       ```json
+       {
+         “user”: {“uid”: “legado_doubao_tts”},
+         “req_params”: {
+           “text”: “雨停了。”,
+           “speaker”: “zh_female_vv_uranus_bigtts”,  // 根据 speaker 字段判断
+           “audio_params”: {
+             “format”: “mp3”,
+             “sample_rate”: 24000,
+             “speech_rate”: 0,
+             “enable_timestamp”: false
+           },
+           “additions”: “{\”explicit_language\”: \”zh\”, \”disable_markdown_filter\”: true, \”disable_emoji_filter\”: true}”
+         }
+       }
+       ```
 
-目标：让已生成的通用 segment 剧本、阿里云 SSML 和豆包请求计划可复用，返回章节不重复处理。
+- 用例 5：**Segment 旁白/对白区别**（关键）。
+  - 同一章节的三个段落：
+    ```
+    Segment 1 (旁白): speaker=”narrator”, text=”雨停了。”
+    Segment 2 (对白): speaker=”dialog”, text=”我们走吧。”
+    Segment 3 (旁白): speaker=”narrator”, text=”他低声说。”
+    ```
+  - **重要**：Segment 本身无区别，区别在 `speaker` 字段
+  - 当使用豆包时，HTTP_TTS 的 JavaScript 配置会根据 `speaker` 字段选择不同的 voiceType
+  - 当使用阿里云时，`ssml` 字段已包含正确的 `<voice>` 标签
 
-内容：
-- 缓存结构化通用 segment 剧本。
-- 缓存 provider 渲染结果：
-  - 阿里云 SSML
-  - 豆包请求计划
-- 缓存 key：
-  - `bookId`
-  - `chapterIndex`
-  - `contentHash`
-  - `ruleVersion/promptVersion`
-  - `voiceProfileVersion`
-- Provider 渲染缓存 key 还需要包含：
-  - `provider`
-  - `rendererVersion`
-  - `voiceName/voiceType`
-  - `emotion`
-  - `instruction`
-  - `useTagParser`
-- 音频缓存继续按最终送入 TTS 的内容和 TTS 参数计算。
-- 返回已处理章节时直接读取缓存，不重复预处理。
-- 原文、规则版本、提示词版本、音色配置变化时重新生成。
-- 剧本缓存不改变原阅读排版，只服务朗读链路。
+- 用例 6：豆包通过 HTTP_TTS 配置流程（最终用户体验）。
+  - 1. 用户在”朗读引擎”列表中选择”豆包 TTS(新版)”
+  - 2. 输入 API Key
+  - 3. （可选）修改旁白/对白的 Speaker ID
+  - 4. 朗读时，自动识别 segment 的 `speaker` 字段
+  - 5. 调用豆包 API 发送请求（不同的 speaker 发送不同的 voiceType）
 
-验收：
-- 第一次读章节时生成通用 segment 剧本。
-- 阿里云路径能从通用剧本渲染 SSML。
-- 豆包路径能从通用剧本渲染请求计划。
-- 返回已处理章节时不重新预处理。
-- 原文变化后能重新生成。
-- 剧本缓存不会影响原阅读排版。
-- 已生成音频可按最终 TTS 内容和参数复用。
+**注意**：
+- Segment 结构在 MVP 3.1 中设计，现已删除独立的 DoubaoTtsRenderer/DoubaoTtsClientV3 等类
+- 豆包现通过 HTTP_TTS 框架的 JavaScript 配置来实现
+- 旁白和对白的区别通过 `speaker` 字段体现，而不是独立的音色对象
+- 整个架构与阿里云、百度等 TTS 统一
 
-## MVP 5：实时预处理与预取队列
 
-目标：从“离线预处理整本小说”改为“边读边处理 + 后台预取”。
 
-内容：
-- 启动朗读时：
-  - 当前 1-3 个 segment 优先处理。
-  - 未处理完成时可先用 MVP3 规则结果播放。
-- 后台任务：
-  - 预处理当前章节剩余 segment。
-  - 预处理下一章。
-  - 可预生成 TTS 音频。
-- 支持：
-  - 跳章取消无用任务。
-  - 网络失败重试。
-  - 缓存命中跳过规则/AI 和 TTS。
-  - App 退出后保留已完成缓存。
-- 不再要求用户先整本预处理再导入。
+## MVP 4：Segment 剧本持久化缓存
 
-验收：
-- 点朗读后不长时间等待。
-- 当前段能尽快开始播放。
-- 后续片段能提前准备。
-- 跳到其他章节后旧任务能停止。
-- 返回已处理章节时直接用缓存。
+**目标：** 将内存态 segment 持久化到数据库，返回已处理章节时直接读取，不重复处理。
 
-## MVP 6：Unitale 式 AI 剧本分析与角色档案
+**具体实现：**
+- 使用 Room 新增 `ReadAloudScriptEntity` 表（复用现有 AppDatabase）
+  - 字段：`bookUrl`, `chapterIndex`, `contentHash`, `ruleVersion`, `promtVersion`, `segments`（JSON）, `createdAt`
+- 缓存 key = `${bookUrl}#${chapterIndex}#${contentHash}`
+- 内容变化（contentHash 改变）或规则版本变化时自动失效
+- 序列化：segments list → JSON string（Gson）
+- 音频缓存继续用现有机制（MD5 of TTS params + content）
 
-目标：参考 Unitale 的 Prompt 设计，用 AI 将当前章节窗口解析为可缓存、可修正、可回放的朗读剧本，再转换成通用 segment。
+**技术架构：**
+```
+ReadAloudSegment[] → Gson.toJson → DB.insert
+↓（返回章节时）
+DB.query by contentHash → Gson.fromJson → ReadAloudSegment[]
+```
 
-内容：
-- 接入 AI API 或后端代理。
-- 输入内容包含：
-  - 当前章节窗口文本。
-  - 前文短摘要。
-  - 本书已知角色档案。
-  - 已有角色别名。
-  - 当前可用情绪列表。
-  - 当前可用音色列表。
-- AI 输出结构化 JSON，不直接输出 SSML 或具体 TTS 请求。
-- `dialogue` 事件字段：
-  - `text`
-  - `startPosition`
-  - `endPosition`
-  - `speaker`
-  - `speakerName`
-  - `speakerAlias`
-  - `emotion`
-  - `intensity`
-  - `styleTag`
-  - `breakDuration`
-  - `confidence`
-- 角色识别规则参考 Unitale：
-  - 完整保留原文，不删改小说内容。
-  - 引号内对白尝试识别具体说话人。
-  - “他说”“她低声问”等说话提示语必须归入旁白。
-  - 旁白统一标记为 `旁白`。
-  - 连续旁白优先合并，过长旁白按句号拆分。
-  - 不确定说话人时允许使用 `未知角色`，避免强行误判。
-- 建立每本书的角色档案：
-  - 角色 ID。
-  - 显示名。
-  - 别名列表。
-  - 角色等级：旁白、主角、主要配角、次要配角、龙套、未知角色。
-  - 性别/年龄段/声音描述。
-  - 固定音色或自动音色策略。
-  - 锁定状态。
-  - 首次出现章节和最近出现章节。
-- 音色策略：
-  - 旁白可单独选择音色。
-  - 主角、主要配角、次要配角可固定分配已有音色。
-  - 龙套和未分配角色可从临时演员音色池选择，或由后续 IndexTTS 2 自动生成参考音色。
-  - 用户锁定的角色音色不能被 AI 自动覆盖。
-- AI 结果不绑定具体 provider。
-- 通过 provider renderer 将 `dialogue` 事件转换为：
-  - 阿里云 SSML。
-  - 豆包 TTS 请求。
-  - 后续 IndexTTS 2 请求。
-- AI 失败时回退 MVP3 规则旁白/对白分段。
+**单元测试：**
+1. 相同输入两次调用 segmenter，第二次从 DB 读取缓存，不重新构建
+2. contentHash 改变后缓存失效，触发重新生成
+3. 返回已处理章节时 logcat 无 "segment rebuild" 日志
 
-验收：
-- 能识别旁白和主要角色。
-- 同一角色跨章节复用同一个角色档案。
-- 用户修正角色名、别名或音色后，后续章节优先沿用。
-- 情绪和强度能映射到阿里云、豆包或 IndexTTS 2 的 provider 能力。
-- AI 结果能进入 MVP4 剧本缓存和 MVP5 预取队列。
-- AI 失败不影响基础朗读。
+**集成测试：**
+- 朗读一章节，关闭 App，重新打开该章节，直接从缓存读取
 
-## MVP 6.5：声音事件、音效与 BGM 编排
+---
 
-目标：在 AI 分角色朗读稳定后，参考 Unitale 的声音事件模型，加入音效、环境音和背景音乐，但默认保持克制。
+## MVP 4.1：豆包配置 UI 与连接测试
 
-内容：
-- AI 剧本新增非台词事件：
-  - `sfx`：瞬时音效。
-  - `ambient`：环境音。
-  - `bgm`：背景音乐播放/停止/切换。
-  - `pause`：独立停顿。
-- `sfx` 可挂在 `dialogue` 事件上：
-  - `name`
-  - `position`
-  - `volume`
-  - `confidence`
-- `position` 参考 Unitale，表示台词音频内的相对位置：
-  - `0.0`：台词开始。
-  - `0.5`：台词中段。
-  - `1.0`：台词结束。
-- `bgm` 和 `ambient` 作为独立事件，按场景持续播放。
-- 音效与 BGM 必须来自用户已安装或启用的素材库，AI 不得编造素材名称。
-- 用户可选择声音强度：
-  - 关闭。
-  - 克制。
-  - 标准。
-  - 电影感。
-- 默认策略：
-  - 一个场景最多一个主要环境音。
-  - BGM 按场景切换，不按每句台词频繁切换。
-  - 说话时自动降低 BGM 音量。
-  - 普通动作不强制插入音效。
-  - 用户可禁用某个音效或某类声音。
-- 失败或资源缺失时跳过声音事件，不影响人声朗读。
+**目标：** 让用户能配置豆包账号并验证连接，使 MVP 3.1 的豆包能力对用户可用。
 
-验收：
-- 人声朗读不受音效/BGM 失败影响。
-- 当前段可播放台词内音效。
-- BGM 能按剧本播放、停止和切换。
-- 用户能全局关闭音效或 BGM。
-- 导航、跳段、跳章时旧声音事件能停止。
+**具体实现：**
+- 新增设置页面（复用现有 PreferenceFragment 模式）
+  - 输入项：AppID、AccessToken、Resource ID、旁白/对白 voiceType
+  - [测试连接] 按钮 → 调用 `DoubaoTtsClientV3.synthesizeStream()` 合成 1 句示例文本（如"你好，测试"）
+  - 显示结果：成功/失败 + 音频时长 + 错误码（若失败）
+- 配置存储：复用现有 `DoubaoTtsEngine.getSettings()` / `saveSettings()`（SharedPreferences + GSON）
+- 测试失败时给出具体错误提示（HTTP status、服务端 code 等）
 
-## MVP 6.6：可选背景图片与有声视频方向
+**验收标准：**
+1. 用户填入真实豆包账号后点"测试连接"，能播放合成音频
+2. 填入错误 AppID 时，界面显示"401 Unauthorized"或对应错误码
+3. 配置保存后重启 App 设置仍保留
+4. 空白状态 App 不要求用户填豆包配置（可选）
 
-目标：为后续沉浸朗读和有声视频导出预留视觉事件，但不作为首批 AI 分角色朗读的上线条件。
+---
 
-内容：
-- AI 剧本可选输出 `bgImage` 事件：
-  - `imagePrompt`
-  - `sceneId`
-  - `relatedCharacters`
-  - `position`
-- 图片生成不在第一阶段内置，可先支持用户手动添加图片。
-- 朗读播放时，图片仅作为场景背景或章节插图。
-- 后续可扩展为：
-  - 字幕。
-  - 背景图切换。
-  - 有声视频导出。
+## MVP 5：预取队列与章节背景处理
 
-验收：
-- 未启用图片时不影响朗读。
-- 启用后能在剧本中保存图片提示词或本地图片引用。
-- 图片事件能与章节缓存一起保存和刷新。
+**目标：** 朗读启动后能快速播放第一段，同时后台异步预处理后续内容。
 
+**具体实现（基于现有 speakJob/downloadTask）：**
+- 新增 `SegmentPrefetchQueue`（Kotlin Channel，容量 = 5 段）
+  - 当播放当前段时，异步预取接下来 3 段的 segment 和音频
+  - 跳章时 cancel 当前 channel，新建队列
+- 当前 segment 未就绪时，立即回退 MVP3 规则分段播放（不阻塞）
+- 下一章预处理：当前章播到 70% 时，后台触发下一章的 segment 生成 + DB 写入（MVP 4 缓存）
+- 预生成 TTS：segment 就绪后自动调用 TTS，音频写入文件缓存
+
+**时间指标：**
+- 首段可播放等待时间 ≤ 1 秒（豆包网络 + 合成延迟）
+- 跳章后旧 prefetch job 在 100ms 内 cancel
+
+**验收标准：**
+1. 打开新章节，首段 TTS 返回后立即开始播放（无额外延迟）
+2. logcat 显示 prefetch 在播放第 1 段时已启动第 2-3 段请求
+3. 快速跳章后 logcat 显示旧 job 已 cancelled
+4. 断网时 prefetch 失败，播放继续使用缓存或规则降级
+
+---
+
+## MVP 6A：AI 服务配置与 Prompt 管理
+
+**目标：** 让用户配置 AI 模型服务（OpenAI-compatible），并能编辑/导出/导入小说解析 Prompt。
+**对应 PRD 验收：** 第 13、14 条
+
+**具体实现：**
+- **AI 配置数据结构** `AiServiceConfig`
+  ```
+  {
+    id: String,
+    name: String,           // "我的 Claude"
+    endpoint: String,       // "https://api.openai.com/v1"
+    apiKey: String,         // 用户提供
+    model: String,          // "gpt-4" / "claude-opus" 等
+    params: String?         // 可选额外 JSON 参数
+  }
+  ```
+- **Prompt 两级管理**（参考 Unitale）
+  - 内置默认 Prompt（代码资源文件，版本追踪）
+  - 用户自定义 Prompt → SharedPreferences
+  - 启用开关：关闭时使用内置，启用时使用用户版本
+  - 自定义启用时，系统自动叠加「原文完整性」「结构化输出」最低约束，用户无法绕过
+  - Prompt 模板用 `${emotionList}`、`${rawScript}` 等占位符，运行时替换
+- **导出/导入**
+  - 导出：Prompt 保存为 `.txt` 文件
+  - 导入：从用户选择的 `.txt` 文件读取
+  - 恢复默认：覆盖用户版本为内置版本
+- **连接测试**
+  - 发送 1 段示例文本（如"你好")，验证模型返回 JSON 格式正确
+  - 显示成功/失败 + token 用量（若返回）
+
+**验收标准：**
+1. 填入 OpenAI-compatible endpoint + API key，点"测试"，返回示例 JSON
+2. 修改 Prompt 后导出为文件，清空后重新导入，内容一致
+3. 恢复默认后 Prompt 内容变回内置版本
+4. 配置保存后重启 App 仍保留
+
+---
+
+## MVP 6B：AI 单章剧本解析与基础角色识别
+
+**目标：** 接入 AI 将当前章节解析为结构化 dialogue 事件，替换 MVP3 的规则分段。
+**对应 PRD 验收：** 第 2、3、7 条
+
+**具体实现：**
+- **新增 `AiScriptParser`**
+  - 输入：章节文本 + 已知角色摘要 + Prompt（来自 MVP 6A）
+  - 输出：JSON → `List<ScriptEvent>`
+  - 调用 AI 服务（OpenAI-compatible）分析
+  - 返回 JSON schema：
+    ```json
+    [
+      {"type": "bgm", "action": "play", "name": "BGM名"},
+      {"type": "bgImage", "image_prompt": "中文场景描述"},
+      {
+        "type": "dialogue",
+        "role_name": "角色名",
+        "text_content": "台词内容",
+        "emotion": "害怕",
+        "intensity": "强烈",
+        "break_duration": 0.5,
+        "filter": "电话",
+        "sfx": [{"name": "音效", "position": 0.5}]
+      }
+    ]
+    ```
+- **JSON 校验**
+  - 覆盖全部原文，无内容缺失/重复/乱序
+  - dialogue 的 `text_content` 按 `startPosition/endPosition` 或通过字符匹配重构原文，确保能完整覆盖输入
+- **失败降级**
+  - AI 超时/格式错误 → 自动回退 MVP3 规则分段
+  - 网络错误 → 使用缓存或规则分段
+  - 日志记录失败原因，便于调试
+- **AI 结果写入 MVP 4 的 DB 缓存**
+
+**单元测试：**
+1. Mock AI 返回值，校验 segment 映射不缺原文位置
+2. AI 返回格式错误时，自动降级为规则分段
+3. JSON 校验测试：缺少字段、类型错误、无法映射原文时识别
+
+**E2E 测试：**
+1. 使用真实 AI API，验证识别出旁白 + 至少 2 个具体角色名
+2. 验证 text_content 与原文能对应
+3. AI 失败时朗读不中断（自动降级）
+
+---
+
+## MVP 6C：角色档案与跨章节一致性
+
+**目标：** 建立每本书的角色档案，同一角色跨章节复用同一音色。
+**对应 PRD 验收：** 第 4、5、8、15 条
+
+**具体实现：**
+- **Room 新增 `CharacterProfileEntity` 表**
+  ```
+  {
+    id: Long (primary key),
+    bookUrl: String,
+    characterId: String,    // 唯一标识符
+    name: String,           // 显示名
+    aliases: String,        // JSON 数组
+    level: String,          // "protagonist" / "major" / "minor" / "extra" / "unknown"
+    voiceType: String,      // TTS 音色名（如 "zhifeng_emo"）
+    locked: Boolean,        // 是否锁定（不被 AI 覆盖）
+    description: String,    // 角色描述（用于 AI 生成参考音色）
+    firstAppearChapter: Int,
+    lastAppearChapter: Int,
+    createdAt: Long
+  }
+  ```
+- **角色识别流程**
+  - 首次识别新角色时，创建 CharacterProfile 记录
+  - 后续章节遇到同名角色，优先读档案匹配（获取已有音色）
+  - 用户修正角色 → 写锁定状态 → 后续 AI 不覆盖
+- **导入导出**
+  - 导出：JSON 文件（含角色名/别名/音色绑定/锁定状态），不含 API Key
+  - 导入：读 JSON，处理冲突（新增/覆盖/跳过）
+
+**验收标准：**
+1. 连续朗读 2 章，同一角色（如"主角"）使用同一音色
+2. 手动修改某角色音色并锁定 → 进入下一章 → 音色未被 AI 更改
+3. 导出角色档案 JSON → 清空角色 → 重新导入 → 角色恢复
+4. 导入时发生冲突 → 界面显示冲突列表，用户可选覆盖或跳过
+
+---
+
+## MVP 6D：轻量剧本修正与导入导出
+
+**目标：** 用户可修正当前段角色/情绪，并选择范围；剧本支持导入导出。
+**对应 PRD 验收：** 第 4、16 条
+
+**具体实现：**
+- **轻量修正入口**
+  - 朗读控制面板：长按当前段 → 修正菜单（角色/情绪/表演方式）
+  - 修正范围选择：仅本段 / 本章 / 全书记住
+  - 修正写入角色档案（若选"全书记住"）
+- **AI 剧本导入导出**
+  - 导出：按章节导出 JSON（含版本、原文校验、角色引用，不含 API Key 和小说正文）
+  - 导入：读 JSON，校验书籍和章节版本，显示覆盖范围
+- **修正后同步**
+  - 用户修改当前段角色 + 范围"本章应用" → 刷新当前章节所有同角色段落
+  - 用户修改 + 范围"全书记住" → 更新角色档案的音色绑定
+
+**验收标准：**
+1. 修正当前段角色 → 选"全书记住" → 当前章同类段落更新
+2. 导出当前章剧本 → 文件包含正确 JSON 结构，不含 API Key
+3. 清空缓存后导入剧本 → 该章节无需重新 AI 解析
+
+---
+
+## MVP 7：缓存管理与调试视图
+
+**目标：** 用户可管理缓存并查看调试信息排查问题。
+**配置 UI 已随各功能 MVP 交付（MVP 4.1、6A 等）**
+
+**具体实现（精简）：**
+- **缓存管理页面**
+  - 查看当前书籍占用空间（音频 + 剧本缓存）
+  - 清理语音缓存（保留剧本）
+  - 清理剧本缓存（保留角色档案）
+  - 保留角色配置重新生成
+  - 仅 Wi-Fi 预生成开关
+- **调试视图（高级设置）**
+  - 当前段 segment 的 JSON 展示
+  - 当前段 AI JSON 展示（若有）
+  - 角色档案匹配结果
+  - TTS 错误日志
+
+**验收标准：**
+1. 清理语音缓存后，角色档案不受影响
+2. 开启"仅 Wi-Fi"后，移动网络下不触发预生成
+3. 调试视图能显示当前段的 AI 解析结果
+
+---
+
+## V1 最小可上线 MVP 依赖关系
+
+```
+MVP 1-3.1 (已完成)
+    ↓
+MVP 4 (Segment 缓存)
+    ↓
+MVP 4.1 (豆包配置 UI)
+    ↓
+MVP 5 (预取队列)
+    ↓
+MVP 6A (AI 配置 + Prompt)
+    ↓
+MVP 6B (AI 解析)
+    ↓
+MVP 6C (角色档案)
+    ↓
+MVP 6D (轻量修正)
+    ↓
+MVP 7 (缓存管理)
+    ↓
+可上线 V1
+```
+
+---
 ## MVP 7：用户配置、管理与调试
 
 目标：让多 provider AI 分角色朗读能力可长期使用、管理和排错。
@@ -645,35 +745,81 @@
 - 用户能清理缓存。
 - 出错时能看到可定位的日志。
 
+---
+
+## V1 MVP 执行计划拆分（基于审查方案）
+
+### 完成状态
+
+| MVP | 功能 | 状态 | 分支 |
+|---|---|---|---|
+| 1 | 阿里云 SSML TTS 基线 | ✅ 完成 | mvp1 |
+| 2 | Segment 与位置映射 | ✅ 完成 | mvp2 |
+| 3 | 规则分角色 SSML | ✅ 完成 | mvp3 |
+| 3.1 | 豆包渲染 + 播放服务 | ✅ 完成 | mvp3.1 |
+| **4** | Segment 剧本 Room 缓存 | ⏳ 计划中 | - |
+| **4.1** | 豆包配置 UI + 连接测试 | ⏳ 计划中 | - |
+| **5** | 预取队列与背景处理 | ⏳ 计划中 | - |
+| **6A** | AI 配置 + Prompt 管理 | ⏳ 计划中 | - |
+| **6B** | AI 剧本解析（dialogue/bgm/bgImage） | ⏳ 计划中 | - |
+| **6C** | 角色档案与跨章节一致性 | ⏳ 计划中 | - |
+| **6D** | 轻量剧本修正 + 导入导出 | ⏳ 计划中 | - |
+| **7** | 缓存管理 + 调试视图 | ⏳ 计划中 | - |
+
+### V1 最小可上线条件
+
+执行顺序：MVP 1-3.1（已完成）→ MVP 4 → MVP 4.1 → MVP 5 → MVP 6A → MVP 6B → MVP 6C → MVP 6D → MVP 7
+
+**关键路径：**
+1. MVP 4 提供 segment 剧本持久化缓存（Room）
+2. MVP 4.1 提供豆包配置 UI，让用户能启用豆包朗读
+3. MVP 5 提供快速首段播放和后台预处理
+4. MVP 6A 让用户能配置 AI 服务和 Prompt
+5. MVP 6B 接入 AI 解析，替换规则分段
+6. MVP 6C 提供角色档案和跨章节一致性
+7. MVP 6D 提供轻量修正和导入导出
+8. MVP 7 提供缓存管理和调试
+
+---
+
+## MVP 4 及之后的详细设计
+
+（详见下文各 MVP 章节）
+
 ## 推荐开发顺序
 
-1. MVP 1：先稳定阿里云 SSML TTS。
-2. MVP 2：建立 SSML Segment 与纯文本位置映射基础。
-3. MVP 3：实现规则分角色。
-4. MVP 3.1：抽象通用朗读段，并建立豆包渲染基础。
-5. MVP 4：建立 SSML/豆包请求剧本缓存与音频缓存复用。
-6. MVP 5：实现实时预处理和预取队列。
-7. MVP 6：接入 Unitale 式 AI 剧本分析、角色档案和情绪识别。
-8. MVP 6.5：加入声音事件、音效、环境音和 BGM 编排。
-9. MVP 6.6：预留可选背景图片和有声视频方向。
-10. MVP 7：完善配置、管理和调试。
+1. ✅ MVP 1：阿里云 SSML TTS 基线（已完成）
+2. ✅ MVP 2：SSML Segment 与纯文本位置映射基础（已完成）
+3. ✅ MVP 3：规则分角色 SSML 生成（已完成）
+4. ✅ MVP 3.1：豆包渲染 + 完整播放链路（已完成）
+5. ⏳ MVP 4：Segment 剧本 Room 缓存
+6. ⏳ MVP 4.1：豆包配置 UI 与连接测试
+7. ⏳ MVP 5：预取队列与章节背景处理
+8. ⏳ MVP 6A：AI 服务配置与 Prompt 管理
+9. ⏳ MVP 6B：AI 单章剧本解析与基础角色识别
+10. ⏳ MVP 6C：角色档案与跨章节一致性
+11. ⏳ MVP 6D：轻量剧本修正与导入导出
+12. ⏳ MVP 7：缓存管理与调试视图
 
-## 最小可上线版本
+---
 
-建议做到：
+## V1 最小可上线版本
 
-- MVP 1
-- MVP 2
-- MVP 3
-- MVP 3.1
-- MVP 4
-- MVP 5
+完成上述 12 个 MVP 可以上线 V1 版本：
 
-也就是：
+**核心能力：**
+- 阿里云 SSML 能稳定朗读
+- Segment 与纯文本位置映射稳定
+- 豆包 TTS 可用（用户自配）
+- AI 能识别旁白和多个角色
+- 用户可修正和锁定角色
+- 角色档案可导出导入
+- AI 剧本和音频可缓存复用
+- 边读边处理，无需离线预处理
+- AI 失败自动降级到规则朗读
 
-- 阿里云 SSML 能稳定朗读。
-- Segment 与纯文本位置映射稳定。
-- 旁白/对白能用不同音色。
-- 同一套分段结果能渲染为阿里云 SSML 或豆包请求。
-- 章节剧本和音频能缓存复用。
-- 不需要整本离线预处理，可以边读边预处理。
+**不包含（推迟到 V1.1/V2）：**
+- ❌ 音效、环境声、背景音乐编排
+- ❌ 背景图片生成和视频导出
+- ❌ IndexTTS 2 集成
+- ❌ AI 生成参考音色

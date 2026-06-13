@@ -6,9 +6,6 @@ import android.text.InputType
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
-import android.widget.CheckBox
-import android.widget.EditText
-import android.widget.LinearLayout
 import android.widget.RadioButton
 import androidx.appcompat.widget.Toolbar
 import androidx.fragment.app.viewModels
@@ -31,8 +28,6 @@ import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.model.ReadAloud
 import io.legado.app.model.ReadBook
-import io.legado.app.model.tts.DoubaoTtsEngine
-import io.legado.app.model.tts.DoubaoTtsSettings
 import io.legado.app.ui.association.ImportHttpTtsDialog
 import io.legado.app.ui.file.HandleFileContract
 import io.legado.app.ui.login.SourceLoginActivity
@@ -178,7 +173,7 @@ class SpeakEngineDialog() : BaseDialogFragment(R.layout.dialog_recycler_view),
             appDb.httpTTSDao.flowAll().catch {
                 AppLog.put("朗读引擎界面获取数据失败\n${it.localizedMessage}", it)
             }.flowOn(IO).conflate().collect {
-                adapter.setItems(listOf(doubaoVirtualItem()) + it)
+                adapter.setItems(it)
             }
         }
     }
@@ -197,7 +192,7 @@ class SpeakEngineDialog() : BaseDialogFragment(R.layout.dialog_recycler_view),
                 mode = HandleFileContract.EXPORT
                 fileData = HandleFileContract.FileData(
                     "httpTts.json",
-                    GSON.toJson(adapter.getItems().filterNot { it.isDoubaoVirtualItem() })
+                    GSON.toJson(adapter.getItems())
                         .toByteArray(),
                     "application/json"
                 )
@@ -243,97 +238,6 @@ class SpeakEngineDialog() : BaseDialogFragment(R.layout.dialog_recycler_view),
         adapter.notifyItemRangeChanged(adapter.getHeaderCount(), adapter.itemCount)
     }
 
-    private fun doubaoVirtualItem(): HttpTTS {
-        return HttpTTS(
-            id = DOUBAO_VIRTUAL_ID,
-            name = DoubaoTtsEngine.TITLE
-        )
-    }
-
-    private fun HttpTTS.isDoubaoVirtualItem(): Boolean {
-        return id == DOUBAO_VIRTUAL_ID
-    }
-
-    private fun showDoubaoConfigDialog() {
-        val settings = DoubaoTtsEngine.getSettings()
-        val appIdView = configEditText("AppID", settings.appId)
-        val tokenView = configEditText("AccessToken", settings.accessToken)
-        val narratorVoiceView = configEditText("旁白 voiceType", settings.narratorVoiceType)
-        val dialogVoiceView = configEditText("对白 voiceType", settings.dialogVoiceType)
-        val emotionView = configEditText("默认 emotion", settings.emotion)
-        val instructionView = configEditText("语音指令", settings.instruction)
-        val contextWindowView = configEditText(
-            "上下文段数",
-            settings.contextWindowSize.toString(),
-            InputType.TYPE_CLASS_NUMBER
-        )
-        val speedView = configEditText("语速倍率", settings.speedRatio.toString(), DECIMAL_INPUT_TYPE)
-        val volumeView = configEditText("音量倍率", settings.volumeRatio.toString(), DECIMAL_INPUT_TYPE)
-        val pitchView = configEditText("音调倍率", settings.pitchRatio.toString(), DECIMAL_INPUT_TYPE)
-        val tagParserView = CheckBox(requireContext()).apply {
-            text = "启用语音标签"
-            isChecked = settings.enableVoiceTags
-        }
-        val root = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            val padding = (16 * resources.displayMetrics.density).roundToInt()
-            setPadding(padding, padding / 2, padding, 0)
-            addView(appIdView)
-            addView(tokenView)
-            addView(narratorVoiceView)
-            addView(dialogVoiceView)
-            addView(emotionView)
-            addView(instructionView)
-            addView(tagParserView)
-            addView(contextWindowView)
-            addView(speedView)
-            addView(volumeView)
-            addView(pitchView)
-        }
-        alert(title = DoubaoTtsEngine.TITLE) {
-            customView { root }
-            okButton {
-                DoubaoTtsEngine.saveSettings(
-                    DoubaoTtsSettings(
-                        appId = appIdView.text?.toString().orEmpty().trim(),
-                        accessToken = tokenView.text?.toString().orEmpty().trim(),
-                        narratorVoiceType = narratorVoiceView.text?.toString().orEmpty().trim()
-                            .ifBlank { "BV700_V2_streaming" },
-                        dialogVoiceType = dialogVoiceView.text?.toString().orEmpty().trim()
-                            .ifBlank { "BV001_V2_streaming" },
-                        emotion = emotionView.text?.toString().orEmpty().trim(),
-                        instruction = instructionView.text?.toString().orEmpty().trim(),
-                        enableVoiceTags = tagParserView.isChecked,
-                        contextWindowSize = contextWindowView.text?.toString()
-                            ?.toIntOrNull()
-                            ?.coerceIn(0, 5)
-                            ?: 2,
-                        speedRatio = speedView.text?.toString()?.toDoubleOrNull() ?: 1.0,
-                        volumeRatio = volumeView.text?.toString()?.toDoubleOrNull() ?: 1.0,
-                        pitchRatio = pitchView.text?.toString()?.toDoubleOrNull() ?: 1.0
-                    )
-                )
-                if (DoubaoTtsEngine.isSelected(ReadAloud.ttsEngine)) {
-                    ReadAloud.upReadAloudClass()
-                }
-            }
-            noButton()
-        }
-    }
-
-    private fun configEditText(
-        hint: String,
-        text: String,
-        inputType: Int = InputType.TYPE_CLASS_TEXT
-    ): EditText {
-        return EditText(requireContext()).apply {
-            this.hint = hint
-            setText(text)
-            this.inputType = inputType
-            isSingleLine = hint != "语音指令"
-        }
-    }
-
     inner class Adapter(context: Context) :
         RecyclerAdapter<HttpTTS, ItemHttpTtsBinding>(context) {
 
@@ -349,13 +253,8 @@ class SpeakEngineDialog() : BaseDialogFragment(R.layout.dialog_recycler_view),
         ) {
             binding.apply {
                 cbName.text = item.name
-                cbName.isChecked = if (item.isDoubaoVirtualItem()) {
-                    DoubaoTtsEngine.isSelected(ttsEngine)
-                } else {
-                    item.id.toString() == ttsEngine
-                }
-                ivMenuDelete.gone(item.isDoubaoVirtualItem())
-                ivMenuDelete.visible(!item.isDoubaoVirtualItem())
+                cbName.isChecked = item.id.toString() == ttsEngine
+                ivMenuDelete.visible()
             }
         }
 
@@ -363,13 +262,6 @@ class SpeakEngineDialog() : BaseDialogFragment(R.layout.dialog_recycler_view),
             binding.run {
                 cbName.setOnClickListener {
                     getItemByLayoutPosition(holder.layoutPosition)?.let { httpTTS ->
-                        if (httpTTS.isDoubaoVirtualItem()) {
-                            upTts(DoubaoTtsEngine.selectItemJson())
-                            if (!DoubaoTtsEngine.getSettings().isConfigured()) {
-                                showDoubaoConfigDialog()
-                            }
-                            return@let
-                        }
                         val id = httpTTS.id.toString()
                         upTts(id)
                         if (!httpTTS.loginUrl.isNullOrBlank()
@@ -384,11 +276,7 @@ class SpeakEngineDialog() : BaseDialogFragment(R.layout.dialog_recycler_view),
                 }
                 ivEdit.setOnClickListener {
                     getItemByLayoutPosition(holder.layoutPosition)?.let { httpTTS ->
-                        if (httpTTS.isDoubaoVirtualItem()) {
-                            showDoubaoConfigDialog()
-                        } else {
-                            showDialogFragment(HttpTtsEditDialog(httpTTS.id))
-                        }
+                        showDialogFragment(HttpTtsEditDialog(httpTTS.id))
                     }
                 }
                 ivMenuDelete.setOnClickListener {
@@ -406,7 +294,6 @@ class SpeakEngineDialog() : BaseDialogFragment(R.layout.dialog_recycler_view),
     }
 
     companion object {
-        private const val DOUBAO_VIRTUAL_ID = Long.MIN_VALUE + 31
         private const val DECIMAL_INPUT_TYPE =
             InputType.TYPE_CLASS_NUMBER or
                     InputType.TYPE_NUMBER_FLAG_DECIMAL or
