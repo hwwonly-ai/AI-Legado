@@ -493,12 +493,13 @@ abstract class BaseReadAloudService : BaseService(),
             searchFrom = (start + plainLength).coerceAtLeast(searchFrom)
             ReadAloudSegment(
                 text = plainText,
-                ssml = content.takeIf { it != plainText && it.contains('<') }.orEmpty(),
                 startPosition = start,
                 plainLength = plainLength,
-                emotion = readAloudTagAttribute(content, "emotion", "category"),
-                voice = readAloudTagAttribute(content, "voice", "name")
-                    .ifBlank { readAloudTagAttribute(content, "speak", "voice") }
+                emotion = readAloudTagAttribute(content, "emotion", "category")
+                    .ifBlank { "neutral" },
+                emotionIntensity = readAloudTagAttribute(content, "emotion", "intensity")
+                    .toFloatOrNull()
+                    ?: 1.0f
             )
         }
         contentStartPositions = readAloudSegments.map { it.startPosition }

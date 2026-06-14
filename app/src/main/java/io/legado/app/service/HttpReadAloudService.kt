@@ -38,10 +38,13 @@ import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.help.exoplayer.InputStreamDataSource
 import io.legado.app.help.http.okHttpClient
 import io.legado.app.model.ReadAloud
+import io.legado.app.model.ReadAloudProviderSegment
 import io.legado.app.model.ReadAloudRuleSegmenter
+import io.legado.app.model.ReadAloudRole
 import io.legado.app.model.ReadAloudSegment
 import io.legado.app.model.ReadBook
 import io.legado.app.model.analyzeRule.AnalyzeUrl
+import io.legado.app.model.tts.AliyunSsmlRenderer
 import io.legado.app.ui.book.read.page.entities.TextChapter
 import io.legado.app.utils.FileUtils
 import io.legado.app.utils.MD5Utils
@@ -82,6 +85,12 @@ private const val MAX_SSML_PLAIN_TEXT_LENGTH = 280
 private const val PRE_DOWNLOAD_SEGMENT_LIMIT = 3
 private const val SSML_LOG_TAG = "SSML_TTS"
 private const val LOG_PREVIEW_LENGTH = 80
+private const val ALIYUN_PROVIDER = "aliyun"
+private const val DOUBAO_PROVIDER = "doubao"
+private const val HTTP_PROVIDER = "http"
+private const val DEFAULT_ALIYUN_NARRATOR_VOICE = "zhifeng_emo"
+private const val DEFAULT_ALIYUN_DIALOG_VOICE = "zhixiaoxia"
+private const val DEFAULT_DOUBAO_SPEAKER = "zh_female_vv_uranus_bigtts"
 
 private fun logInfo(message: String) {
     android.util.Log.i(SSML_LOG_TAG, message)
@@ -152,10 +161,12 @@ private fun logSegmentQueued(
     mode: String,
     index: Int,
     text: String,
-    segment: ReadAloudSegment? = null
+    segment: ReadAloudSegment? = null,
+    providerSegment: ReadAloudProviderSegment? = null
 ) {
     logInfo(
-        "segment mode=$mode index=$index ${text.ssmlDebugSummary()} ${segment.debugSummary()} " +
+        "segment mode=$mode index=$index ${text.ssmlDebugSummary()} " +
+                "${segment.debugSummary(providerSegment)} " +
                 "plainLength=${text.plainTextForLog().length} " +
                 "hash=${MD5Utils.md5Encode16(text)} preview=${text.logPreview()}"
     )
@@ -163,24 +174,37 @@ private fun logSegmentQueued(
 
 private fun logTtsRequest(
     speakText: String,
-    segment: ReadAloudSegment? = null
+    segment: ReadAloudSegment? = null,
+    providerSegment: ReadAloudProviderSegment? = null
 ) {
     logInfo(
-        "request ${speakText.ssmlDebugSummary()} ${segment.debugSummary()} textLength=${speakText.length} " +
+        "request ${speakText.ssmlDebugSummary()} ${segment.debugSummary(providerSegment)} " +
+                "textLength=${speakText.length} " +
                 "hash=${MD5Utils.md5Encode16(speakText)} " +
                 "preview=${speakText.logPreview()}"
     )
 }
 
-private fun ReadAloudSegment?.debugSummary(): String {
+private fun ReadAloudSegment?.debugSummary(providerSegment: ReadAloudProviderSegment? = null): String {
     if (this == null) {
-        return "segmentRole=- segmentName=- segmentVoice=- segmentEmotion=- segmentStyle=-"
+        return "eventType=- segmentRole=- segmentName=- segmentEmotion=- segmentIntensity=- " +
+                providerSegment.debugSummary()
     }
-    return "segmentRole=${speaker.ifBlank { "-" }} " +
-            "segmentName=${speakerName.ifBlank { "-" }} " +
-            "segmentVoice=${voice.ifBlank { "-" }} " +
+    return "eventType=${eventType.ifBlank { "-" }} " +
+            "segmentRole=${role.ifBlank { "-" }} " +
+            "segmentName=${roleName.ifBlank { "-" }} " +
             "segmentEmotion=${emotion.ifBlank { "-" }} " +
-            "segmentStyle=${styleTag.ifBlank { "-" }}"
+            "segmentIntensity=$emotionIntensity " +
+            providerSegment.debugSummary()
+}
+
+private fun ReadAloudProviderSegment?.debugSummary(): String {
+    if (this == null) {
+        return "provider=- providerVoice=- providerStyle=-"
+    }
+    return "provider=${provider.ifBlank { "-" }} " +
+            "providerVoice=${voice.ifBlank { "-" }} " +
+            "providerStyle=${styleTag.ifBlank { "-" }}"
 }
 
 private fun String.ssmlDebugSummary(): String {
@@ -236,33 +260,50 @@ private fun HttpTTS.isDoubaoTTS(): Boolean {
             || url.contains("volcengine", ignoreCase = true)
 }
 
-private fun HttpTTS.ruleNarratorVoice(): String {
+private fun HttpTTS.providerName(): String {
+    return when {
+        isAliyunTTS() -> ALIYUN_PROVIDER
+        isDoubaoTTS() -> DOUBAO_PROVIDER
+        else -> HTTP_PROVIDER
+    }
+}
+
+private fun HttpTTS.providerNarratorVoice(): String {
     val loginInfo = getLoginInfoMap()
     if (isDoubaoTTS()) {
         return loginInfo?.get("NarratorSpeaker")?.takeIf { it.isNotBlank() }
             ?: loginInfo?.get("Speaker")?.takeIf { it.isNotBlank() }
-            ?: "zh_female_vv_uranus_bigtts"
-    }
-    if (!isAliyunTTS()) {
-        return ReadAloudRuleSegmenter.DEFAULT_NARRATOR_VOICE
+            ?: DEFAULT_DOUBAO_SPEAKER
     }
     return loginInfo?.get("NarratorVoice")?.takeIf { it.isNotBlank() }
         ?: loginInfo?.get("VoiceName")?.takeIf { it.isNotBlank() }
-        ?: ReadAloudRuleSegmenter.DEFAULT_NARRATOR_VOICE
+        ?: DEFAULT_ALIYUN_NARRATOR_VOICE
 }
 
-private fun HttpTTS.ruleDialogVoice(): String {
+private fun HttpTTS.providerDialogVoice(): String {
     val loginInfo = getLoginInfoMap()
     if (isDoubaoTTS()) {
         return loginInfo?.get("DialogSpeaker")?.takeIf { it.isNotBlank() }
             ?: loginInfo?.get("Speaker")?.takeIf { it.isNotBlank() }
-            ?: "zh_female_vv_uranus_bigtts"
-    }
-    if (!isAliyunTTS()) {
-        return ReadAloudRuleSegmenter.DEFAULT_DIALOG_VOICE
+            ?: DEFAULT_DOUBAO_SPEAKER
     }
     return loginInfo?.get("DialogVoice")?.takeIf { it.isNotBlank() }
-        ?: ReadAloudRuleSegmenter.DEFAULT_DIALOG_VOICE
+        ?: DEFAULT_ALIYUN_DIALOG_VOICE
+}
+
+private fun HttpTTS.providerSegment(segment: ReadAloudSegment?): ReadAloudProviderSegment? {
+    if (segment == null) {
+        return null
+    }
+    val voice = if (segment.role == ReadAloudRole.DIALOG) {
+        providerDialogVoice()
+    } else {
+        providerNarratorVoice()
+    }
+    return ReadAloudProviderSegment(
+        provider = providerName(),
+        voice = voice
+    )
 }
 
 private fun shouldUseExistingSSML(text: String): Boolean {
@@ -533,9 +574,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                     useExistingSSML -> mergeSSMLParagraphs(contentList)
                     useRuleSegments -> buildRuleContentList(
                         mode = "file",
-                        renderAliyunSsml = httpTts.isAliyunTTS(),
-                        narratorVoice = httpTts.ruleNarratorVoice(),
-                        dialogVoice = httpTts.ruleDialogVoice()
+                        httpTts = httpTts
                     )
                     else -> contentList
                 }
@@ -587,9 +626,14 @@ class HttpReadAloudService : BaseReadAloudService(),
                         else -> speakText
                     }
                     val segment = readAloudSegments.getOrNull(index)
-                    val fileName = md5SpeakFileName(finalSpeakText, readAloudSegment = segment)
+                    val providerSegment = httpTts.providerSegment(segment)
+                    val fileName = md5SpeakFileName(
+                        finalSpeakText,
+                        readAloudSegment = segment,
+                        readAloudProviderSegment = providerSegment
+                    )
                     
-                    logSegmentQueued("file", index, finalSpeakText, segment)
+                    logSegmentQueued("file", index, finalSpeakText, segment, providerSegment)
                     
                     if (!hasSpeakableText(finalSpeakText)) {
                         AppLog.put("阅读段落内容为空，使用无声音频代替。\n朗读文本：$content")
@@ -601,7 +645,8 @@ class HttpReadAloudService : BaseReadAloudService(),
                             speakText = finalSpeakText,
                             originalContent = content,
                             useSSMLRequest = useExistingSSML || (useRuleSegments && httpTts.isAliyunTTS()) || usePlainTextPreprocess,
-                            readAloudSegment = segment
+                            readAloudSegment = segment,
+                            readAloudProviderSegment = providerSegment
                         )
                     }
                     val file = getSpeakFileAsMd5(fileName)
@@ -623,10 +668,11 @@ class HttpReadAloudService : BaseReadAloudService(),
         speakText: String,
         originalContent: String,
         useSSMLRequest: Boolean,
-        readAloudSegment: ReadAloudSegment? = null
+        readAloudSegment: ReadAloudSegment? = null,
+        readAloudProviderSegment: ReadAloudProviderSegment? = null
     ) {
         runCatching {
-            getSpeakStream(httpTts, speakText, readAloudSegment)
+            getSpeakStream(httpTts, speakText, readAloudSegment, readAloudProviderSegment)
         }.recoverCatching { error ->
             if (error is CancellationException) {
                 throw error
@@ -637,7 +683,12 @@ class HttpReadAloudService : BaseReadAloudService(),
                     .trim()
                 if (hasSpeakableText(plainText)) {
                     AppLog.put("SSML合成失败，回退普通文本朗读。\n${error.localizedMessage}")
-                    return@recoverCatching getSpeakStream(httpTts, plainText, readAloudSegment)
+                    return@recoverCatching getSpeakStream(
+                        httpTts,
+                        plainText,
+                        readAloudSegment,
+                        readAloudProviderSegment
+                    )
                 }
             }
             throw error
@@ -838,17 +889,12 @@ class HttpReadAloudService : BaseReadAloudService(),
 
     private fun buildRuleContentList(
         mode: String,
-        renderAliyunSsml: Boolean,
-        narratorVoice: String,
-        dialogVoice: String
+        httpTts: HttpTTS
     ): List<String> {
         val sourceList = contentList
         val generatedSegments = buildRuleSegments(
             sourceList = sourceList,
             mode = mode,
-            renderAliyunSsml = renderAliyunSsml,
-            narratorVoice = narratorVoice,
-            dialogVoice = dialogVoice,
             initialStart = readAloudNumber
         ) { index, runningStart ->
             contentStartPosition(index) ?: runningStart
@@ -859,15 +905,12 @@ class HttpReadAloudService : BaseReadAloudService(),
         readAloudSegments = generatedSegments
         contentStartPositions = generatedSegments.map { it.startPosition }
         contentPlainLengths = generatedSegments.map { it.plainLength }
-        return generatedSegments.map { it.ssml.ifBlank { it.text } }
+        return generatedSegments.renderRuleContents(httpTts)
     }
 
     private fun buildRuleSegments(
         sourceList: List<String>,
         mode: String,
-        renderAliyunSsml: Boolean,
-        narratorVoice: String,
-        dialogVoice: String,
         initialStart: Int = 0,
         startPositionProvider: (index: Int, runningStart: Int) -> Int = { _, runningStart ->
             runningStart
@@ -882,10 +925,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                 generatedSegments.addAll(
                     ReadAloudRuleSegmenter.segment(
                         text = plainText,
-                        startPosition = startPosition,
-                        narratorVoice = narratorVoice,
-                        dialogVoice = dialogVoice,
-                        renderAliyunSsml = renderAliyunSsml
+                        startPosition = startPosition
                     )
                 )
             }
@@ -893,8 +933,8 @@ class HttpReadAloudService : BaseReadAloudService(),
         }
         logInfo(
             "rule mode=$mode sourceSize=${sourceList.size} segments=${generatedSegments.size} " +
-                    "dialog=${generatedSegments.count { it.speaker == "dialog" }} " +
-                    "narrator=${generatedSegments.count { it.speaker == "narrator" }}"
+                    "dialog=${generatedSegments.count { it.role == ReadAloudRole.DIALOG }} " +
+                    "narrator=${generatedSegments.count { it.role == ReadAloudRole.NARRATOR }}"
         )
         return generatedSegments
     }
@@ -902,21 +942,31 @@ class HttpReadAloudService : BaseReadAloudService(),
     private fun buildRuleContentWithSegments(
         sourceList: List<String>,
         mode: String,
-        renderAliyunSsml: Boolean,
-        narratorVoice: String,
-        dialogVoice: String
+        httpTts: HttpTTS
     ): Pair<List<String>, List<ReadAloudSegment>> {
         val segments = buildRuleSegments(
             sourceList = sourceList,
-            mode = mode,
-            renderAliyunSsml = renderAliyunSsml,
-            narratorVoice = narratorVoice,
-            dialogVoice = dialogVoice
+            mode = mode
         )
         return if (segments.isEmpty()) {
             sourceList to emptyList()
         } else {
-            segments.map { it.ssml.ifBlank { it.text } } to segments
+            segments.renderRuleContents(httpTts) to segments
+        }
+    }
+
+    private fun List<ReadAloudSegment>.renderRuleContents(httpTts: HttpTTS): List<String> {
+        return if (httpTts.isAliyunTTS()) {
+            map { segment ->
+                val providerSegment = httpTts.providerSegment(segment)
+                    ?: ReadAloudProviderSegment(
+                        provider = httpTts.providerName(),
+                        voice = httpTts.providerNarratorVoice()
+                    )
+                AliyunSsmlRenderer.render(segment, providerSegment)
+            }
+        } else {
+            map { it.text }
         }
     }
 
@@ -943,7 +993,8 @@ class HttpReadAloudService : BaseReadAloudService(),
             if (segmentEnd >= currentPos) {
                 logInfo(
                     "find mode=$mode segment=$index start=${segment.startPosition} " +
-                            "end=$segmentEnd voice=${segment.voice} emotion=${segment.emotion}"
+                            "end=$segmentEnd role=${segment.role} emotion=${segment.emotion} " +
+                            "intensity=${segment.emotionIntensity}"
                 )
                 return index
             }
@@ -1015,9 +1066,7 @@ class HttpReadAloudService : BaseReadAloudService(),
             buildRuleContentWithSegments(
                 sourceList = preDownloadContentList,
                 mode = "predownload:${textChapter.title}",
-                renderAliyunSsml = httpTts.isAliyunTTS(),
-                narratorVoice = httpTts.ruleNarratorVoice(),
-                dialogVoice = httpTts.ruleDialogVoice()
+                httpTts = httpTts
             )
         } else {
             preDownloadContentList to emptyList()
@@ -1037,7 +1086,13 @@ class HttpReadAloudService : BaseReadAloudService(),
                 else -> speakText
             }
             val segment = preDownloadSegments.getOrNull(index)
-            val fileName = md5SpeakFileName(finalSpeakText, textChapter, segment)
+            val providerSegment = httpTts.providerSegment(segment)
+            val fileName = md5SpeakFileName(
+                finalSpeakText,
+                textChapter,
+                segment,
+                providerSegment
+            )
             if (!hasSpeakableText(finalSpeakText)) {
                 createSilentSound(fileName)
             } else if (!hasSpeakFile(fileName)) {
@@ -1047,7 +1102,8 @@ class HttpReadAloudService : BaseReadAloudService(),
                     speakText = finalSpeakText,
                     originalContent = content,
                     useSSMLRequest = useExistingSSML || (useRuleSegments && httpTts.isAliyunTTS()) || usePlainTextPreprocess,
-                    readAloudSegment = segment
+                    readAloudSegment = segment,
+                    readAloudProviderSegment = providerSegment
                 )
             }
         }
@@ -1122,9 +1178,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                     useExistingSSML -> mergeSSMLParagraphs(contentList)
                     useRuleSegments -> buildRuleContentList(
                         mode = "stream",
-                        renderAliyunSsml = httpTts.isAliyunTTS(),
-                        narratorVoice = httpTts.ruleNarratorVoice(),
-                        dialogVoice = httpTts.ruleDialogVoice()
+                        httpTts = httpTts
                     )
                     else -> contentList
                 }
@@ -1178,17 +1232,23 @@ class HttpReadAloudService : BaseReadAloudService(),
                         else -> speakText
                     }
                     val segment = readAloudSegments.getOrNull(index)
+                    val providerSegment = httpTts.providerSegment(segment)
                     
-                    logSegmentQueued("stream", index, finalSpeakText, segment)
+                    logSegmentQueued("stream", index, finalSpeakText, segment, providerSegment)
                     
                     if (!hasSpeakableText(finalSpeakText)) {
                         AppLog.put("阅读段落无可朗读文字，使用无声音频代替。\n朗读文本：$content")
                     }
-                    val fileName = md5SpeakFileName(finalSpeakText, readAloudSegment = segment)
+                    val fileName = md5SpeakFileName(
+                        finalSpeakText,
+                        readAloudSegment = segment,
+                        readAloudProviderSegment = providerSegment
+                    )
                     val dataSourceFactory = createDataSourceFactory(
                         httpTts,
                         finalSpeakText.takeIf { hasSpeakableText(it) }.orEmpty(),
-                        segment
+                        segment,
+                        providerSegment
                     )
                     val mediaSource = createMediaSource(dataSourceFactory, fileName)
                     launch(Main) {
@@ -1217,9 +1277,7 @@ class HttpReadAloudService : BaseReadAloudService(),
             buildRuleContentWithSegments(
                 sourceList = preDownloadContentList,
                 mode = "stream-predownload:${textChapter.title}",
-                renderAliyunSsml = httpTts.isAliyunTTS(),
-                narratorVoice = httpTts.ruleNarratorVoice(),
-                dialogVoice = httpTts.ruleDialogVoice()
+                httpTts = httpTts
             )
         } else {
             preDownloadContentList to emptyList()
@@ -1240,8 +1298,14 @@ class HttpReadAloudService : BaseReadAloudService(),
                 else -> speakText
             }
             val segment = preDownloadSegments.getOrNull(index)
-            val fileName = md5SpeakFileName(finalSpeakText, textChapter, segment)
-            val dataSourceFactory = createDataSourceFactory(httpTts, finalSpeakText, segment)
+            val providerSegment = httpTts.providerSegment(segment)
+            val fileName = md5SpeakFileName(finalSpeakText, textChapter, segment, providerSegment)
+            val dataSourceFactory = createDataSourceFactory(
+                httpTts,
+                finalSpeakText,
+                segment,
+                providerSegment
+            )
             val downloader = createDownloader(dataSourceFactory, fileName)
             downloaderChannel.send(downloader)
             flow.first { !it }
@@ -1251,7 +1315,8 @@ class HttpReadAloudService : BaseReadAloudService(),
     private fun createDataSourceFactory(
         httpTts: HttpTTS,
         speakText: String,
-        readAloudSegment: ReadAloudSegment? = null
+        readAloudSegment: ReadAloudSegment? = null,
+        readAloudProviderSegment: ReadAloudProviderSegment? = null
     ): CacheDataSource.Factory {
         val upstreamFactory = DataSource.Factory {
             InputStreamDataSource {
@@ -1260,7 +1325,12 @@ class HttpReadAloudService : BaseReadAloudService(),
                 } else {
                     kotlin.runCatching {
                         runBlocking(lifecycleScope.coroutineContext[Job]!!) {
-                            getSpeakStream(httpTts, speakText, readAloudSegment)
+                            getSpeakStream(
+                                httpTts,
+                                speakText,
+                                readAloudSegment,
+                                readAloudProviderSegment
+                            )
                         }
                     }.recoverCatching { error ->
                         if (error is InterruptedException || error is CancellationException) {
@@ -1272,7 +1342,12 @@ class HttpReadAloudService : BaseReadAloudService(),
                         if (plainText != speakText && hasSpeakableText(plainText)) {
                             AppLog.put("SSML流式合成失败，回退普通文本朗读。\n${error.localizedMessage}")
                             runBlocking(lifecycleScope.coroutineContext[Job]!!) {
-                                getSpeakStream(httpTts, plainText, readAloudSegment)
+                                getSpeakStream(
+                                    httpTts,
+                                    plainText,
+                                    readAloudSegment,
+                                    readAloudProviderSegment
+                                )
                             }
                         } else {
                             throw error
@@ -1311,11 +1386,13 @@ class HttpReadAloudService : BaseReadAloudService(),
     private suspend fun getSpeakStream(
         httpTts: HttpTTS,
         speakText: String,
-        readAloudSegment: ReadAloudSegment? = null
+        readAloudSegment: ReadAloudSegment? = null,
+        readAloudProviderSegment: ReadAloudProviderSegment? = null
     ): InputStream? {
         while (true) {
             try {
-                logTtsRequest(speakText, readAloudSegment)
+                val providerSegment = readAloudProviderSegment ?: httpTts.providerSegment(readAloudSegment)
+                logTtsRequest(speakText, readAloudSegment, providerSegment)
                 logInfo(
                     "ttsConfig id=${httpTts.id} name=${httpTts.name} " +
                             "urlHash=${MD5Utils.md5Encode16(httpTts.url.orEmpty())} " +
@@ -1323,7 +1400,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                             "contentType=${httpTts.contentType.orEmpty()} " +
                             "responseType=${httpTts.responseType.orEmpty()} " +
                             "audioPath=${httpTts.audioPath.orEmpty()} " +
-                            readAloudSegment.debugSummary()
+                            readAloudSegment.debugSummary(providerSegment)
                 )
                 
                 val analyzeUrl = AnalyzeUrl(
@@ -1331,6 +1408,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                     speakText = speakText,
                     speakSpeed = speechRate,
                     readAloudSegment = readAloudSegment,
+                    readAloudProviderSegment = providerSegment,
                     source = httpTts,
                     readTimeout = 300 * 1000L,
                     coroutineContext = currentCoroutineContext()
@@ -1524,17 +1602,22 @@ class HttpReadAloudService : BaseReadAloudService(),
     private fun md5SpeakFileName(
         content: String,
         textChapter: TextChapter? = this.textChapter,
-        readAloudSegment: ReadAloudSegment? = null
+        readAloudSegment: ReadAloudSegment? = null,
+        readAloudProviderSegment: ReadAloudProviderSegment? = null
     ): String {
         val httpTts = ReadAloud.httpTTS
         val segmentKey = readAloudSegment?.let {
-            "${it.speaker}-|-${it.speakerName}-|-${it.voice}-|-${it.emotion}-|-${it.styleTag}"
+            "${it.eventType}-|-${it.role}-|-${it.roleName}-|-${it.emotion}-|-${it.emotionIntensity}"
+        }.orEmpty()
+        val providerKey = readAloudProviderSegment?.let {
+            "${it.provider}-|-${it.voice}-|-${it.styleTag}-|-${it.extra}"
         }.orEmpty()
         return MD5Utils.md5Encode16(textChapter?.title ?: "") + "_" +
                 MD5Utils.md5Encode16(
                     "${httpTts?.url}-|-${httpTts?.contentType}-|-${httpTts?.responseType}" +
                             "-|-${httpTts?.audioPath}-|-${httpTts?.getLoginInfo()}" +
-                            "-|-${httpTts?.getLoginHeader()}-|-$speechRate-|-$segmentKey-|-$content"
+                            "-|-${httpTts?.getLoginHeader()}-|-$speechRate-|-$segmentKey" +
+                            "-|-$providerKey-|-$content"
                 )
     }
 
