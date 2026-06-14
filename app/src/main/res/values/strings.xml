@@ -581,6 +581,17 @@
     <string name="brightness_auto">Auto-Brightness %s</string>
     <string name="read_aloud_by_page">Speak by pages</string>
     <string name="speak_engine">Speak Engine</string>
+    <string name="book_voice_config">Book voices</string>
+    <string name="book_voice_config_summary">Set narrator and dialog voices for the current book</string>
+    <string name="book_voice_narrator">Narrator voice</string>
+    <string name="book_voice_dialog">Dialog voice</string>
+    <string name="book_voice_narrator_hint_aliyun">NarratorVoice, e.g. zhifeng_emo</string>
+    <string name="book_voice_dialog_hint_aliyun">DialogVoice, e.g. zhixiaoxia</string>
+    <string name="book_voice_narrator_hint_doubao">NarratorSpeaker, e.g. zh_female_vv_uranus_bigtts</string>
+    <string name="book_voice_dialog_hint_doubao">DialogSpeaker, e.g. zh_female_vv_uranus_bigtts</string>
+    <string name="book_voice_hint_empty">Leave empty to use the engine global default</string>
+    <string name="book_voice_unsupported_engine">Current TTS engine does not support role voices. Only Aliyun and Doubao are supported.</string>
+    <string name="book_voice_current_engine">Current engine: %1$s [%2$s]</string>
     <string name="bg_image">Background images</string>
     <string name="bg_color">Background color</string>
     <string name="text_color">Text color</string>

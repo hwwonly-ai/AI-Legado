@@ -20,6 +20,7 @@ import io.legado.app.data.appDb
 import io.legado.app.data.entities.HttpTTS
 import io.legado.app.databinding.DialogEditTextBinding
 import io.legado.app.databinding.DialogRecyclerViewBinding
+import io.legado.app.databinding.ItemBookVoiceEntryBinding
 import io.legado.app.databinding.ItemHttpTtsBinding
 import io.legado.app.help.DirectLinkUpload
 import io.legado.app.help.config.AppConfig
@@ -106,6 +107,15 @@ class SpeakEngineDialog() : BaseDialogFragment(R.layout.dialog_recycler_view),
         recyclerView.setEdgeEffectColor(primaryColor)
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         recyclerView.adapter = adapter
+        adapter.addHeaderView {
+            ItemBookVoiceEntryBinding.inflate(layoutInflater, recyclerView, false).apply {
+                root.isEnabled = ReadBook.book != null
+                root.alpha = if (root.isEnabled) 1f else 0.5f
+                root.setOnClickListener {
+                    showDialogFragment(BookVoiceConfigDialog.newInstance(ttsEngine))
+                }
+            }
+        }
         adapter.addHeaderView {
             ItemHttpTtsBinding.inflate(layoutInflater, recyclerView, false).apply {
                 sysTtsViews.add(cbName)

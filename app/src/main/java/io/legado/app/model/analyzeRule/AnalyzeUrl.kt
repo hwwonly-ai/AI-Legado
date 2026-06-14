@@ -42,6 +42,7 @@ import io.legado.app.help.http.postMultipart
 import io.legado.app.help.source.getShareScope
 import io.legado.app.model.Debug
 import io.legado.app.model.ReadAloudSegment
+import io.legado.app.model.ReadAloudProviderSegment
 import io.legado.app.utils.EncoderUtils
 import io.legado.app.utils.GSON
 import io.legado.app.utils.GSONStrict
@@ -95,6 +96,7 @@ class AnalyzeUrl(
     private val speakText: String? = null,
     private val speakSpeed: Int? = null,
     private val readAloudSegment: ReadAloudSegment? = null,
+    private val readAloudProviderSegment: ReadAloudProviderSegment? = null,
     private var baseUrl: String = "",
     private val source: BaseSource? = null,
     private val ruleData: RuleDataInterface? = null,
@@ -411,11 +413,15 @@ class AnalyzeUrl(
             bindings["speakText"] = speakText
             bindings["speakSpeed"] = speakSpeed
             bindings["readAloudSegment"] = readAloudSegment
-            bindings["segmentSpeaker"] = readAloudSegment?.speaker.orEmpty()
-            bindings["segmentSpeakerName"] = readAloudSegment?.speakerName.orEmpty()
-            bindings["segmentVoice"] = readAloudSegment?.voice.orEmpty()
+            bindings["readAloudProviderSegment"] = readAloudProviderSegment
+            bindings["segmentEventType"] = readAloudSegment?.eventType.orEmpty()
+            bindings["segmentRole"] = readAloudSegment?.role.orEmpty()
+            bindings["segmentRoleName"] = readAloudSegment?.roleName.orEmpty()
             bindings["segmentEmotion"] = readAloudSegment?.emotion.orEmpty()
-            bindings["segmentStyleTag"] = readAloudSegment?.styleTag.orEmpty()
+            bindings["segmentEmotionIntensity"] = readAloudSegment?.emotionIntensity ?: 1.0f
+            bindings["providerVoice"] = readAloudProviderSegment?.voice.orEmpty()
+            bindings["providerStyleTag"] = readAloudProviderSegment?.styleTag.orEmpty()
+            bindings["providerExtra"] = readAloudProviderSegment?.extra.orEmpty()
             bindings["book"] = ruleData as? Book
             bindings["source"] = source
             bindings["result"] = result

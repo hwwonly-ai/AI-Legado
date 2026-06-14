@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(python3)",
-      "Bash(./gradlew app:assembleAppDebug)"
+      "Bash(./gradlew app:assembleAppDebug)",
+      "Read(//Users/huiweiwei/.claude/plans/**)"
     ]
   }
 }

@@ -580,6 +580,17 @@
     <string name="brightness_auto">自动亮度 %s</string>
     <string name="read_aloud_by_page">按页朗读</string>
     <string name="speak_engine">朗读引擎</string>
+    <string name="book_voice_config">书籍音色</string>
+    <string name="book_voice_config_summary">设置当前书籍的旁白和对白音色</string>
+    <string name="book_voice_narrator">旁白音色</string>
+    <string name="book_voice_dialog">对白音色</string>
+    <string name="book_voice_narrator_hint_aliyun">NarratorVoice，例如 zhifeng_emo</string>
+    <string name="book_voice_dialog_hint_aliyun">DialogVoice，例如 zhixiaoxia</string>
+    <string name="book_voice_narrator_hint_doubao">NarratorSpeaker，例如 zh_female_vv_uranus_bigtts</string>
+    <string name="book_voice_dialog_hint_doubao">DialogSpeaker，例如 zh_female_vv_uranus_bigtts</string>
+    <string name="book_voice_hint_empty">留空时使用引擎全局默认</string>
+    <string name="book_voice_unsupported_engine">当前 TTS 引擎不支持分角色音色，仅阿里云和豆包支持</string>
+    <string name="book_voice_current_engine">当前引擎：%1$s [%2$s]</string>
     <string name="bg_image">背景图片</string>
     <string name="bg_color">背景颜色</string>
     <string name="text_color">文字颜色</string>

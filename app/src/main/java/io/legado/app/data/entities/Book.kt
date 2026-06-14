@@ -246,6 +246,48 @@ data class Book(
         return config.ttsEngine
     }
 
+    fun setTtsVoices(ttsEngine: String?, narratorVoice: String?, dialogVoice: String?) {
+        val engineKey = ttsEngine?.takeIf { it.isNotBlank() } ?: return
+        migrateLegacyTtsVoices()
+        config.narratorVoices?.updateVoice(engineKey, narratorVoice)
+        config.dialogVoices?.updateVoice(engineKey, dialogVoice)
+    }
+
+    fun getNarratorVoice(ttsEngine: String?): String? {
+        val engineKey = ttsEngine?.takeIf { it.isNotBlank() } ?: return null
+        migrateLegacyTtsVoices()
+        return config.narratorVoices?.get(engineKey)?.takeIf { it.isNotBlank() }
+    }
+
+    fun getDialogVoice(ttsEngine: String?): String? {
+        val engineKey = ttsEngine?.takeIf { it.isNotBlank() } ?: return null
+        migrateLegacyTtsVoices()
+        return config.dialogVoices?.get(engineKey)?.takeIf { it.isNotBlank() }
+    }
+
+    private fun migrateLegacyTtsVoices() {
+        if (config.narratorVoices == null) config.narratorVoices = hashMapOf()
+        if (config.dialogVoices == null) config.dialogVoices = hashMapOf()
+        val engineKey = config.voiceTtsEngine?.takeIf { it.isNotBlank() }
+        if (engineKey != null) {
+            config.narratorVoice?.takeIf { it.isNotBlank() }?.let {
+                config.narratorVoices?.putIfAbsent(engineKey, it)
+            }
+            config.dialogVoice?.takeIf { it.isNotBlank() }?.let {
+                config.dialogVoices?.putIfAbsent(engineKey, it)
+            }
+        }
+        config.voiceTtsEngine = null
+        config.narratorVoice = null
+        config.dialogVoice = null
+    }
+
+    private fun HashMap<String, String>.updateVoice(engineKey: String, voice: String?) {
+        voice?.takeIf { it.isNotBlank() }?.let {
+            this[engineKey] = it
+        } ?: remove(engineKey)
+    }
+
     fun setSplitLongChapter(limitLongContent: Boolean) {
         config.splitLongChapter = limitLongContent
     }
@@ -398,6 +440,12 @@ data class Book(
         var useReplaceRule: Boolean? = null,// 正文使用净化替换规则
         var delTag: Long = 0L,//去除标签
         var ttsEngine: String? = null,
+        var narratorVoices: HashMap<String, String>? = hashMapOf(),
+        var dialogVoices: HashMap<String, String>? = hashMapOf(),
+        // 兼容旧版单引擎音色配置，读取后迁移到上面的映射。
+        var voiceTtsEngine: String? = null,
+        var narratorVoice: String? = null,
+        var dialogVoice: String? = null,
         var splitLongChapter: Boolean = true,
         var readSimulating: Boolean = false,
         var startDate: LocalDate? = null,
