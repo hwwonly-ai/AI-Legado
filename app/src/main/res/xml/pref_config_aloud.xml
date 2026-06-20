@@ -67,6 +67,32 @@
             android:key="sysTtsConfig"
             app:iconSpaceReserved="false" />
 
+        <io.legado.app.lib.prefs.Preference
+            android:title="@string/ai_service_config"
+            android:summary="@string/ai_service_config_summary"
+            android:key="aiServiceConfig"
+            app:iconSpaceReserved="false" />
+
+    </io.legado.app.lib.prefs.PreferenceCategory>
+
+    <io.legado.app.lib.prefs.PreferenceCategory
+        android:title="@string/read_aloud_segment_cache"
+        app:allowDividerAbove="false"
+        app:allowDividerBelow="false"
+        app:iconSpaceReserved="false">
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="refreshCurrentChapterSegmentCache"
+            android:title="@string/refresh_current_chapter_segment_cache"
+            android:summary="@string/refresh_current_chapter_segment_cache_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="clearBookSegmentCache"
+            android:title="@string/clear_book_segment_cache"
+            android:summary="@string/clear_book_segment_cache_summary"
+            app:iconSpaceReserved="false" />
+
     </io.legado.app.lib.prefs.PreferenceCategory>
 
 </androidx.preference.PreferenceScreen>

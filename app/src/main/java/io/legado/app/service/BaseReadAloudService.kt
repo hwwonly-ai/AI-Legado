@@ -106,6 +106,12 @@ abstract class BaseReadAloudService : BaseService(),
                 this.setReferenceCounted(false)
             }
     }
+    private val prepareWakeLock by lazy {
+        powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "legado:ReadAloudPrepare")
+            .apply {
+                this.setReferenceCounted(false)
+            }
+    }
     private val wifiLock by lazy {
         @Suppress("DEPRECATION")
         wifiManager?.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "legado:AudioPlayService")
@@ -205,9 +211,10 @@ abstract class BaseReadAloudService : BaseService(),
     override fun onDestroy() {
         super.onDestroy()
         if (useWakeLock) {
-            wakeLock.release()
-            wifiLock?.release()
+            wakeLock.safeRelease()
+            wifiLock?.safeRelease()
         }
+        releaseReadAloudPrepareWakeLock()
         isRun = false
         pause = true
         service = null
@@ -351,8 +358,8 @@ abstract class BaseReadAloudService : BaseService(),
     @SuppressLint("WakelockTimeout")
     open fun play() {
         if (useWakeLock) {
-            wakeLock.acquire()
-            wifiLock?.acquire()
+            wakeLock.safeAcquire()
+            wifiLock?.safeAcquire()
         }
         isRun = true
         pause = false
@@ -368,9 +375,10 @@ abstract class BaseReadAloudService : BaseService(),
     @CallSuper
     open fun pauseReadAloud(abandonFocus: Boolean = true) {
         if (useWakeLock) {
-            wakeLock.release()
-            wifiLock?.release()
+            wakeLock.safeRelease()
+            wifiLock?.safeRelease()
         }
+        releaseReadAloudPrepareWakeLock()
         pause = true
         if (abandonFocus) {
             abandonFocus()
@@ -389,12 +397,74 @@ abstract class BaseReadAloudService : BaseService(),
     }
 
     private fun resumeReadAloudInternal() {
+        if (useWakeLock) {
+            wakeLock.safeAcquire()
+            wifiLock?.safeAcquire()
+        }
         pause = false
         needResumeOnAudioFocusGain = false
         needResumeOnCallStateIdle = false
         upReadAloudNotification()
         upMediaSessionPlaybackState(PlaybackStateCompat.STATE_PLAYING)
         postEvent(EventBus.ALOUD_STATE, Status.PLAY)
+    }
+
+    @SuppressLint("WakelockTimeout")
+    protected fun acquireReadAloudPrepareWakeLock() {
+        if (!useWakeLock) {
+            AppLog.putDebug(
+                "aiChapterParse wakeLockAcquire beforeHeld=${prepareWakeLock.isHeld} " +
+                    "wifiHeld=${wifiLock?.isHeld}"
+            )
+            prepareWakeLock.safeAcquire()
+            wifiLock?.safeAcquire()
+            AppLog.putDebug(
+                "aiChapterParse wakeLockAcquire afterHeld=${prepareWakeLock.isHeld} " +
+                    "wifiHeld=${wifiLock?.isHeld}"
+            )
+        } else {
+            AppLog.putDebug("aiChapterParse wakeLockSkip reason=serviceWakeLockEnabled")
+        }
+    }
+
+    protected fun releaseReadAloudPrepareWakeLock() {
+        if (!useWakeLock) {
+            AppLog.putDebug(
+                "aiChapterParse wakeLockRelease held=${prepareWakeLock.isHeld} " +
+                    "wifiHeld=${wifiLock?.isHeld}"
+            )
+            prepareWakeLock.safeRelease()
+            wifiLock?.safeRelease()
+        }
+    }
+
+    @SuppressLint("WakelockTimeout")
+    private fun PowerManager.WakeLock.safeAcquire(timeoutMillis: Long? = null) {
+        if (!isHeld) {
+            if (timeoutMillis != null) {
+                acquire(timeoutMillis)
+            } else {
+                acquire()
+            }
+        }
+    }
+
+    private fun PowerManager.WakeLock.safeRelease() {
+        if (isHeld) {
+            release()
+        }
+    }
+
+    private fun WifiManager.WifiLock.safeAcquire() {
+        if (!isHeld) {
+            acquire()
+        }
+    }
+
+    private fun WifiManager.WifiLock.safeRelease() {
+        if (isHeld) {
+            release()
+        }
     }
 
     abstract fun upSpeechRate(reset: Boolean = false)

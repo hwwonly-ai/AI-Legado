@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/shape_card_view"
+        android:orientation="vertical"
+        tools:ignore="UselessParent">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/tool_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:theme="?attr/actionBarStyle"
+            app:popupTheme="@style/AppTheme.PopupOverlay"
+            app:title="@string/book_role_config"
+            app:titleTextAppearance="@style/ToolbarTitle" />
+
+        <androidx.core.widget.NestedScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:overScrollMode="ifContentScrolls">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <io.legado.app.ui.widget.text.TextInputLayout
+                    android:id="@+id/til_role_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/book_role_name">
+
+                    <io.legado.app.lib.theme.view.ThemeEditText
+                        android:id="@+id/et_role_name"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="text"
+                        android:maxLines="1"
+                        tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
+
+                </io.legado.app.ui.widget.text.TextInputLayout>
+
+                <io.legado.app.ui.widget.text.TextInputLayout
+                    android:id="@+id/til_aliases"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="@string/book_role_aliases">
+
+                    <io.legado.app.lib.theme.view.ThemeEditText
+                        android:id="@+id/et_aliases"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textMultiLine"
+                        android:maxLines="3"
+                        tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
+
+                </io.legado.app.ui.widget.text.TextInputLayout>
+
+                <TextView
+                    android:id="@+id/tv_aliases_hint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:alpha="0.6"
+                    android:paddingTop="2dp"
+                    android:text="@string/book_role_aliases_hint"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/book_role_voice"
+                    android:textSize="14sp" />
+
+                <RadioGroup
+                    android:id="@+id/rg_voice"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <io.legado.app.lib.theme.view.ThemeRadioButton
+                        android:id="@+id/rb_voice_default"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/book_role_voice_default_option" />
+
+                    <io.legado.app.lib.theme.view.ThemeRadioButton
+                        android:id="@+id/rb_voice_narrator"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        tools:text="旁白音色：zhifeng_emo" />
+
+                    <io.legado.app.lib.theme.view.ThemeRadioButton
+                        android:id="@+id/rb_voice_dialog"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        tools:text="对白音色：zhixiaoxia" />
+
+                    <io.legado.app.lib.theme.view.ThemeRadioButton
+                        android:id="@+id/rb_voice_custom"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/book_role_voice_custom_option" />
+
+                </RadioGroup>
+
+                <io.legado.app.ui.widget.text.TextInputLayout
+                    android:id="@+id/til_custom_voice"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:hint="@string/book_role_voice_custom_hint">
+
+                    <io.legado.app.lib.theme.view.ThemeEditText
+                        android:id="@+id/et_custom_voice"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="text"
+                        android:maxLines="1"
+                        tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
+
+                </io.legado.app.ui.widget.text.TextInputLayout>
+
+                <TextView
+                    android:id="@+id/tv_voice_hint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:alpha="0.6"
+                    android:paddingTop="2dp"
+                    android:text="@string/book_role_voice_fallback"
+                    android:textSize="12sp" />
+
+                <io.legado.app.ui.widget.text.TextInputLayout
+                    android:id="@+id/til_note"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="@string/book_role_note">
+
+                    <io.legado.app.lib.theme.view.ThemeEditText
+                        android:id="@+id/et_note"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textMultiLine"
+                        android:maxLines="3"
+                        tools:ignore="SpeakableTextPresentCheck,TouchTargetSizeCheck" />
+
+                </io.legado.app.ui.widget.text.TextInputLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/book_role_locked"
+                        android:textSize="14sp" />
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/switch_locked"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:alpha="0.6"
+                    android:paddingTop="2dp"
+                    android:text="@string/book_role_locked_hint"
+                    android:textSize="12sp" />
+
+            </LinearLayout>
+
+        </androidx.core.widget.NestedScrollView>
+
+        <com.google.android.flexbox.FlexboxLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            app:flexWrap="wrap"
+            app:justifyContent="space_between">
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tv_cancel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="12dp"
+                    android:text="@string/cancel"
+                    android:textColor="@color/secondaryText" />
+
+                <io.legado.app.ui.widget.text.AccentTextView
+                    android:id="@+id/tv_ok"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="12dp"
+                    android:text="@string/action_save" />
+
+            </LinearLayout>
+
+        </com.google.android.flexbox.FlexboxLayout>
+
+    </LinearLayout>
+
+</FrameLayout>

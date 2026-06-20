@@ -67,8 +67,8 @@ class BookVoiceConfigDialog : BaseDialogFragment(R.layout.dialog_book_voice_conf
         } else {
             getString(R.string.book_voice_unsupported_engine)
         }
-        tilNarratorVoice.helperText = httpTTS?.narratorHint()
-        tilDialogVoice.helperText = httpTTS?.dialogHint()
+        tilNarratorVoice.helperText = httpTTS?.voiceHint(requireContext(), true)
+        tilDialogVoice.helperText = httpTTS?.voiceHint(requireContext(), false)
         tilNarratorVoice.isEnabled = supportRoleVoice
         tilDialogVoice.isEnabled = supportRoleVoice
         etNarratorVoice.isEnabled = supportRoleVoice
@@ -86,46 +86,6 @@ class BookVoiceConfigDialog : BaseDialogFragment(R.layout.dialog_book_voice_conf
             ReadAloud.upReadAloudClass()
         }
         dismissAllowingStateLoss()
-    }
-
-    private fun HttpTTS.isAliyunTTS(): Boolean {
-        return name.contains("阿里云", ignoreCase = true)
-                || url.contains("nls-gateway", ignoreCase = true)
-                || url.contains("aliyuncs.com", ignoreCase = true)
-    }
-
-    private fun HttpTTS.isDoubaoTTS(): Boolean {
-        return name.contains("豆包", ignoreCase = true)
-                || url.contains("openspeech.bytedance.com", ignoreCase = true)
-                || url.contains("volcengine", ignoreCase = true)
-    }
-
-    private fun HttpTTS.providerName(): String {
-        return when {
-            isAliyunTTS() -> "Aliyun"
-            isDoubaoTTS() -> "Doubao"
-            else -> "HTTP_TTS"
-        }
-    }
-
-    private fun HttpTTS.isSupportedRoleVoice(): Boolean {
-        return isAliyunTTS() || isDoubaoTTS()
-    }
-
-    private fun HttpTTS.narratorHint(): String {
-        return if (isDoubaoTTS()) {
-            getString(R.string.book_voice_narrator_hint_doubao)
-        } else {
-            getString(R.string.book_voice_narrator_hint_aliyun)
-        }
-    }
-
-    private fun HttpTTS.dialogHint(): String {
-        return if (isDoubaoTTS()) {
-            getString(R.string.book_voice_dialog_hint_doubao)
-        } else {
-            getString(R.string.book_voice_dialog_hint_aliyun)
-        }
     }
 
     companion object {

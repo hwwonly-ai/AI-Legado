@@ -2,9 +2,9 @@ package io.legado.app.service
 
 import android.annotation.SuppressLint
 import android.app.PendingIntent
-import android.util.Base64
 import android.net.Uri
 import android.os.Looper
+import android.util.Base64
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.C
@@ -31,6 +31,7 @@ import com.script.ScriptException
 import io.legado.app.R
 import io.legado.app.constant.AppLog
 import io.legado.app.constant.AppPattern
+import io.legado.app.data.appDb
 import io.legado.app.data.entities.HttpTTS
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.config.AppConfig
@@ -42,7 +43,10 @@ import io.legado.app.model.ReadAloudProviderSegment
 import io.legado.app.model.ReadAloudRuleSegmenter
 import io.legado.app.model.ReadAloudRole
 import io.legado.app.model.ReadAloudSegment
+import io.legado.app.model.ReadAloudSegmentCacheRepository
+import io.legado.app.model.ReadAloudSegmentCacheKey
 import io.legado.app.model.ReadBook
+import io.legado.app.model.selectSegments
 import io.legado.app.model.analyzeRule.AnalyzeUrl
 import io.legado.app.model.tts.AliyunSsmlRenderer
 import io.legado.app.ui.book.read.page.entities.TextChapter
@@ -55,15 +59,11 @@ import io.legado.app.utils.servicePendingIntent
 import io.legado.app.utils.toastOnUi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers.Main
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -73,17 +73,23 @@ import okhttp3.Response
 import org.mozilla.javascript.WrappedException
 import org.json.JSONObject
 import splitties.init.appCtx
+import splitties.systemservices.powerManager
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 import java.net.ConnectException
 import java.net.SocketTimeoutException
-import kotlin.time.Duration.Companion.seconds
 
 private const val MAX_SSML_PLAIN_TEXT_LENGTH = 280
 private const val PRE_DOWNLOAD_SEGMENT_LIMIT = 3
+private const val CURRENT_CHAPTER_PREFETCH_COUNT = 3
+private const val NEXT_CHAPTER_PREPARE_REMAINING_COUNT = 3
 private const val SSML_LOG_TAG = "SSML_TTS"
+private const val AUDIO_PREFETCH_TAG = "audioPrefetch"
+private const val AUDIO_PLAYBACK_TAG = "audioPlayback"
+private const val NEXT_CHAPTER_PREPARE_TAG = "nextChapterPrepare"
+private const val AI_DIALOG_LABEL_TAG = "aiDialogLabel"
 private const val LOG_PREVIEW_LENGTH = 80
 private const val ALIYUN_PROVIDER = "aliyun"
 private const val DOUBAO_PROVIDER = "doubao"
@@ -98,6 +104,28 @@ private fun logInfo(message: String) {
 
 private fun logWarn(message: String) {
     android.util.Log.w(SSML_LOG_TAG, message)
+}
+
+private fun logAiChapterParseDebug(message: String) {
+    android.util.Log.i("Legado", "AppLog $message")
+}
+
+private fun audioLogKey(fileName: String): String {
+    return fileName.substringAfter("_", fileName).take(8)
+}
+
+private fun playbackMediaId(task: ReadAloudAudioTask): String {
+    return "${task.generation}:${task.chapterIndex}:${task.segmentIndex}:${audioLogKey(task.fileName)}"
+}
+
+private fun logNextChapterPrepare(message: String) {
+    android.util.Log.i(NEXT_CHAPTER_PREPARE_TAG, message)
+    logInfo("nextChapterPrepare $message")
+}
+
+private fun logNextChapterPrepareWarn(message: String) {
+    android.util.Log.w(NEXT_CHAPTER_PREPARE_TAG, message)
+    logWarn("nextChapterPrepare $message")
 }
 
 private fun String.logPreview(limit: Int = LOG_PREVIEW_LENGTH): String {
@@ -160,15 +188,24 @@ private fun logReadAloudResolved(
 private fun logSegmentQueued(
     mode: String,
     index: Int,
+    total: Int,
     text: String,
     segment: ReadAloudSegment? = null,
     providerSegment: ReadAloudProviderSegment? = null
 ) {
-    logInfo(
-        "segment mode=$mode index=$index ${text.ssmlDebugSummary()} " +
-                "${segment.debugSummary(providerSegment)} " +
-                "plainLength=${text.plainTextForLog().length} " +
-                "hash=${MD5Utils.md5Encode16(text)} preview=${text.logPreview()}"
+    if (index >= 20 && index != total - 1) return
+    val role = segment?.role.orEmpty().ifBlank { "-" }
+    val name = segment?.roleName.orEmpty().ifBlank { "-" }
+    val voice = providerSegment?.voice.orEmpty().ifBlank { "-" }
+    val emotion = segment?.emotion.orEmpty().ifBlank { "-" }
+    val intensity = segment?.emotionIntensity ?: 1.0f
+    logAiChapterParseDebug(
+        "aiChapterParse audioTask stage=queued mode=$mode segment=$index " +
+            "total=$total " +
+            "role=$role name=$name voice=$voice emotion=$emotion intensity=$intensity " +
+            "start=${segment?.startPosition ?: -1} len=${segment?.plainLength ?: -1} " +
+            "ttsLen=${text.plainTextForLog().length} " +
+            "hash=${MD5Utils.md5Encode16(text)} preview=${text.logPreview()}"
     )
 }
 
@@ -270,7 +307,6 @@ private fun HttpTTS.providerName(): String {
 
 private fun HttpTTS.providerNarratorVoice(): String {
     ReadBook.book?.getNarratorVoice(id.toString())?.let {
-        AppLog.putDebug("provider voice from book override: role=narrator voice=$it")
         return it
     }
     val loginInfo = getLoginInfoMap()
@@ -286,7 +322,6 @@ private fun HttpTTS.providerNarratorVoice(): String {
 
 private fun HttpTTS.providerDialogVoice(): String {
     ReadBook.book?.getDialogVoice(id.toString())?.let {
-        AppLog.putDebug("provider voice from book override: role=dialog voice=$it")
         return it
     }
     val loginInfo = getLoginInfoMap()
@@ -447,6 +482,18 @@ private fun safeStartIndex(
  * 在线朗读
  */
 @SuppressLint("UnsafeOptInUsageError")
+private data class ReadAloudAudioTask(
+    val generation: Int,
+    val chapterIndex: Int,
+    val segmentIndex: Int,
+    val speakText: String,
+    val originalContent: String,
+    val fileName: String,
+    val useSSMLRequest: Boolean,
+    val segment: ReadAloudSegment?,
+    val providerSegment: ReadAloudProviderSegment?
+)
+
 class HttpReadAloudService : BaseReadAloudService(),
     Player.Listener {
     private val exoPlayer: ExoPlayer by lazy {
@@ -482,7 +529,39 @@ class HttpReadAloudService : BaseReadAloudService(),
     private var downloadErrorNo: Int = 0
     private var playErrorNo = 0
     private val downloadTaskActiveLock = Mutex()
+    private val prefetchRequestLock = Mutex()
     private val loadingState = MutableStateFlow(false)
+    private val segmentCacheRepository by lazy {
+        ReadAloudSegmentCacheRepository(appDb.readAloudSegmentCacheDao)
+    }
+
+    @Volatile
+    private var audioGeneration: Int = 0
+    private var currentChapterTasks: List<ReadAloudAudioTask> = emptyList()
+    private var prefetchWindowStart: Int = 0
+    private var prefetchEnabled: Boolean = false
+    private val prefetchJobs = mutableMapOf<Int, Coroutine<*>>()
+    private val mediaIdToSegmentIndex = mutableMapOf<String, Int>()
+    private val queuedSegmentIndices = mutableSetOf<Int>()
+    private var lastLoggedPlaybackMediaId: String? = null
+    private var nextChapterPrepareGeneration: Int = 0
+    private var nextChapterPrepareJob: Coroutine<*>? = null
+    private var nextChapterDownloader: Downloader? = null
+    private var nextChapterPrepareKey: String? = null
+    private var nextChapterPreparedKey: String? = null
+
+    private fun registerPlaybackMedia(task: ReadAloudAudioTask): String {
+        val mediaId = playbackMediaId(task)
+        mediaIdToSegmentIndex[mediaId] = task.segmentIndex
+        return mediaId
+    }
+
+    private fun playbackFileKey(mediaId: String?): String {
+        val task = mediaId
+            ?.let { mediaIdToSegmentIndex[it] }
+            ?.let { currentChapterTasks.getOrNull(it) }
+        return task?.fileName?.let(::audioLogKey).orEmpty()
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -492,6 +571,7 @@ class HttpReadAloudService : BaseReadAloudService(),
     override fun onDestroy() {
         super.onDestroy()
         downloadTask?.cancel()
+        cancelAllPrefetchTasks()
         exoPlayer.release()
         cache.release()
         Coroutine.async {
@@ -517,6 +597,8 @@ class HttpReadAloudService : BaseReadAloudService(),
     }
 
     override fun playStop() {
+        releaseReadAloudPrepareWakeLock()
+        cancelAllPrefetchTasks()
         if (Looper.myLooper() == Looper.getMainLooper()) {
             exoPlayer.stop()
             playIndexJob?.cancel()
@@ -539,134 +621,719 @@ class HttpReadAloudService : BaseReadAloudService(),
         }
     }
 
+    private suspend fun buildAudioTasks(httpTts: HttpTTS, mode: String): List<ReadAloudAudioTask> {
+        val chapterContent = textChapter?.readAloudContent.orEmpty()
+            .ifBlank { textChapter?.getContent().orEmpty() }
+        val useExistingSSML = shouldUseExistingSSML(chapterContent, contentList)
+        val usePlainTextPreprocess = shouldUseAliyunPlainTextPreprocess(
+            httpTts,
+            chapterContent,
+            contentList
+        )
+        val useRuleSegments = shouldUseRuleGeneratedSegments(httpTts, useExistingSSML)
+        logModeDecision(
+            mode = mode,
+            httpTts = httpTts,
+            chapterContent = chapterContent,
+            contentList = contentList,
+            useExistingSSML = useExistingSSML,
+            usePlainTextPreprocess = usePlainTextPreprocess
+        )
+        logReadAloudStart(
+            mode = mode,
+            title = textChapter?.title,
+            pageIndex = pageIndex,
+            readAloudNumber = readAloudNumber,
+            nowSpeak = nowSpeak,
+            paragraphStartPos = paragraphStartPos,
+            contentSize = contentList.size,
+            useExistingSSML = useExistingSSML,
+            usePlainTextPreprocess = usePlainTextPreprocess,
+            hasReadAloudContent = textChapter?.readAloudContent?.isNotBlank() == true
+        )
+
+        val processContentList = when {
+            useExistingSSML -> mergeSSMLParagraphs(contentList)
+            useRuleSegments -> buildRuleContentList(mode = mode, httpTts = httpTts)
+            else -> contentList
+        }
+
+        if (useExistingSSML || useRuleSegments) {
+            contentList = processContentList
+            if (useExistingSSML) {
+                syncSSMLContentParagraphOffset()
+            }
+            paragraphStartPos = 0
+            if (useExistingSSML) {
+                rebuildContentPositionMap()
+            }
+        }
+
+        val startIndex = if ((useExistingSSML || useRuleSegments) && processContentList.isNotEmpty()) {
+            findSegmentStartIndex(mode)
+        } else {
+            nowSpeak.coerceAtLeast(0)
+        }.let { safeStartIndex(it, processContentList.size, mode) }
+
+        if (useExistingSSML || useRuleSegments) {
+            nowSpeak = startIndex
+            readAloudNumber = contentStartPosition(startIndex) ?: readAloudNumber
+            logInfo("sync mode=$mode segment=$startIndex pos=$readAloudNumber")
+        }
+        logReadAloudResolved(
+            mode = mode,
+            startIndex = startIndex,
+            readAloudNumber = readAloudNumber,
+            sourceSize = contentList.size,
+            resolvedSize = processContentList.size
+        )
+
+        val generation = audioGeneration
+        logAiChapterParseDebug(
+            "aiChapterParse audioTaskBatch plan mode=$mode generation=$generation " +
+                "sourceSize=${processContentList.size} segmentMap=${readAloudSegments.size} " +
+                "start=$startIndex"
+        )
+        val tasks = mutableListOf<ReadAloudAudioTask>()
+        var builtCount = 0
+        var completed = false
+        try {
+            processContentList.forEachIndexed { index, content ->
+                currentCoroutineContext().ensureActive()
+                val speakText = content.replace(AppPattern.notReadAloudRegex, "")
+                val finalSpeakText = when {
+                    useExistingSSML || (useRuleSegments && httpTts.isAliyunTTS()) -> normalizeAliyunSSML(speakText)
+                    usePlainTextPreprocess -> preprocessAliyunPlainText(speakText)
+                    else -> speakText
+                }
+                val segment = readAloudSegments.getOrNull(index)
+                val providerSegment = httpTts.providerSegment(segment)
+                val fileName = md5SpeakFileName(
+                    finalSpeakText,
+                    readAloudSegment = segment,
+                    readAloudProviderSegment = providerSegment
+                )
+                logSegmentQueued(mode, index, processContentList.size, finalSpeakText, segment, providerSegment)
+                tasks.add(
+                    ReadAloudAudioTask(
+                        generation = generation,
+                        chapterIndex = chapterIndex,
+                        segmentIndex = index,
+                        speakText = finalSpeakText,
+                        originalContent = content,
+                        fileName = fileName,
+                        useSSMLRequest = useExistingSSML || (useRuleSegments && httpTts.isAliyunTTS()) || usePlainTextPreprocess,
+                        segment = segment,
+                        providerSegment = providerSegment
+                    )
+                )
+                builtCount = tasks.size
+                if ((index + 1) % 20 == 0 || index == processContentList.lastIndex) {
+                    logAiChapterParseDebug(
+                        "aiChapterParse audioTaskBatch progress mode=$mode generation=$generation " +
+                            "built=${index + 1}/${processContentList.size}"
+                    )
+                }
+            }
+            completed = true
+        } catch (e: CancellationException) {
+            logAiChapterParseDebug(
+                "aiChapterParse audioTaskBuildCancelled mode=$mode generation=$generation " +
+                    "built=$builtCount sourceSize=${processContentList.size} " +
+                    "segmentMap=${readAloudSegments.size} message=${e.localizedMessage.orEmpty()}"
+            )
+            throw e
+        } catch (e: Exception) {
+            AppLog.put(
+                "aiChapterParse audioTaskBuildError mode=$mode generation=$generation " +
+                    "built=$builtCount sourceSize=${processContentList.size} " +
+                    "segmentMap=${readAloudSegments.size} message=${e.localizedMessage}",
+                e
+            )
+            throw e
+        } finally {
+            logAiChapterParseDebug(
+                "aiChapterParse audioTaskBatch exit mode=$mode generation=$generation " +
+                    "built=$builtCount/${processContentList.size} completed=$completed"
+            )
+        }
+        logAiChapterParseDebug(
+            "aiChapterParse audioTaskBatch mode=$mode generation=$generation " +
+                "sourceSize=${processContentList.size} tasks=${tasks.size} " +
+                "first=${tasks.firstOrNull()?.segmentIndex ?: -1} " +
+                "last=${tasks.lastOrNull()?.segmentIndex ?: -1} " +
+                "dialog=${tasks.count { it.segment?.role == ReadAloudRole.DIALOG }} " +
+                "narrator=${tasks.count { it.segment?.role == ReadAloudRole.NARRATOR }}"
+        )
+        android.util.Log.i(
+            "Legado",
+            "AppLog aiChapterParse audioTaskBatchSummary mode=$mode generation=$generation " +
+                "tasks=${tasks.size}/${processContentList.size} start=$startIndex " +
+                "last=${tasks.lastOrNull()?.segmentIndex ?: -1}"
+        )
+        return tasks
+    }
+
+    private fun cancelAllPrefetchTasks() {
+        prefetchEnabled = false
+        prefetchJobs.values.forEach { it.cancel() }
+        prefetchJobs.clear()
+        mediaIdToSegmentIndex.clear()
+        queuedSegmentIndices.clear()
+        lastLoggedPlaybackMediaId = null
+        currentChapterTasks = emptyList()
+        cancelNextChapterPrepare("currentPlaybackReset")
+    }
+
+    private fun cancelNextChapterPrepare(reason: String) {
+        val job = nextChapterPrepareJob
+        if (job?.isActive == true || nextChapterDownloader != null) {
+            logNextChapterPrepare(
+                "generation=$nextChapterPrepareGeneration cancel reason=$reason"
+            )
+        }
+        nextChapterPrepareGeneration++
+        nextChapterDownloader?.cancel()
+        nextChapterDownloader = null
+        job?.cancel()
+        nextChapterPrepareJob = null
+        nextChapterPrepareKey = null
+    }
+
+    private fun maybePrepareNextChapter(chapterPosition: Int, mode: String) {
+        val currentChapter = textChapter ?: run {
+            logNextChapterPrepare("skip reason=currentChapterMissing mode=$mode")
+            return
+        }
+        logNextChapterPrepare(
+            "check currentChapter=$chapterIndex position=$chapterPosition page=$pageIndex/" +
+                    "${currentChapter.lastIndex} byPage=$readAloudByPage mode=$mode"
+        )
+        if (readAloudByPage && pageIndex < currentChapter.lastIndex) {
+            logNextChapterPrepare(
+                "skip reason=notLastPage currentChapter=$chapterIndex " +
+                        "page=$pageIndex/${currentChapter.lastIndex} mode=$mode"
+            )
+            return
+        }
+        if (nextChapterPrepareJob?.isActive == true) {
+            logNextChapterPrepare("skip reason=jobRunning currentChapter=$chapterIndex mode=$mode")
+            return
+        }
+        val book = ReadBook.book ?: run {
+            logNextChapterPrepare("skip reason=bookMissing currentChapter=$chapterIndex mode=$mode")
+            return
+        }
+        val httpTts = ReadAloud.httpTTS ?: run {
+            logNextChapterPrepare("skip reason=ttsMissing currentChapter=$chapterIndex mode=$mode")
+            return
+        }
+        val chapterContent = currentChapter.getContent()
+        if (chapterContent.isBlank()) {
+            logNextChapterPrepare("skip reason=currentContentEmpty currentChapter=$chapterIndex mode=$mode")
+            return
+        }
+        nextChapterPrepareGeneration++
+        val generation = nextChapterPrepareGeneration
+        val prepareJob = execute {
+            val chapterSegments = segmentCacheRepository.getOrBuildRuleSegments(
+                book = book,
+                chapter = currentChapter.chapter,
+                chapterContent = chapterContent
+            ).segments
+            if (chapterSegments.isEmpty()) {
+                logNextChapterPrepare("skip reason=currentSegmentsEmpty currentChapter=$chapterIndex mode=$mode")
+                return@execute
+            }
+            val currentIndex = chapterSegments.indexOfLast {
+                it.startPosition <= chapterPosition
+            }.coerceAtLeast(0)
+            val remaining = chapterSegments.lastIndex - currentIndex
+            if (remaining > NEXT_CHAPTER_PREPARE_REMAINING_COUNT) {
+                logNextChapterPrepare(
+                    "skip reason=notNearEnd currentChapter=$chapterIndex " +
+                            "segment=$currentIndex/${chapterSegments.lastIndex} remaining=$remaining mode=$mode"
+                )
+                return@execute
+            }
+
+            val nextChapter = ReadBook.nextTextChapter
+            if (nextChapter == null || !nextChapter.isCompleted) {
+                logNextChapterPrepare(
+                    "skip reason=nextChapterNotReady currentChapter=$chapterIndex remaining=$remaining"
+                )
+                return@execute
+            }
+            val nextContent = nextChapter.readAloudContent.ifBlank { nextChapter.getContent() }
+            if (nextContent.isBlank()) {
+                logNextChapterPrepare(
+                    "skip reason=nextContentEmpty targetChapter=${nextChapter.chapter.index} mode=$mode"
+                )
+                return@execute
+            }
+            val prepareKey = MD5Utils.md5Encode(
+                "${book.bookUrl}-|-${nextChapter.chapter.index}-|-${nextChapter.chapter.url}" +
+                        "-|-${ReadAloudSegmentCacheKey.contentHash(nextContent)}-|-${httpTts.id}" +
+                        "-|-${httpTts.url}-|-${httpTts.getLoginInfo()}-|-${httpTts.getLoginHeader()}" +
+                        "-|-$speechRate-|-$mode"
+            )
+            if (prepareKey == nextChapterPreparedKey) {
+                logNextChapterPrepare(
+                    "skip reason=alreadyPrepared targetChapter=${nextChapter.chapter.index} mode=$mode"
+                )
+                return@execute
+            }
+            nextChapterPrepareKey = prepareKey
+            logNextChapterPrepare(
+                "generation=$generation trigger currentChapter=$chapterIndex " +
+                        "targetChapter=${nextChapter.chapter.index} remaining=$remaining mode=$mode"
+            )
+
+            while (prefetchJobs.values.any { it.isActive }) {
+                ensureActive()
+                delay(100)
+            }
+            while (mode == "stream" && loadingState.value) {
+                ensureActive()
+                delay(100)
+            }
+            if (generation != nextChapterPrepareGeneration) return@execute
+            val tasks = buildNextChapterAudioTasks(
+                httpTts = httpTts,
+                nextTextChapter = nextChapter,
+                generation = generation,
+                mode = mode
+            )
+            var allPrepared = tasks.isNotEmpty()
+            tasks.forEach { task ->
+                ensureActive()
+                if (generation != nextChapterPrepareGeneration) return@execute
+                if (mode == "file") {
+                    if (hasSpeakFile(task.fileName)) {
+                        logNextChapterPrepare(
+                            "generation=$generation targetChapter=${task.chapterIndex} " +
+                                    "segment=${task.segmentIndex} mode=$mode cacheHit"
+                        )
+                    } else {
+                        prefetchRequestLock.withLock {
+                            downloadSingleSegmentFile(httpTts, task)
+                        }
+                        if (!hasSpeakFile(task.fileName)) {
+                            allPrepared = false
+                        }
+                    }
+                } else if (hasSpeakableText(task.speakText)) {
+                    val dataSourceFactory = createDataSourceFactory(
+                        httpTts,
+                        task.speakText,
+                        task.segment,
+                        task.providerSegment,
+                        fallbackToSilent = false
+                    )
+                    val downloader = createDownloader(dataSourceFactory, task.fileName)
+                    nextChapterDownloader = downloader
+                    prefetchRequestLock.withLock {
+                        downloader.download(null)
+                    }
+                    nextChapterDownloader = null
+                }
+            }
+            if (generation == nextChapterPrepareGeneration && allPrepared) {
+                nextChapterPreparedKey = prepareKey
+                logNextChapterPrepare(
+                    "generation=$generation targetChapter=${nextChapter.chapter.index} " +
+                            "success count=${tasks.size} mode=$mode"
+                )
+            } else if (generation == nextChapterPrepareGeneration) {
+                logNextChapterPrepareWarn(
+                    "generation=$generation targetChapter=${nextChapter.chapter.index} " +
+                            "incomplete count=${tasks.size} mode=$mode"
+                )
+            }
+        }.onError { error ->
+            if (error !is CancellationException) {
+                logNextChapterPrepareWarn(
+                    "generation=$generation currentChapter=$chapterIndex " +
+                            "failed=${error.javaClass.simpleName} mode=$mode"
+                )
+            }
+        }
+        nextChapterPrepareJob = prepareJob
+        prepareJob.invokeOnCompletion {
+            if (generation == nextChapterPrepareGeneration) {
+                nextChapterDownloader = null
+                nextChapterPrepareJob = null
+                nextChapterPrepareKey = null
+            }
+        }
+    }
+
+    private fun advancePrefetchWindow(newCurrentIndex: Int, generation: Int, mode: String) {
+        if (!prefetchEnabled) return
+        val oldStart = prefetchWindowStart
+        prefetchWindowStart = newCurrentIndex
+        if (oldStart != newCurrentIndex && nextChapterPrepareJob?.isActive == true) {
+            cancelNextChapterPrepare("currentChapterWindowAdvanced")
+        }
+
+        // Cancel jobs that are now behind the window
+        prefetchJobs.entries.removeAll { (index, job) ->
+            if (index < newCurrentIndex) {
+                job.cancel()
+                true
+            } else false
+        }
+
+        // Launch prefetch for segments AFTER current (current is already in foreground path)
+        val httpTts = ReadAloud.httpTTS ?: return
+        val windowEnd = minOf(newCurrentIndex + CURRENT_CHAPTER_PREFETCH_COUNT, currentChapterTasks.lastIndex)
+        for (i in (newCurrentIndex + 1)..windowEnd) {
+            if (i in queuedSegmentIndices) continue
+            if (prefetchJobs.containsKey(i)) continue
+            if (i >= currentChapterTasks.size) break
+            val task = currentChapterTasks[i]
+            val distance = i - newCurrentIndex
+            android.util.Log.i(
+                AUDIO_PREFETCH_TAG,
+                "generation=$generation segment=${task.segmentIndex} distance=$distance mode=$mode " +
+                        "textHash=${MD5Utils.md5Encode16(task.speakText)} key=${audioLogKey(task.fileName)}"
+            )
+            if (mode == "stream" && queuedSegmentIndices.add(task.segmentIndex)) {
+                val dataSourceFactory = createDataSourceFactory(
+                    httpTts,
+                    task.speakText.takeIf { hasSpeakableText(it) }.orEmpty(),
+                    task.segment,
+                    task.providerSegment
+                )
+                val mediaId = registerPlaybackMedia(task)
+                val mediaSource = createMediaSource(dataSourceFactory, task.fileName, mediaId)
+                lifecycleScope.launch(Main) {
+                    if (audioGeneration == generation) {
+                        while (exoPlayer.mediaItemCount > CURRENT_CHAPTER_PREFETCH_COUNT + 2) {
+                            exoPlayer.removeMediaItem(0)
+                        }
+                        exoPlayer.addMediaSource(mediaSource)
+                    }
+                }
+            }
+            val job = execute {
+                if (audioGeneration != generation) return@execute
+                ensureActive()
+                if (mode == "file") {
+                    if (hasSpeakFile(task.fileName)) {
+                        android.util.Log.i(AUDIO_PREFETCH_TAG,
+                            "generation=$generation segment=${task.segmentIndex} distance=$distance mode=$mode cacheHit")
+                        if (audioGeneration == generation) {
+                            lifecycleScope.launch(Main) {
+                                if (audioGeneration == generation) {
+                                    enqueuePreparedFileTasks(generation)
+                                }
+                            }
+                        }
+                        return@execute
+                    }
+                    runCatching {
+                        prefetchRequestLock.withLock {
+                            downloadSingleSegmentFile(httpTts, task)
+                        }
+                    }.onSuccess {
+                        if (audioGeneration == generation) {
+                            lifecycleScope.launch(Main) {
+                                if (audioGeneration == generation) {
+                                    enqueuePreparedFileTasks(generation)
+                                }
+                            }
+                        }
+                    }.onFailure { error ->
+                        if (error is CancellationException) throw error
+                        android.util.Log.w(AUDIO_PREFETCH_TAG,
+                            "generation=$generation segment=${task.segmentIndex} distance=$distance mode=$mode " +
+                                    "prefetchFailed=${error.javaClass.simpleName}")
+                    }
+                } else {
+                    // Stream mode: use Downloader to warm cache
+                    if (hasSpeakableText(task.speakText)) {
+                        val dataSourceFactory = createDataSourceFactory(
+                            httpTts,
+                            task.speakText,
+                            task.segment,
+                            task.providerSegment
+                        )
+                        val downloader = createDownloader(dataSourceFactory, task.fileName)
+                        runCatching {
+                            prefetchRequestLock.withLock {
+                                downloader.download(null)
+                            }
+                        }.onFailure { error ->
+                            if (error is CancellationException) throw error
+                            android.util.Log.w(AUDIO_PREFETCH_TAG,
+                                "generation=$generation segment=${task.segmentIndex} distance=$distance mode=$mode " +
+                                        "prefetchFailed=${error.javaClass.simpleName}")
+                        }
+                    }
+                }
+            }
+            prefetchJobs[i] = job
+        }
+        if (oldStart != newCurrentIndex) {
+            android.util.Log.i(AUDIO_PREFETCH_TAG,
+                "generation=$generation advance from=$oldStart to=$newCurrentIndex mode=$mode")
+        }
+    }
+
+    private fun enqueuePreparedFileTasks(generation: Int) {
+        if (audioGeneration != generation || currentChapterTasks.isEmpty()) return
+        var nextIndex = (nowSpeak + 1).coerceAtLeast(prefetchWindowStart)
+        while (nextIndex < currentChapterTasks.size) {
+            if (nextIndex in queuedSegmentIndices) {
+                nextIndex++
+                continue
+            }
+            val task = currentChapterTasks[nextIndex]
+            val file = getSpeakFileAsMd5(task.fileName)
+            if (!file.exists()) break
+            if (queuedSegmentIndices.add(task.segmentIndex)) {
+                val mediaId = registerPlaybackMedia(task)
+                exoPlayer.addMediaItem(
+                    MediaItem.Builder()
+                        .setUri(Uri.fromFile(file))
+                        .setMediaId(mediaId)
+                        .build()
+                )
+            }
+            nextIndex++
+        }
+    }
+
+    private fun continueCurrentChapterFromIndex(index: Int) {
+        if (index > currentChapterTasks.lastIndex) {
+            nextChapter()
+            return
+        }
+        val httpTts = ReadAloud.httpTTS ?: return
+        val mode = if (AppConfig.streamReadAloudAudio) "stream" else "file"
+        val generation = audioGeneration
+        acquireReadAloudPrepareWakeLock()
+        downloadTask = execute {
+            downloadTaskActiveLock.withLock {
+                ensureActive()
+                if (audioGeneration != generation) return@withLock
+                val task = currentChapterTasks.getOrNull(index) ?: return@withLock
+                logAiPlaybackTask("continuePrepare", task)
+                nowSpeak = index
+                readAloudNumber = contentStartPosition(index) ?: readAloudNumber
+                if (mode == "file") {
+                    if (!hasSpeakableText(task.speakText)) {
+                        AppLog.putDebug(
+                            "aiChapterParse audioSilent reason=emptyText segment=${task.segmentIndex} " +
+                                "key=${audioLogKey(task.fileName)}"
+                        )
+                        createSilentSound(task.fileName)
+                    } else if (!hasSpeakFile(task.fileName)) {
+                        createSpeakFileWithFallback(
+                            httpTts = httpTts,
+                            fileName = task.fileName,
+                            speakText = task.speakText,
+                            originalContent = task.originalContent,
+                            useSSMLRequest = task.useSSMLRequest,
+                            readAloudSegment = task.segment,
+                            readAloudProviderSegment = task.providerSegment
+                        )
+                    }
+                    val file = getSpeakFileAsMd5(task.fileName)
+                    logAiPlaybackFile("continueFile", task, file)
+                    lifecycleScope.launch(Main) {
+                        if (audioGeneration == generation) {
+                            queuedSegmentIndices.removeAll { it >= index }
+                            val mediaId = registerPlaybackMedia(task)
+                            queuedSegmentIndices.add(task.segmentIndex)
+                            exoPlayer.clearMediaItems()
+                            exoPlayer.addMediaItem(
+                                MediaItem.Builder()
+                                    .setUri(Uri.fromFile(file))
+                                    .setMediaId(mediaId)
+                                    .build()
+                            )
+                            exoPlayer.prepare()
+                            advancePrefetchWindow(index, generation, mode)
+                            maybePrepareNextChapter(task.segment?.startPosition ?: readAloudNumber, mode)
+                        }
+                    }
+                } else {
+                    val dataSourceFactory = createDataSourceFactory(
+                        httpTts,
+                        task.speakText.takeIf { hasSpeakableText(it) }.orEmpty(),
+                        task.segment,
+                        task.providerSegment
+                    )
+                    lifecycleScope.launch(Main) {
+                        if (audioGeneration == generation) {
+                            queuedSegmentIndices.removeAll { it >= index }
+                            val mediaId = registerPlaybackMedia(task)
+                            val mediaSource = createMediaSource(dataSourceFactory, task.fileName, mediaId)
+                            queuedSegmentIndices.add(task.segmentIndex)
+                            exoPlayer.clearMediaItems()
+                            exoPlayer.addMediaSource(mediaSource)
+                            exoPlayer.prepare()
+                            advancePrefetchWindow(index, generation, mode)
+                            maybePrepareNextChapter(task.segment?.startPosition ?: readAloudNumber, mode)
+                        }
+                    }
+                }
+            }
+        }.onError {
+            releaseReadAloudPrepareWakeLock()
+            AppLog.put("朗读续播出错\n${it.localizedMessage}", it, true)
+        }
+    }
+
+    private suspend fun downloadSingleSegmentFile(httpTts: HttpTTS, task: ReadAloudAudioTask) {
+        if (!hasSpeakableText(task.speakText)) return
+        if (hasSpeakFile(task.fileName)) return
+        // Background prefetch: do NOT use createSpeakFileWithFallback because
+        // it creates silent audio on failure, which would cause false cache hits
+        // when the segment is actually played later.
+        var speakText = task.speakText
+        var useSSML = task.useSSMLRequest
+        runCatching {
+            getSpeakStream(httpTts, speakText, task.segment, task.providerSegment)
+        }.recoverCatching { error ->
+            if (error is CancellationException) throw error
+            if (useSSML) {
+                val plainText = stripReadAloudTags(speakText)
+                    .replace(AppPattern.notReadAloudRegex, "")
+                    .trim()
+                if (hasSpeakableText(plainText)) {
+                    speakText = plainText
+                    useSSML = false
+                    return@recoverCatching getSpeakStream(
+                        httpTts, plainText, task.segment, task.providerSegment
+                    )
+                }
+            }
+            throw error
+        }.onSuccess { inputStream ->
+            if (inputStream != null) {
+                createSpeakFile(task.fileName, inputStream)
+            }
+            // Do NOT create silent sound on null stream — let foreground path handle it
+        }.onFailure { error ->
+            if (error is CancellationException) throw error
+            // Do NOT create silent sound — let foreground path handle it on retry
+            android.util.Log.w(AUDIO_PREFETCH_TAG,
+                "generation=${task.generation} segment=${task.segmentIndex} mode=file " +
+                        "prefetchFailed=${error.javaClass.simpleName}")
+        }
+    }
+
+    private fun logAiPlaybackTask(stage: String, task: ReadAloudAudioTask) {
+        val segment = task.segment
+        AppLog.putDebug(
+            "aiChapterParse audioTask stage=$stage generation=${task.generation} " +
+                "chapter=${task.chapterIndex} segment=${task.segmentIndex} " +
+                "textLen=${task.speakText.length} originalLen=${task.originalContent.length} " +
+                "plainLen=${segment?.plainLength ?: -1} start=${segment?.startPosition ?: -1} " +
+                "role=${segment?.role.orEmpty().ifBlank { "-" }} " +
+                "emotion=${segment?.emotion.orEmpty().ifBlank { "-" }} " +
+                "ssml=${task.useSSMLRequest} key=${audioLogKey(task.fileName)} " +
+                "preview=${task.speakText.logPreview(40)}"
+        )
+    }
+
+    private fun logAiPlaybackFile(stage: String, task: ReadAloudAudioTask, file: File) {
+        AppLog.putDebug(
+            "aiChapterParse audioFile stage=$stage segment=${task.segmentIndex} " +
+                "exists=${file.exists()} size=${file.length()} key=${audioLogKey(task.fileName)}"
+        )
+    }
+
     private fun downloadAndPlayAudios() {
         exoPlayer.clearMediaItems()
         downloadTask?.cancel()
+        cancelAllPrefetchTasks()
+        audioGeneration++
+        val generation = audioGeneration
+        acquireReadAloudPrepareWakeLock()
         downloadTask = execute {
             downloadTaskActiveLock.withLock {
                 ensureActive()
                 val httpTts = ReadAloud.httpTTS ?: throw NoStackTraceException("tts is null")
-                val chapterContent = textChapter?.readAloudContent.orEmpty()
-                    .ifBlank { textChapter?.getContent().orEmpty() }
-                val useExistingSSML = shouldUseExistingSSML(chapterContent, contentList)
-                val usePlainTextPreprocess = shouldUseAliyunPlainTextPreprocess(
-                    httpTts,
-                    chapterContent,
-                    contentList
+
+                currentChapterTasks = buildAudioTasks(httpTts, "file")
+                val startIndex = nowSpeak.coerceIn(0, maxOf(0, currentChapterTasks.lastIndex))
+                if (currentChapterTasks.isEmpty()) {
+                    releaseReadAloudPrepareWakeLock()
+                    nextChapter()
+                    return@withLock
+                }
+                prefetchWindowStart = startIndex
+                AppLog.putDebug(
+                    "aiChapterParse audioTaskBatch selected mode=file generation=$generation " +
+                        "tasks=${currentChapterTasks.size} start=$startIndex " +
+                        "last=${currentChapterTasks.lastIndex}"
                 )
-                val useRuleSegments = shouldUseRuleGeneratedSegments(httpTts, useExistingSSML)
-                logModeDecision(
-                    mode = "file",
-                    httpTts = httpTts,
-                    chapterContent = chapterContent,
-                    contentList = contentList,
-                    useExistingSSML = useExistingSSML,
-                    usePlainTextPreprocess = usePlainTextPreprocess
-                )
-                
-                logReadAloudStart(
-                    mode = "file",
-                    title = textChapter?.title,
-                    pageIndex = pageIndex,
-                    readAloudNumber = readAloudNumber,
-                    nowSpeak = nowSpeak,
-                    paragraphStartPos = paragraphStartPos,
-                    contentSize = contentList.size,
-                    useExistingSSML = useExistingSSML,
-                    usePlainTextPreprocess = usePlainTextPreprocess,
-                    hasReadAloudContent = textChapter?.readAloudContent?.isNotBlank() == true
-                )
-                
-                // 获取处理后的内容列表（包含SSML标签或普通文本）
-                val processContentList = when {
-                    useExistingSSML -> mergeSSMLParagraphs(contentList)
-                    useRuleSegments -> buildRuleContentList(
-                        mode = "file",
-                        httpTts = httpTts
+
+                android.util.Log.i(AUDIO_PREFETCH_TAG,
+                    "generation=$generation chapter=$chapterIndex tasks=${currentChapterTasks.size} " +
+                            "start=$startIndex window=$startIndex..${minOf(startIndex + CURRENT_CHAPTER_PREFETCH_COUNT, currentChapterTasks.lastIndex)} mode=file")
+
+                // Current segment: foreground download + immediate queue
+                val currentTask = currentChapterTasks[startIndex]
+                logAiPlaybackTask("currentPrepare", currentTask)
+                if (!hasSpeakableText(currentTask.speakText)) {
+                    AppLog.putDebug(
+                        "aiChapterParse audioSilent reason=emptyText segment=${currentTask.segmentIndex} " +
+                            "key=${audioLogKey(currentTask.fileName)}"
                     )
-                    else -> contentList
-                }
-                
-                if (useExistingSSML || useRuleSegments) {
-                    contentList = processContentList
-                    if (useExistingSSML) {
-                        syncSSMLContentParagraphOffset()
-                    }
-                    paragraphStartPos = 0
-                    if (useExistingSSML) {
-                        rebuildContentPositionMap()
-                    }
-                }
-
-                // 计算起始段落索引
-                val startIndex = if ((useExistingSSML || useRuleSegments) && processContentList.isNotEmpty()) {
-                    findSegmentStartIndex("file")
-                } else {
-                    nowSpeak.coerceAtLeast(0)
-                }.let { safeStartIndex(it, processContentList.size, "file") }
-
-                if (useExistingSSML || useRuleSegments) {
-                    nowSpeak = startIndex
-                    readAloudNumber = contentStartPosition(startIndex) ?: readAloudNumber
-                    logInfo("sync mode=file segment=$startIndex pos=$readAloudNumber")
-                }
-                
-                logReadAloudResolved(
-                    mode = "file",
-                    startIndex = startIndex,
-                    readAloudNumber = readAloudNumber,
-                    sourceSize = contentList.size,
-                    resolvedSize = processContentList.size
-                )
-
-                processContentList.forEachIndexed { index, content ->
-                    ensureActive()
-                    
-                    if (index < startIndex) {
-                        return@forEachIndexed
-                    }
-                    
-                    val speakText = content.replace(AppPattern.notReadAloudRegex, "")
-                    
-                    val finalSpeakText = when {
-                        useExistingSSML || (useRuleSegments && httpTts.isAliyunTTS()) -> normalizeAliyunSSML(speakText)
-                        usePlainTextPreprocess -> preprocessAliyunPlainText(speakText)
-                        else -> speakText
-                    }
-                    val segment = readAloudSegments.getOrNull(index)
-                    val providerSegment = httpTts.providerSegment(segment)
-                    val fileName = md5SpeakFileName(
-                        finalSpeakText,
-                        readAloudSegment = segment,
-                        readAloudProviderSegment = providerSegment
+                    AppLog.put("阅读段落内容为空，使用无声音频代替。\n朗读文本：${currentTask.originalContent}")
+                    createSilentSound(currentTask.fileName)
+                } else if (!hasSpeakFile(currentTask.fileName)) {
+                    createSpeakFileWithFallback(
+                        httpTts = httpTts,
+                        fileName = currentTask.fileName,
+                        speakText = currentTask.speakText,
+                        originalContent = currentTask.originalContent,
+                        useSSMLRequest = currentTask.useSSMLRequest,
+                        readAloudSegment = currentTask.segment,
+                        readAloudProviderSegment = currentTask.providerSegment
                     )
-                    
-                    logSegmentQueued("file", index, finalSpeakText, segment, providerSegment)
-                    
-                    if (!hasSpeakableText(finalSpeakText)) {
-                        AppLog.put("阅读段落内容为空，使用无声音频代替。\n朗读文本：$content")
-                        createSilentSound(fileName)
-                    } else if (!hasSpeakFile(fileName)) {
-                        createSpeakFileWithFallback(
-                            httpTts = httpTts,
-                            fileName = fileName,
-                            speakText = finalSpeakText,
-                            originalContent = content,
-                            useSSMLRequest = useExistingSSML || (useRuleSegments && httpTts.isAliyunTTS()) || usePlainTextPreprocess,
-                            readAloudSegment = segment,
-                            readAloudProviderSegment = providerSegment
-                        )
-                    }
-                    val file = getSpeakFileAsMd5(fileName)
-                    val mediaItem = MediaItem.fromUri(Uri.fromFile(file))
-                    launch(Main) {
+                }
+                val file = getSpeakFileAsMd5(currentTask.fileName)
+                logAiPlaybackFile("currentFile", currentTask, file)
+                val mediaId = registerPlaybackMedia(currentTask)
+                queuedSegmentIndices.add(currentTask.segmentIndex)
+                val mediaItem = MediaItem.Builder()
+                    .setUri(Uri.fromFile(file))
+                    .setMediaId(mediaId)
+                    .build()
+                lifecycleScope.launch(Main) {
+                    if (audioGeneration == generation) {
                         exoPlayer.addMediaItem(mediaItem)
+                        AppLog.putDebug(
+                            "aiChapterParse playbackPrepare stage=initial segment=${currentTask.segmentIndex} " +
+                                "mediaKey=${audioLogKey(currentTask.fileName)} state=${exoPlayer.playbackState} " +
+                                "items=${exoPlayer.mediaItemCount}"
+                        )
+                        exoPlayer.prepare()
                     }
                 }
-                preDownloadAudios(httpTts)
+
+                // Background prefetch for next segments
+                prefetchEnabled = true
+                advancePrefetchWindow(startIndex, generation, "file")
+                maybePrepareNextChapter(
+                    currentTask.segment?.startPosition ?: readAloudNumber,
+                    "file"
+                )
             }
         }.onError {
-            AppLog.put("朗读下载出错\n${it.localizedMessage}", it, true)
+            releaseReadAloudPrepareWakeLock()
+            AppLog.put(
+                "aiChapterParse ttsDownloadError stage=filePrepare message=${it.localizedMessage.orEmpty()}\n" +
+                    "朗读下载出错\n${it.localizedMessage}",
+                it,
+                true
+            )
         }
     }
 
@@ -690,7 +1357,12 @@ class HttpReadAloudService : BaseReadAloudService(),
                     .replace(AppPattern.notReadAloudRegex, "")
                     .trim()
                 if (hasSpeakableText(plainText)) {
-                    AppLog.put("SSML合成失败，回退普通文本朗读。\n${error.localizedMessage}")
+                    AppLog.put(
+                        "aiChapterParse ttsFallback reason=ssmlFailed " +
+                            "message=${error.localizedMessage.orEmpty()}\n" +
+                            "SSML合成失败，回退普通文本朗读。\n${error.localizedMessage}",
+                        error
+                    )
                     return@recoverCatching getSpeakStream(
                         httpTts,
                         plainText,
@@ -703,15 +1375,30 @@ class HttpReadAloudService : BaseReadAloudService(),
         }.onSuccess { inputStream ->
             if (inputStream != null) {
                 createSpeakFile(fileName, inputStream)
+                AppLog.putDebug(
+                    "aiChapterParse audioCreate success key=${audioLogKey(fileName)} " +
+                        "fileSize=${getSpeakFileAsMd5(fileName).length()} textLen=${speakText.length}"
+                )
             } else {
-                createSilentSound(fileName)
+                AppLog.putDebug(
+                    "aiChapterParse audioFailed reason=nullStream key=${audioLogKey(fileName)} " +
+                        "textLen=${speakText.length}"
+                )
+                throw NoStackTraceException("TTS未返回有效音频流")
             }
         }.onFailure { error ->
             if (error is CancellationException) {
                 throw error
             }
-            AppLog.put("TTS下载音频出错，使用无声音频代替。\n朗读文本：$originalContent")
-            createSilentSound(fileName)
+            if (error is NoStackTraceException && error.localizedMessage == "TTS未返回有效音频流") {
+                throw error
+            }
+            AppLog.putDebug(
+                "aiChapterParse audioFailed reason=ttsFailed key=${audioLogKey(fileName)} " +
+                    "textLen=${speakText.length} exception=${error.javaClass.simpleName} " +
+                    "message=${error.localizedMessage.orEmpty().logPreview(120)}"
+            )
+            throw error
         }
     }
 
@@ -895,25 +1582,151 @@ class HttpReadAloudService : BaseReadAloudService(),
         return result
     }
 
-    private fun buildRuleContentList(
+    private suspend fun buildRuleContentList(
         mode: String,
         httpTts: HttpTTS
     ): List<String> {
-        val sourceList = contentList
-        val generatedSegments = buildRuleSegments(
-            sourceList = sourceList,
+        val book = ReadBook.book ?: return contentList
+        val chapter = textChapter?.chapter ?: return contentList
+        val chapterContent = textChapter?.readAloudContent.orEmpty()
+            .ifBlank { textChapter?.getContent().orEmpty() }
+        if (chapterContent.isBlank()) {
+            return contentList
+        }
+
+        val cacheResult = segmentCacheRepository.getOrBuildRuleSegments(
+            book = book,
+            chapter = chapter,
+            chapterContent = chapterContent
+        )
+        if (cacheResult.segments.isEmpty()) {
+            return contentList
+        }
+        logInfo(
+            "cache mode=$mode cacheHit=${cacheResult.cacheHit} " +
+                "chapterSegments=${cacheResult.segments.size}"
+        )
+        val aiSegments = tryAiLabelRuleSegments(
             mode = mode,
-            initialStart = readAloudNumber
-        ) { index, runningStart ->
-            contentStartPosition(index) ?: runningStart
+            book = book,
+            chapter = chapter,
+            chapterContent = chapterContent,
+            ruleSegments = cacheResult.segments
+        )
+        val chapterSegments = aiSegments ?: cacheResult.segments
+        val aiUsed = aiSegments != null
+
+        val windowStart = if (readAloudByPage) {
+            textChapter?.getReadLength(pageIndex) ?: 0
+        } else {
+            0
         }
-        if (generatedSegments.isEmpty()) {
-            return sourceList
+        val windowEnd = if (readAloudByPage) {
+            textChapter?.getReadLength(pageIndex + 1) ?: Int.MAX_VALUE
+        } else {
+            chapterContent.length
         }
-        readAloudSegments = generatedSegments
-        contentStartPositions = generatedSegments.map { it.startPosition }
-        contentPlainLengths = generatedSegments.map { it.plainLength }
-        return generatedSegments.renderRuleContents(httpTts)
+        val windowedSegments = selectSegments(chapterSegments, windowStart, windowEnd)
+        if (windowedSegments.isEmpty()) {
+            return contentList
+        }
+        logAiDialogLabels(
+            mode = mode,
+            chapterIndex = chapter.index,
+            aiUsed = aiUsed,
+            segments = windowedSegments
+        )
+        val ttsSegments = windowedSegments.splitLongSegmentsForTts(httpTts)
+        readAloudSegments = ttsSegments
+        contentStartPositions = ttsSegments.map { it.startPosition }
+        contentPlainLengths = ttsSegments.map { it.plainLength }
+        AppLog.putDebug(
+            "aiChapterParse segments mode=$mode ai=$aiUsed " +
+                "chapterSegments=${chapterSegments.size} windowed=${windowedSegments.size} " +
+                "ttsSegments=${ttsSegments.size} window=$windowStart..$windowEnd"
+        )
+        return ttsSegments.renderRuleContents(httpTts)
+    }
+
+    private fun logAiDialogLabels(
+        mode: String,
+        chapterIndex: Int,
+        aiUsed: Boolean,
+        segments: List<ReadAloudSegment>
+    ) {
+        if (!aiUsed) return
+        val dialogs = segments.withIndex()
+            .filter { it.value.role == ReadAloudRole.DIALOG }
+        android.util.Log.i(
+            AI_DIALOG_LABEL_TAG,
+            "chapter=$chapterIndex mode=$mode dialogs=${dialogs.size} segments=${segments.size}"
+        )
+        dialogs.forEach { (index, segment) ->
+            android.util.Log.i(
+                AI_DIALOG_LABEL_TAG,
+                "chapter=$chapterIndex mode=$mode segment=$index " +
+                    "role=${segment.role} name=${segment.roleName.ifBlank { "对白" }} " +
+                    "emotion=${segment.emotion.ifBlank { "neutral" }} " +
+                    "intensity=${segment.emotionIntensity} " +
+                    "start=${segment.startPosition} len=${segment.plainLength} " +
+                    "hash=${MD5Utils.md5Encode16(segment.text)} preview=${segment.text.logPreview(40)}"
+            )
+        }
+    }
+
+    /**
+     * MVP6C：规则先切分，AI 只标注对白的说话人/情绪。
+     *
+     * 仅当 AI 服务启用时调用 AiDialogLabeler；任何失败（含未启用）都返回 null，
+     * 由上层继续使用规则分段。不在日志输出正文、Prompt、API Key。
+     */
+    private suspend fun tryAiLabelRuleSegments(
+        mode: String,
+        book: io.legado.app.data.entities.Book,
+        chapter: io.legado.app.data.entities.BookChapter,
+        chapterContent: String,
+        ruleSegments: List<ReadAloudSegment>
+    ): List<ReadAloudSegment>? {
+        val config = io.legado.app.model.ai.AiServiceConfig.load()
+        AppLog.putDebug(
+            "aiChapterParse preCheck mode=$mode enabled=${config.enabled} " +
+                "screenInteractive=${powerManager.isInteractive} timeoutSeconds=${config.timeoutSeconds}"
+        )
+        if (!config.enabled) {
+            AppLog.putDebug("aiChapterParse skip mode=$mode reason=disabled")
+            return null
+        }
+        val chapterIndex = chapter.index
+        val result = io.legado.app.model.ai.AiDialogLabeler.labelRuleSegments(
+            chapterIndex = chapterIndex,
+            segments = ruleSegments,
+            candidates = buildAiDialogCandidates(book, chapterContent)
+        )
+        if (result.segments.isEmpty()) return null
+        logInfo(
+            "aiLabel mode=$mode provider=${result.provider} model=${result.model} " +
+                "fallback=${result.fallbackUsed} reason=${result.errorMessage ?: "ok"} " +
+                "segments=${result.segments.size} elapsedMs=${result.elapsedMs}"
+        )
+        return if (result.fallbackUsed) null else result.segments
+    }
+
+    private fun buildAiDialogCandidates(
+        book: io.legado.app.data.entities.Book,
+        chapterContent: String
+    ): List<String> {
+        val candidates = linkedSetOf<String>()
+        book.getReadAloudRoles().forEach { role ->
+            role.name.takeIf { it.isNotBlank() }?.let(candidates::add)
+            role.aliases.filter { it.isNotBlank() }.forEach(candidates::add)
+        }
+        Regex("([\\u4e00-\\u9fa5]{1,6})(?:拱手|笑|问|说|道|喊|叫|答|看向|询问)")
+            .findAll(chapterContent)
+            .map { it.groupValues[1] }
+            .filter { it !in setOf("说道", "问道", "笑道", "答道") }
+            .take(40)
+            .forEach(candidates::add)
+        return candidates.take(40)
     }
 
     private fun buildRuleSegments(
@@ -959,8 +1772,36 @@ class HttpReadAloudService : BaseReadAloudService(),
         return if (segments.isEmpty()) {
             sourceList to emptyList()
         } else {
-            segments.renderRuleContents(httpTts) to segments
+            val ttsSegments = segments.splitLongSegmentsForTts(httpTts)
+            ttsSegments.renderRuleContents(httpTts) to ttsSegments
         }
+    }
+
+    private fun buildPreDownloadRuleContent(
+        textChapter: TextChapter,
+        chapterContent: String,
+        httpTts: HttpTTS,
+        mode: String
+    ): Pair<List<String>, List<ReadAloudSegment>> {
+        val book = ReadBook.book ?: return getPreDownloadContentList(textChapter, false) to emptyList()
+        val chapter = textChapter.chapter
+        val cacheResult = segmentCacheRepository.getOrBuildRuleSegments(
+            book = book,
+            chapter = chapter,
+            chapterContent = chapterContent
+        )
+        if (cacheResult.segments.isEmpty()) {
+            return getPreDownloadContentList(textChapter, false) to emptyList()
+        }
+        val preDownloadSegments = cacheResult.segments
+            .take(PRE_DOWNLOAD_SEGMENT_LIMIT)
+            .splitLongSegmentsForTts(httpTts)
+        val contentList = preDownloadSegments.renderRuleContents(httpTts)
+        logInfo(
+            "cache mode=$mode cacheHit=${cacheResult.cacheHit} " +
+                    "chapterSegments=${cacheResult.segments.size} preDownload=${preDownloadSegments.size}"
+        )
+        return contentList to preDownloadSegments
     }
 
     private fun List<ReadAloudSegment>.renderRuleContents(httpTts: HttpTTS): List<String> {
@@ -976,6 +1817,53 @@ class HttpReadAloudService : BaseReadAloudService(),
         } else {
             map { it.text }
         }
+    }
+
+    private fun List<ReadAloudSegment>.splitLongSegmentsForTts(httpTts: HttpTTS): List<ReadAloudSegment> {
+        val maxLength = when {
+            httpTts.isAliyunTTS() -> MAX_SSML_PLAIN_TEXT_LENGTH
+            else -> return this
+        }
+        val result = flatMap { segment -> segment.splitByPlainTextLength(maxLength) }
+        val splitCount = result.size - size
+        if (splitCount > 0) {
+            AppLog.putDebug(
+                "aiChapterParse segmentSplit provider=${httpTts.providerName()} " +
+                    "before=${size} after=${result.size} splitCount=$splitCount maxPlain=$maxLength"
+            )
+        }
+        return result
+    }
+
+    private fun ReadAloudSegment.splitByPlainTextLength(maxLength: Int): List<ReadAloudSegment> {
+        if (plainLength <= maxLength || text.length <= maxLength) {
+            return listOf(this)
+        }
+        return splitPlainTextWithOffsets(text, maxLength).map { (start, end) ->
+            copy(
+                text = text.substring(start, end),
+                startPosition = startPosition + start,
+                plainLength = end - start
+            )
+        }
+    }
+
+    private fun splitPlainTextWithOffsets(text: String, maxLength: Int): List<Pair<Int, Int>> {
+        val result = mutableListOf<Pair<Int, Int>>()
+        var start = 0
+        while (start < text.length) {
+            val endLimit = (start + maxLength).coerceAtMost(text.length)
+            val splitEnd = if (endLimit < text.length) {
+                val punctuationIndex = text
+                    .lastIndexOfAny(charArrayOf('。', '！', '？', '；', '，', '.', '!', '?', ';', ','), endLimit - 1)
+                if (punctuationIndex >= start + maxLength / 2) punctuationIndex + 1 else endLimit
+            } else {
+                endLimit
+            }
+            result.add(start to splitEnd)
+            start = splitEnd
+        }
+        return result
     }
 
     private fun syncSSMLContentParagraphOffset() {
@@ -1063,21 +1951,24 @@ class HttpReadAloudService : BaseReadAloudService(),
         }
     }
 
-    private suspend fun preDownloadAudios(httpTts: HttpTTS) {
-        val textChapter = ReadBook.nextTextChapter ?: return
-        val chapterContent = textChapter.readAloudContent.ifBlank { textChapter.getContent() }
+    private fun buildNextChapterAudioTasks(
+        httpTts: HttpTTS,
+        nextTextChapter: TextChapter,
+        generation: Int,
+        mode: String
+    ): List<ReadAloudAudioTask> {
+        val chapterContent = nextTextChapter.readAloudContent.ifBlank { nextTextChapter.getContent() }
         val chapterHasSSML = shouldUseExistingSSML(chapterContent)
-        val preDownloadContentList = getPreDownloadContentList(textChapter, chapterHasSSML)
-            .take(PRE_DOWNLOAD_SEGMENT_LIMIT)
         val useRuleSegments = shouldUseRuleGeneratedSegments(httpTts, chapterHasSSML)
         val (contentList, preDownloadSegments) = if (useRuleSegments) {
-            buildRuleContentWithSegments(
-                sourceList = preDownloadContentList,
-                mode = "predownload:${textChapter.title}",
-                httpTts = httpTts
+            buildPreDownloadRuleContent(
+                textChapter = nextTextChapter,
+                chapterContent = chapterContent,
+                httpTts = httpTts,
+                mode = "nextChapter:$mode:${nextTextChapter.title}"
             )
         } else {
-            preDownloadContentList to emptyList()
+            getPreDownloadContentList(nextTextChapter, chapterHasSSML) to emptyList()
         }
         val useExistingSSML = shouldUseExistingSSML(chapterContent, contentList)
         val usePlainTextPreprocess = shouldUseAliyunPlainTextPreprocess(
@@ -1085,8 +1976,7 @@ class HttpReadAloudService : BaseReadAloudService(),
             chapterContent,
             contentList
         )
-        contentList.forEachIndexed { index, content ->
-            currentCoroutineContext().ensureActive()
+        return contentList.take(PRE_DOWNLOAD_SEGMENT_LIMIT).mapIndexed { index, content ->
             val speakText = content.replace(AppPattern.notReadAloudRegex, "")
             val finalSpeakText = when {
                 useExistingSSML || (useRuleSegments && httpTts.isAliyunTTS()) -> normalizeAliyunSSML(speakText)
@@ -1097,23 +1987,23 @@ class HttpReadAloudService : BaseReadAloudService(),
             val providerSegment = httpTts.providerSegment(segment)
             val fileName = md5SpeakFileName(
                 finalSpeakText,
-                textChapter,
+                nextTextChapter,
                 segment,
                 providerSegment
             )
-            if (!hasSpeakableText(finalSpeakText)) {
-                createSilentSound(fileName)
-            } else if (!hasSpeakFile(fileName)) {
-                createSpeakFileWithFallback(
-                    httpTts = httpTts,
-                    fileName = fileName,
-                    speakText = finalSpeakText,
-                    originalContent = content,
-                    useSSMLRequest = useExistingSSML || (useRuleSegments && httpTts.isAliyunTTS()) || usePlainTextPreprocess,
-                    readAloudSegment = segment,
-                    readAloudProviderSegment = providerSegment
-                )
-            }
+            ReadAloudAudioTask(
+                generation = generation,
+                chapterIndex = nextTextChapter.chapter.index,
+                segmentIndex = index,
+                speakText = finalSpeakText,
+                originalContent = content,
+                fileName = fileName,
+                useSSMLRequest = useExistingSSML ||
+                        (useRuleSegments && httpTts.isAliyunTTS()) ||
+                        usePlainTextPreprocess,
+                segment = segment,
+                providerSegment = providerSegment
+            )
         }
     }
 
@@ -1130,193 +2020,77 @@ class HttpReadAloudService : BaseReadAloudService(),
                 return it
             }
         }
-        return textChapter.getNeedReadAloud(0, readAloudByPage, 0, 1)
+        return textChapter.getNeedReadAloud(0, false, 0)
             .splitToSequence("\n")
             .filter { it.isNotEmpty() }
+            .take(PRE_DOWNLOAD_SEGMENT_LIMIT)
             .toList()
     }
 
     private fun downloadAndPlayAudiosStream() {
         exoPlayer.clearMediaItems()
         downloadTask?.cancel()
+        cancelAllPrefetchTasks()
+        audioGeneration++
+        val generation = audioGeneration
+        acquireReadAloudPrepareWakeLock()
         downloadTask = execute {
             downloadTaskActiveLock.withLock {
                 ensureActive()
                 val httpTts = ReadAloud.httpTTS ?: throw NoStackTraceException("tts is null")
-                val chapterContent = textChapter?.readAloudContent.orEmpty()
-                    .ifBlank { textChapter?.getContent().orEmpty() }
-                val useExistingSSML = shouldUseExistingSSML(chapterContent, contentList)
-                val usePlainTextPreprocess = shouldUseAliyunPlainTextPreprocess(
-                    httpTts,
-                    chapterContent,
-                    contentList
-                )
-                val useRuleSegments = shouldUseRuleGeneratedSegments(httpTts, useExistingSSML)
-                logModeDecision(
-                    mode = "stream",
-                    httpTts = httpTts,
-                    chapterContent = chapterContent,
-                    contentList = contentList,
-                    useExistingSSML = useExistingSSML,
-                    usePlainTextPreprocess = usePlainTextPreprocess
-                )
-                
-                logReadAloudStart(
-                    mode = "stream",
-                    title = textChapter?.title,
-                    pageIndex = pageIndex,
-                    readAloudNumber = readAloudNumber,
-                    nowSpeak = nowSpeak,
-                    paragraphStartPos = paragraphStartPos,
-                    contentSize = contentList.size,
-                    useExistingSSML = useExistingSSML,
-                    usePlainTextPreprocess = usePlainTextPreprocess,
-                    hasReadAloudContent = textChapter?.readAloudContent?.isNotBlank() == true
-                )
-                
-                val downloaderChannel = Channel<Downloader>()
-                launch {
-                    for (downloader in downloaderChannel) {
-                        downloader.download(null)
-                    }
-                }
-                
-                // 获取处理后的内容列表（包含SSML标签或普通文本）
-                val processContentList = when {
-                    useExistingSSML -> mergeSSMLParagraphs(contentList)
-                    useRuleSegments -> buildRuleContentList(
-                        mode = "stream",
-                        httpTts = httpTts
-                    )
-                    else -> contentList
-                }
-                
-                if (useExistingSSML || useRuleSegments) {
-                    contentList = processContentList
-                    if (useExistingSSML) {
-                        syncSSMLContentParagraphOffset()
-                    }
-                    paragraphStartPos = 0
-                    if (useExistingSSML) {
-                        rebuildContentPositionMap()
-                    }
-                }
 
-                // 计算起始段落索引
-                val startIndex = if ((useExistingSSML || useRuleSegments) && processContentList.isNotEmpty()) {
-                    findSegmentStartIndex("stream")
-                } else {
-                    nowSpeak.coerceAtLeast(0)
-                }.let { safeStartIndex(it, processContentList.size, "stream") }
-
-                if (useExistingSSML || useRuleSegments) {
-                    nowSpeak = startIndex
-                    readAloudNumber = contentStartPosition(startIndex) ?: readAloudNumber
-                    logInfo("sync mode=stream segment=$startIndex pos=$readAloudNumber")
+                currentChapterTasks = buildAudioTasks(httpTts, "stream")
+                val startIndex = nowSpeak.coerceIn(0, maxOf(0, currentChapterTasks.lastIndex))
+                if (currentChapterTasks.isEmpty()) {
+                    releaseReadAloudPrepareWakeLock()
+                    nextChapter()
+                    return@withLock
                 }
-                logReadAloudResolved(
-                    mode = "stream",
-                    startIndex = startIndex,
-                    readAloudNumber = readAloudNumber,
-                    sourceSize = contentList.size,
-                    resolvedSize = processContentList.size
+                prefetchWindowStart = startIndex
+                AppLog.putDebug(
+                    "aiChapterParse audioTaskBatch selected mode=stream generation=$generation " +
+                        "tasks=${currentChapterTasks.size} start=$startIndex " +
+                        "last=${currentChapterTasks.lastIndex}"
                 )
 
-                processContentList.forEachIndexed { index, content ->
-                    ensureActive()
-                    
-                    if (index < startIndex) {
-                        return@forEachIndexed
-                    }
-                    
-                    val speakText = content.replace(AppPattern.notReadAloudRegex, "")
-                    if (speakText.isEmpty()) {
-                        AppLog.put("阅读段落内容为空，使用无声音频代替。\n朗读文本：$speakText")
-                    }
-                    
-                    val finalSpeakText = when {
-                        useExistingSSML || (useRuleSegments && httpTts.isAliyunTTS()) -> normalizeAliyunSSML(speakText)
-                        usePlainTextPreprocess -> preprocessAliyunPlainText(speakText)
-                        else -> speakText
-                    }
-                    val segment = readAloudSegments.getOrNull(index)
-                    val providerSegment = httpTts.providerSegment(segment)
-                    
-                    logSegmentQueued("stream", index, finalSpeakText, segment, providerSegment)
-                    
-                    if (!hasSpeakableText(finalSpeakText)) {
-                        AppLog.put("阅读段落无可朗读文字，使用无声音频代替。\n朗读文本：$content")
-                    }
-                    val fileName = md5SpeakFileName(
-                        finalSpeakText,
-                        readAloudSegment = segment,
-                        readAloudProviderSegment = providerSegment
-                    )
+                android.util.Log.i(AUDIO_PREFETCH_TAG,
+                    "generation=$generation chapter=$chapterIndex tasks=${currentChapterTasks.size} " +
+                            "start=$startIndex window=$startIndex..${minOf(startIndex + CURRENT_CHAPTER_PREFETCH_COUNT, currentChapterTasks.lastIndex)} mode=stream")
+
+                // Add current + prefetch count MediaSources to ExoPlayer
+                val windowEnd = minOf(startIndex + CURRENT_CHAPTER_PREFETCH_COUNT, currentChapterTasks.lastIndex)
+                for (i in startIndex..windowEnd) {
+                    val task = currentChapterTasks[i]
                     val dataSourceFactory = createDataSourceFactory(
                         httpTts,
-                        finalSpeakText.takeIf { hasSpeakableText(it) }.orEmpty(),
-                        segment,
-                        providerSegment
+                        task.speakText.takeIf { hasSpeakableText(it) }.orEmpty(),
+                        task.segment,
+                        task.providerSegment
                     )
-                    val mediaSource = createMediaSource(dataSourceFactory, fileName)
-                    launch(Main) {
-                        exoPlayer.addMediaSource(mediaSource)
+                    val mediaId = registerPlaybackMedia(task)
+                    queuedSegmentIndices.add(task.segmentIndex)
+                    val mediaSource = createMediaSource(dataSourceFactory, task.fileName, mediaId)
+                    lifecycleScope.launch(Main) {
+                        if (audioGeneration == generation) {
+                            exoPlayer.addMediaSource(mediaSource)
+                        }
                     }
                 }
-                preDownloadAudiosStream(httpTts, downloaderChannel)
+
+                prefetchEnabled = true
+                maybePrepareNextChapter(
+                    currentChapterTasks[startIndex].segment?.startPosition ?: readAloudNumber,
+                    "stream"
+                )
             }
         }.onError {
-            AppLog.put("朗读下载出错\n${it.localizedMessage}", it, true)
-        }
-    }
-
-    @OptIn(FlowPreview::class)
-    private suspend fun preDownloadAudiosStream(
-        httpTts: HttpTTS,
-        downloaderChannel: Channel<Downloader>
-    ) {
-        val textChapter = ReadBook.nextTextChapter ?: return
-        val chapterContent = textChapter.readAloudContent.ifBlank { textChapter.getContent() }
-        val chapterHasSSML = shouldUseExistingSSML(chapterContent)
-        val preDownloadContentList = getPreDownloadContentList(textChapter, chapterHasSSML)
-            .take(PRE_DOWNLOAD_SEGMENT_LIMIT)
-        val useRuleSegments = shouldUseRuleGeneratedSegments(httpTts, chapterHasSSML)
-        val (contentList, preDownloadSegments) = if (useRuleSegments) {
-            buildRuleContentWithSegments(
-                sourceList = preDownloadContentList,
-                mode = "stream-predownload:${textChapter.title}",
-                httpTts = httpTts
+            releaseReadAloudPrepareWakeLock()
+            AppLog.put(
+                "aiChapterParse ttsDownloadError stage=streamPrepare message=${it.localizedMessage.orEmpty()}\n" +
+                    "朗读下载出错\n${it.localizedMessage}",
+                it,
+                true
             )
-        } else {
-            preDownloadContentList to emptyList()
-        }
-        val useExistingSSML = shouldUseExistingSSML(chapterContent, contentList)
-        val usePlainTextPreprocess = shouldUseAliyunPlainTextPreprocess(
-            httpTts,
-            chapterContent,
-            contentList
-        )
-        val flow = loadingState.debounce(1.seconds)
-        contentList.forEachIndexed { index, content ->
-            currentCoroutineContext().ensureActive()
-            val speakText = content.replace(AppPattern.notReadAloudRegex, "")
-            val finalSpeakText = when {
-                useExistingSSML || (useRuleSegments && httpTts.isAliyunTTS()) -> normalizeAliyunSSML(speakText)
-                usePlainTextPreprocess -> preprocessAliyunPlainText(speakText)
-                else -> speakText
-            }
-            val segment = preDownloadSegments.getOrNull(index)
-            val providerSegment = httpTts.providerSegment(segment)
-            val fileName = md5SpeakFileName(finalSpeakText, textChapter, segment, providerSegment)
-            val dataSourceFactory = createDataSourceFactory(
-                httpTts,
-                finalSpeakText,
-                segment,
-                providerSegment
-            )
-            val downloader = createDownloader(dataSourceFactory, fileName)
-            downloaderChannel.send(downloader)
-            flow.first { !it }
         }
     }
 
@@ -1324,11 +2098,12 @@ class HttpReadAloudService : BaseReadAloudService(),
         httpTts: HttpTTS,
         speakText: String,
         readAloudSegment: ReadAloudSegment? = null,
-        readAloudProviderSegment: ReadAloudProviderSegment? = null
+        readAloudProviderSegment: ReadAloudProviderSegment? = null,
+        fallbackToSilent: Boolean = true
     ): CacheDataSource.Factory {
         val upstreamFactory = DataSource.Factory {
             InputStreamDataSource {
-                if (!hasSpeakableText(speakText)) {
+                val inputStream = if (!hasSpeakableText(speakText)) {
                     null
                 } else {
                     kotlin.runCatching {
@@ -1348,7 +2123,12 @@ class HttpReadAloudService : BaseReadAloudService(),
                             .replace(AppPattern.notReadAloudRegex, "")
                             .trim()
                         if (plainText != speakText && hasSpeakableText(plainText)) {
-                            AppLog.put("SSML流式合成失败，回退普通文本朗读。\n${error.localizedMessage}")
+                            AppLog.put(
+                                "aiChapterParse ttsFallback reason=streamSsmlFailed " +
+                                    "message=${error.localizedMessage.orEmpty()}\n" +
+                                    "SSML流式合成失败，回退普通文本朗读。\n${error.localizedMessage}",
+                                error
+                            )
                             runBlocking(lifecycleScope.coroutineContext[Job]!!) {
                                 getSpeakStream(
                                     httpTts,
@@ -1364,10 +2144,24 @@ class HttpReadAloudService : BaseReadAloudService(),
                         when (it) {
                             is InterruptedException,
                             is CancellationException -> Unit
-                            else -> AppLog.put("流式TTS下载音频出错，使用无声音频代替。\n${it.localizedMessage}")
+                            else -> if (fallbackToSilent) {
+                                AppLog.put(
+                                    "aiChapterParse ttsSilentFallback reason=streamDownloadFailed " +
+                                        "message=${it.localizedMessage.orEmpty()}\n" +
+                                        "流式TTS下载音频出错，使用无声音频代替。\n${it.localizedMessage}",
+                                    it
+                                )
+                            }
                         }
-                    }.getOrNull()
-                } ?: resources.openRawResource(R.raw.silent_sound)
+                    }.getOrElse { error ->
+                        if (fallbackToSilent) null else throw error
+                    }
+                }
+                inputStream ?: if (fallbackToSilent) {
+                    resources.openRawResource(R.raw.silent_sound)
+                } else {
+                    throw NoStackTraceException("下一章音频预处理未返回有效音频")
+                }
             }
         }
         val factory = CacheDataSource.Factory()
@@ -1384,11 +2178,16 @@ class HttpReadAloudService : BaseReadAloudService(),
             .createDownloader(request)
     }
 
-    private fun createMediaSource(factory: DataSource.Factory, fileName: String): MediaSource {
+    private fun createMediaSource(factory: DataSource.Factory, fileName: String, mediaId: String): MediaSource {
         return DefaultMediaSourceFactory(this)
             .setDataSourceFactory(factory)
             .setLoadErrorHandlingPolicy(loadErrorHandlingPolicy)
-            .createMediaSource(MediaItem.fromUri(fileName))
+            .createMediaSource(
+                MediaItem.Builder()
+                    .setUri(fileName)
+                    .setMediaId(mediaId)
+                    .build()
+            )
     }
 
     private suspend fun getSpeakStream(
@@ -1467,7 +2266,12 @@ class HttpReadAloudService : BaseReadAloudService(),
                 when (e) {
                     is CancellationException -> throw e
                     is ScriptException, is WrappedException -> {
-                        AppLog.put("js错误\n${e.localizedMessage}", e, true)
+                        AppLog.put(
+                            "aiChapterParse ttsJsError message=${e.localizedMessage.orEmpty()}\n" +
+                                "js错误\n${e.localizedMessage}",
+                            e,
+                            true
+                        )
                         e.printOnDebug()
                         throw e
                     }
@@ -1475,7 +2279,9 @@ class HttpReadAloudService : BaseReadAloudService(),
                     is SocketTimeoutException, is ConnectException -> {
                         downloadErrorNo++
                         if (downloadErrorNo > 5) {
-                            val msg = "tts超时或连接错误超过5次\n${e.localizedMessage}"
+                            val msg = "aiChapterParse ttsDownloadError reason=timeoutOrConnectOverLimit " +
+                                "count=$downloadErrorNo message=${e.localizedMessage.orEmpty()}\n" +
+                                "tts超时或连接错误超过5次\n${e.localizedMessage}"
                             AppLog.put(msg, e, true)
                             throw e
                         }
@@ -1483,15 +2289,25 @@ class HttpReadAloudService : BaseReadAloudService(),
 
                     else -> {
                         downloadErrorNo++
-                        val msg = "tts下载错误\n${e.localizedMessage}"
+                        val msg = "aiChapterParse ttsDownloadError reason=requestFailed " +
+                            "count=$downloadErrorNo exception=${e.javaClass.simpleName} " +
+                            "message=${e.localizedMessage.orEmpty()}\n" +
+                            "tts下载错误\n${e.localizedMessage}"
                         AppLog.put(msg, e)
                         e.printOnDebug()
                         if (downloadErrorNo > 5) {
-                            val msg1 = "TTS服务器连续5次错误，已暂停阅读。"
+                            val msg1 = "aiChapterParse ttsDownloadError reason=serverErrorOverLimit " +
+                                "count=$downloadErrorNo message=${e.localizedMessage.orEmpty()}\n" +
+                                "TTS服务器连续5次错误，已暂停阅读。"
                             AppLog.put(msg1, e, true)
                             throw e
                         } else {
-                            AppLog.put("TTS下载音频出错，使用无声音频代替。\n朗读文本：$speakText")
+                            AppLog.put(
+                                "aiChapterParse ttsSilentFallback reason=downloadFailed " +
+                                    "count=$downloadErrorNo message=${e.localizedMessage.orEmpty()}\n" +
+                                    "TTS下载音频出错，使用无声音频代替。\n朗读文本：$speakText",
+                                e
+                            )
                             break
                         }
                     }
@@ -1632,6 +2448,9 @@ class HttpReadAloudService : BaseReadAloudService(),
     private fun createSilentSound(fileName: String) {
         val file = createSpeakFile(fileName)
         file.writeBytes(resources.openRawResource(R.raw.silent_sound).readBytes())
+        AppLog.putDebug(
+            "aiChapterParse audioCreate silent key=${audioLogKey(fileName)} fileSize=${file.length()}"
+        )
     }
 
     private fun hasSpeakFile(name: String): Boolean {
@@ -1737,6 +2556,7 @@ class HttpReadAloudService : BaseReadAloudService(),
      */
     override fun upSpeechRate(reset: Boolean) {
         downloadTask?.cancel()
+        cancelAllPrefetchTasks()
         exoPlayer.stop()
         speechRate = AppConfig.speechRatePlay + 5
         if (AppConfig.streamReadAloudAudio) {
@@ -1759,17 +2579,33 @@ class HttpReadAloudService : BaseReadAloudService(),
 
             Player.STATE_READY -> {
                 // 准备好
+                releaseReadAloudPrepareWakeLock()
+                AppLog.putDebug(
+                    "aiChapterParse playbackReady segment=$nowSpeak " +
+                        "durationMs=${exoPlayer.duration} positionMs=${exoPlayer.currentPosition} " +
+                        "mediaKey=${playbackFileKey(exoPlayer.currentMediaItem?.mediaId)} " +
+                        "contentLen=${contentPlainLength(nowSpeak)}"
+                )
                 if (pause) return
                 exoPlayer.play()
                 upPlayPos()
             }
 
             Player.STATE_ENDED -> {
-                // 结束
+                AppLog.putDebug(
+                    "aiChapterParse playbackEnded segment=$nowSpeak " +
+                        "durationMs=${exoPlayer.duration} positionMs=${exoPlayer.currentPosition} " +
+                        "mediaKey=${playbackFileKey(exoPlayer.currentMediaItem?.mediaId)} " +
+                        "contentLen=${contentPlainLength(nowSpeak)}"
+                )
                 playErrorNo = 0
-                updateNextPos()
                 exoPlayer.stop()
                 exoPlayer.clearMediaItems()
+                if (nowSpeak < contentList.lastIndex) {
+                    continueCurrentChapterFromIndex(nowSpeak + 1)
+                } else {
+                    nextChapter()
+                }
             }
         }
     }
@@ -1788,14 +2624,39 @@ class HttpReadAloudService : BaseReadAloudService(),
 
     override fun onIsLoadingChanged(isLoading: Boolean) {
         loadingState.value = isLoading
+        if (isLoading && nextChapterPrepareJob?.isActive == true) {
+            cancelNextChapterPrepare("currentChapterLoading")
+        }
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+        val mediaId = mediaItem?.mediaId
+        val tagIndex = mediaId?.let { mediaIdToSegmentIndex[it] }
+        if (mediaId != null && mediaId != lastLoggedPlaybackMediaId) {
+            lastLoggedPlaybackMediaId = mediaId
+            val task = tagIndex?.let { currentChapterTasks.getOrNull(it) }
+            val message = "chapter=$chapterIndex segment=${tagIndex ?: -1} reason=$reason " +
+                    "textHash=${task?.speakText?.let { MD5Utils.md5Encode16(it) }.orEmpty()} " +
+                    "key=${task?.fileName?.let(::audioLogKey) ?: mediaId.takeLast(8)} " +
+                    "preview=${task?.speakText?.logPreview(40).orEmpty()}"
+            android.util.Log.i(AUDIO_PLAYBACK_TAG, message)
+            AppLog.putDebug("aiChapterParse playbackTransition $message")
+            logInfo("audioPlayback $message")
+        }
         if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) return
         if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
             playErrorNo = 0
         }
-        updateNextPos()
+        if (tagIndex != null && currentChapterTasks.isNotEmpty()) {
+            nowSpeak = tagIndex
+            readAloudNumber = contentStartPosition(tagIndex)
+                ?: (readAloudNumber + contentPlainLength((tagIndex - 1).coerceAtLeast(0)) + 1)
+            val mode = if (AppConfig.streamReadAloudAudio) "stream" else "file"
+            advancePrefetchWindow(tagIndex, audioGeneration, mode)
+            maybePrepareNextChapter(readAloudNumber, mode)
+        } else {
+            updateNextPos()
+        }
         upPlayPos()
     }
 
@@ -1814,7 +2675,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                 exoPlayer.prepare()
             } else {
                 exoPlayer.clearMediaItems()
-                updateNextPos()
+                continueCurrentChapterFromIndex(nowSpeak + 1)
             }
         }
     }

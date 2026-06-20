@@ -288,6 +288,83 @@ data class Book(
         } ?: remove(engineKey)
     }
 
+    // region 角色管理
+
+    fun getReadAloudRoles(): MutableList<BookReadAloudRole> {
+        if (config.readAloudRoles == null) config.readAloudRoles = mutableListOf()
+        return config.readAloudRoles!!
+    }
+
+    fun getReadAloudRoleById(id: String): BookReadAloudRole? {
+        return getReadAloudRoles().find { it.id == id }
+    }
+
+    fun addOrUpdateReadAloudRole(role: BookReadAloudRole) {
+        val roles = getReadAloudRoles()
+        val idx = roles.indexOfFirst { it.id == role.id }
+        if (idx >= 0) {
+            roles[idx] = role
+        } else {
+            roles.add(role)
+        }
+    }
+
+    fun deleteReadAloudRole(id: String) {
+        getReadAloudRoles().removeAll { it.id == id }
+    }
+
+    fun getRoleVoice(roleId: String, ttsEngine: String?): String? {
+        val engineKey = ttsEngine?.takeIf { it.isNotBlank() } ?: return null
+        return when (val voice = getReadAloudRoleById(roleId)?.voices?.get(engineKey)) {
+            BookReadAloudRole.VOICE_BOOK_NARRATOR -> getNarratorVoice(engineKey)
+            BookReadAloudRole.VOICE_BOOK_DIALOG -> getDialogVoice(engineKey)
+            else -> voice?.takeIf { it.isNotBlank() }
+        }
+    }
+
+    fun setRoleVoice(roleId: String, ttsEngine: String?, voice: String?) {
+        val engineKey = ttsEngine?.takeIf { it.isNotBlank() } ?: return
+        val role = getReadAloudRoleById(roleId) ?: return
+        voice?.takeIf { it.isNotBlank() }?.let {
+            role.voices[engineKey] = it
+        } ?: role.voices.remove(engineKey)
+    }
+
+    fun validateRoleName(name: String, excludeId: String? = null): String? {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) return "Name cannot be empty"
+        val roles = getReadAloudRoles()
+        val conflict = roles.any { it.id != excludeId && it.name.trim().equals(trimmed, ignoreCase = true) }
+        if (conflict) return "Name already exists"
+        val aliasConflict = roles.any { it.id != excludeId && it.aliases.any { a -> a.trim().equals(trimmed, ignoreCase = true) } }
+        if (aliasConflict) return "Name conflicts with an existing alias"
+        return null
+    }
+
+    fun validateRoleAlias(
+        alias: String,
+        excludeId: String? = null,
+        currentRoleName: String? = null
+    ): String? {
+        val trimmed = alias.trim()
+        if (trimmed.isBlank()) return null
+        if (currentRoleName?.trim()?.equals(trimmed, ignoreCase = true) == true) {
+            return "Alias conflicts with the role name"
+        }
+        val roles = getReadAloudRoles()
+        val nameConflict = roles.any { it.id != excludeId && it.name.trim().equals(trimmed, ignoreCase = true) }
+        if (nameConflict) return "Alias conflicts with an existing name"
+        val aliasConflict = roles.any { it.id != excludeId && it.aliases.any { a -> a.trim().equals(trimmed, ignoreCase = true) } }
+        if (aliasConflict) return "Alias already used by another role"
+        return null
+    }
+
+    fun normalizeAliases(aliases: List<String>): MutableList<String> {
+        return aliases.map { it.trim() }.filter { it.isNotBlank() }.distinctBy { it.lowercase() }.toMutableList()
+    }
+
+    // endregion
+
     fun setSplitLongChapter(limitLongContent: Boolean) {
         config.splitLongChapter = limitLongContent
     }
@@ -448,6 +525,7 @@ data class Book(
         var dialogVoice: String? = null,
         var splitLongChapter: Boolean = true,
         var readSimulating: Boolean = false,
+        var readAloudRoles: MutableList<BookReadAloudRole>? = mutableListOf(),
         var startDate: LocalDate? = null,
         var startChapter: Int? = null,     // 用户设置的起始章节
         var dailyChapters: Int = 3    // 用户设置的每日更新章节数

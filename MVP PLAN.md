@@ -271,12 +271,15 @@ HTTP_TTS 配置：
 
 ## MVP 3.4：书籍级角色管理
 
+状态：✅ 已完成
+
 目标：在书籍维度维护角色列表，为后续 AI 角色识别和跨章节一致性打基础。
 
 范围：
 - 支持新增、编辑、删除角色。
 - 支持角色名、别名、备注、绑定音色、是否锁定。
-- 可从 MVP3.3 的书籍级音色中选择音色作为角色音色。
+- 可跟随 MVP3.3 的书籍旁白/对白音色，也可手动输入角色音色 ID。
+- 锁定表示角色档案已由用户确认，供后续 AI 识别阶段避免自动修改名称、别名和音色。
 - 规则分段阶段仍只自动区分旁白/对白；具体人物匹配可先通过用户手动绑定完成。
 
 验收：
@@ -284,52 +287,132 @@ HTTP_TTS 配置：
 - 用户可给角色绑定音色并锁定。
 - 同一本书重新朗读时角色配置仍保留。
 
+实现：
+- 新增 `BookReadAloudRole` 数据类（id/name/aliases/note/voices/locked），Parcelable。
+- 在 `Book.ReadConfig` 新增 `readAloudRoles` 字段，通过现有 TypeConverter 持久化，无需 Room migration。
+- `Book` 上提供角色 CRUD、音色读写、名称/别名冲突校验方法。
+- 新增 `BookRoleListDialog`（角色列表页）和 `BookRoleEditDialog`（角色编辑页）。
+- 在 `SpeakEngineDialog` 增加"书籍角色"入口。
+- 提取 `HttpTtsExtensions.kt` 共享引擎检测方法，消除重复。
+- 角色音色可跟随当前引擎的书籍旁白/对白音色，也可输入自定义 voice / speaker ID；配置按 TTS 引擎 ID 隔离存储，切换引擎互不覆盖。
+- MVP3.4 中锁定状态仅持久化和展示，不影响当前朗读，也不限制用户手动编辑或删除；未锁定角色当前同样正常保存和使用。
+
 注意：
 - MVP3.4 是角色管理页面，不是豆包账号配置页面。
+- 后续 AI 阶段应保留锁定角色的用户配置；未锁定角色允许 AI 补充别名、调整匹配或推荐音色。
 - AI 自动识别具体人物仍放在 MVP6B/6C。
 
 
 
 ## MVP 4：Segment 缓存表
 
-目标：只完成 segment 剧本的 Room 持久化读写。
+状态：✅ 已完成（分支：mvp4.0）
+
+目标：将规则生成的通用 `ReadAloudSegment` 按书籍、章节和正文内容 hash 持久化到 Room。
 
 范围：
-- 新增 segment 缓存表。
-- 支持按书籍、章节、内容 hash 读写 `ReadAloudSegment` JSON。
-- 不做预取、不做刷新 UI、不接 AI。
+- 新增 Segment 缓存 Entity、DAO 和 Room 数据库版本迁移（76→77）。
+- 缓存整章规则 Segment，不缓存当前页或当前播放窗口的局部结果。
+- 保存完整通用 Segment JSON。
+- 文件播放和流式播放共用同一缓存读取入口。
+- 下一章现有预下载流程可读取缓存，但不新增预取策略。
+- 缓存异常时自动回退实时规则分段，不中断朗读。
+
+不包含：
+- 不新增缓存管理或手动刷新 UI，留到 MVP4.1。
+- 不实现当前章后续音频预取，留到 MVP5。
+- 不实现下一章预处理调度，留到 MVP5.1。
+- 不接入 AI，不缓存 AI 原始响应。
+- 不缓存阿里云 SSML、豆包 Speaker、Provider 请求或音频文件。
+- 不改变现有角色管理、书籍音色和 HTTP_TTS 全局配置。
+
+实现记录：
+- `ReadAloudSegmentCache` Entity：主键 `(bookUrl, chapterUrl, producer)`，含 `contentHash`、`segmentVersion`、`segmentsJson`、`updatedAt`；外键 CASCADE 删除。
+- `ReadAloudSegmentCacheDao`：`get()`、`insert(REPLACE)`、`deleteChapter()`、`deleteBook()`。
+- `AppDatabase` 版本 76→77，注册 Entity/DAO/AutoMigration。
+- `ReadAloudSegmentCacheKey`：正文规范化（`\r\n`→`\n`、`\r`→`\n`）、MD5 hash、`RULE_SEGMENT_VERSION = 1`。
+- `ReadAloudChapterSegmenter`：整章规则分段，保留空行偏移，`startPosition` 映射到整章正文字符位置。
+- `ReadAloudSegmentCacheValidator`：校验 `plainLength`、`endPosition`、`eventType`/`role` 非空、文本一致性、非递减排列、无重叠。
+- `ReadAloudSegmentCacheRepository`：get-or-build 流程，缓存命中时返回整章 Segment，未命中或校验失败时实时重建并写入。
+- `selectSegments()`：纯函数，按窗口起止位置筛选 Segment，起始位置落在段中间时保留完整段。
+- `HttpReadAloudService` 接入：
+  - `buildRuleContentList()` 改为从 Repository 获取整章 Segment，再用 `selectSegments()` 截取当前页窗口。
+  - `preDownloadAudios()` / `preDownloadAudiosStream()` 改为从 Repository 获取整章 Segment 后 `take(PRE_DOWNLOAD_SEGMENT_LIMIT)`。
+  - 修复预下载中 `md5SpeakFileName` 使用错误 TextChapter 引用的问题。
+- 日志：`segmentCache hit/miss/invalid/rebuild`，只输出 hash 前 8 位、版本号和段数，不泄露正文与凭据。
 
 验收：
-- 同一章节第二次朗读可读取缓存 segment。
-- 内容 hash 改变时不会误用旧缓存。
+- ✅ 同一章节第二次朗读可读取缓存 segment。
+- ✅ 内容 hash 改变时不会误用旧缓存。
+- ✅ 文件播放和流式播放共用同一缓存读取入口。
+- ✅ 下一章预下载读取缓存前几段。
+- ✅ 缓存异常时回退实时规则分段。
 
 ## MVP 4.1：缓存失效与手动刷新
+
+状态：✅ 已完成（分支：mvp4.1）
 
 目标：把缓存失效规则和手动刷新独立出来。
 
 范围：
 - 支持按当前章清理 segment 缓存。
 - 支持按整本书清理 segment 缓存。
-- 日志能区分“命中缓存 / 重建缓存 / 手动刷新”。
+- 日志能区分”命中缓存 / 重建缓存 / 手动刷新”。
+
+实现记录：
+- `ReadAloudSegmentCacheDao` 的 `deleteChapter()` / `deleteBook()` 返回值改为 `Int`，反馈删除条数。
+- 新增 `ReadAloudSegmentCacheManager`：独立管理失效操作，使用 Mutex 串行化同一本书的手动清理，日志输出短 hash 标识。
+- `pref_config_aloud.xml` 新增 Segment 缓存分组，含「刷新当前章 Segment」和「清理本书 Segment 缓存」两个动作入口。
+- `ReadAloudPreferenceFragment` 绑定两个动作：
+  - 刷新当前章：确认框显示章节标题，删除缓存后若朗读服务在运行则保存进度、停止旧服务、按原章节/页面/相对位置重启朗读，保持原播放/暂停状态。
+  - 清理本书：二次确认明确不影响正文/角色/音色配置，删除缓存后不停止当前播放。
+  - 无当前书籍时禁用入口，操作期间禁用两个 Preference 防止重复点击。
+- 日志新增 `manualRefresh chapter` / `manualRefresh restart` / `manualClearBook` / `manualRefresh error` / `manualClearBook error`。
+- 补充默认英文和简体中文资源字符串。
+- 未修改 `AppDatabase.version`（仍为 77），未新增 Entity/字段/迁移。
 
 验收：
-- 手动刷新当前章后会重新生成 segment。
-- 清理整本书缓存不影响 HTTP_TTS 登录配置和书籍角色配置。
+- ✅ 手动刷新当前章后会重新生成 segment。
+- ✅ 播放中刷新从接近原位置继续，暂停状态保持。
+- ✅ 清理整本书缓存不影响 HTTP_TTS 登录配置和书籍角色配置。
+- ✅ 清理本书不停止当前播放。
+- ✅ 日志区分自动失效与手动刷新。
+- ✅ 快速重复点击不会启动多个清理或重启任务。
 
 ## MVP 5：当前章节音频预取
+
+状态：✅ 已完成（分支：mvp5）
 
 目标：只优化当前章节播放中的后续段音频预取。
 
 范围：
-- 当前段播放时，后台预取后续 2-3 段音频。
+- 当前段播放时，后台预取后续 3 段音频。
 - 跳章或停止朗读时取消当前预取任务。
 - 不做下一章预处理。
 
+实现记录：
+- 新增 `ReadAloudAudioTask` 内存态模型，描述每段音频的 generation、chapterIndex、segmentIndex、speakText、fileName、useSSMLRequest、segment 和 providerSegment。
+- 新增 `audioGeneration` 代次隔离，跳段、跳章、停止、语速变化、TTS 切换时递增，旧预取任务自动失效。
+- 提取 `buildAudioTasks()` 统一任务构建方法，文件模式和流式模式共用同一份 Segment、ProviderSegment、文本和 fileName 逻辑。
+- 新增 `cancelAllPrefetchTasks()`、`advancePrefetchWindow()`、`downloadSingleSegmentFile()` 预取调度方法。
+- 文件模式重构：当前段前台下载后立即入队，后续 3 段后台串行预取；不再遍历下载整章全部音频。
+- 流式模式重构：仅向 ExoPlayer 入队当前段和后续 3 段 MediaSource；不再一次性加入整章 MediaSource。
+- `onMediaItemTransition` 改为从 MediaItem tag 读取真实 segmentIndex，推进预取窗口。
+- 后台预取失败不创建静音音频文件，避免前台重试时误命中。
+- 日志前缀 `audioPrefetch`，输出 generation、segment、distance、mode、cacheHit、prefetchFailed 等事件。
+- `playStop()`、`onDestroy()`、`upSpeechRate()` 均调用 `cancelAllPrefetchTasks()`。
+- 未修改 `AppDatabase.version`（仍为 77），未新增 Entity/字段/迁移。
+
 验收：
-- 播放第 1 段时能看到第 2-3 段开始预取。
-- 快速跳章后旧预取任务被取消。
+- ✅ 播放第 1 段时能看到第 2-4 段开始预取。
+- ✅ 快速跳章后旧预取任务被取消。
+- ✅ 文件模式不再遍历下载整章全部音频。
+- ✅ 流式模式 ExoPlayer 队列不再包含整章 MediaSource。
+- ✅ 后台预取失败不创建静音缓存，真正播放时前台重试。
 
 ## MVP 5.1：下一章预处理
+
+状态：✅ 已完成（分支：mvp5.1）
 
 目标：独立实现下一章 segment 和音频预处理。
 
@@ -341,35 +424,114 @@ HTTP_TTS 配置：
 - 当前章结束后，下一章首段可更快播放。
 - 断网或失败时能回退普通实时请求。
 
+实现记录：
+- 下一章预处理改为当前章进入整章最后 3 个 Segment 时触发，不再在播放初始化后立即执行。
+- 按页朗读使用章节绝对位置映射整章 Segment，普通页面结束不会误判为章节结束。
+- 文件模式和流式模式共用 `buildNextChapterAudioTasks()`，只构建下一章前 3 段任务。
+- 下一章完整规则 Segment 通过 MVP4 Repository 提前生成或命中缓存。
+- 文件模式预生成 MP3；流式模式通过 Media3 Downloader 写入 `SimpleCache`。
+- 下一章任务使用独立 generation、目标 key、Job 和 Downloader 取消点。
+- 当前章滑动窗口推进时可取消下一章任务，当前章任务完成后重新评估触发。
+- 停止、跳章、服务销毁、语速或 TTS 变化会通过现有播放重置路径取消旧任务。
+- 流式下一章预处理失败时不缓存静音音频，正式播放时继续实时请求。
+- 移除原 `preDownloadAudios()` / `preDownloadAudiosStream()` 无条件调用和无界 Downloader Channel。
+- 未修改 `AppDatabase.version`，未新增 Entity、字段或 migration。
+
+验收状态：
+- ✅ 当前章普通页面末尾不会触发下一章预处理。
+- ✅ 整章最后 3 个 Segment 内触发下一章任务。
+- ✅ 文件与流式模式只准备下一章前 3 段。
+- ✅ 当前章请求优先，旧下一章任务可取消。
+- ✅ 失败不影响当前播放，下一章正式播放时可实时回退。
+
 ## MVP 6A：AI 服务配置
 
-目标：只完成 OpenAI-compatible AI 服务配置和连接测试。
+状态：✅ 已完成（分支：mvp5.1）
+
+目标：完成 OpenAI-compatible AI 服务配置和连接测试，区分 DeepSeek / GLM / 自定义 Provider，支持多实例和 API Key 加密存储。
 
 范围：
-- 配置 endpoint、apiKey、model、可选参数。
+- 配置 Provider（DeepSeek / GLM / 自定义实例）、endpoint、apiKey、model 和高级参数。
 - 保存配置并提供连接测试。
+- API Key 按 Provider/实例独立存储并加密。
+- 自定义 Provider 可新增多个实例，主弹窗内直接管理（新增/删除）。
 - 不做 Prompt 编辑、不做章节解析。
 
 验收：
 - 配置保存后重启仍保留。
+- 切换 Provider/实例自动带出对应 apiKey/endpoint/model。
 - 连接测试能返回成功或明确错误。
+- API Key 明文不落磁盘、不进日志。
+
+实现记录：
+
+**配置模型与存储**
+- `AiServiceConfig`（data class）：enabled、provider、selectedInstanceId、endpoint、apiKey（运行时解密值）、model、mode、thinkingEnabled、reasoningEffort、temperature、topP、maxTokens、stream、timeoutSeconds、providerExtraJson。
+- `AiServiceConfigStore` + `AiServiceConfig.load()`：读写 SharedPreferences，apiKey 不再落偏好（仅 selectedInstanceId 落偏好）。
+- 偏好 key 新增于 `PreferKey`：`aiServiceEnabled/Endpoint/Model/Temperature/TimeoutSeconds/MaxTokens/Provider/Mode/ThinkingEnabled/ReasoningEffort/TopP/Stream/ProviderExtraJson/SelectedInstance`。
+- 首次升级检测旧 `aiServiceApiKey` 偏好 → 加密迁移为实例 → 删除旧 key。
+
+**Provider 预设与调用模式**
+- `ProviderPresets.forProvider(AiProvider)` / `forProviderName(String)`：DeepSeek（`https://api.deepseek.com`、deepseek-v4-flash/pro、支持 thinking + reasoning_effort=high/max）、GLM（`https://open.bigmodel.cn/api/paas/v4`、glm-4.7-flashx/glm-4.7、支持 thinking、不传 reasoning_effort）、Custom（空预设）。
+- `AiCallMode` 枚举（Fast/Balanced/Refine）+ `defaultParamsForMode(mode, provider)`：按 Provider 返回 thinking/reasoningEffort/temperature/maxTokens/timeoutSeconds 推荐值。
+- 切换模式自动填充推荐参数；手动改过的高级参数不被覆盖；「恢复推荐参数」按钮按当前 Provider+模式重置高级参数（不覆盖 endpoint/apiKey/model）。
+
+**多实例与加密存储**
+- `AiServiceInstance` Room Entity（表 `aiServiceInstances`）：id、name、provider（自定义实例存自身 name）、endpoint、apiKeyEncrypted（AES 加密 Base64）、model、isDefault、sortOrder。
+- `AiServiceInstanceDao`：getByProvider/getDefault/get/insert/update/delete。
+- `AppDatabase` version 77→78，注册 entity + `AutoMigration(77→78)`。
+- `ApiKeyCrypto`：AES（androidId 派生 key）加解密，复用项目 `SymmetricCryptoAndroid`/`AES` 模式。
+- `AiServiceInstanceRepo`：CRUD + 加解密；`apiKey()` 解密返回明文（仅运行时）；日志只输出 `hasKey` 布尔值。
+
+**Provider 下拉（动态实例列表）**
+- Provider 下拉 = 内置 DeepSeek + GLM + 所有自定义实例 + 「＋ 新增自定义」特殊项。
+- 选「新增自定义」→ 显示实例名输入框 → 填配置保存后新实例名出现在下拉。
+- DeepSeek/GLM/自定义实例的 model/endpoint/key 都可改并保存。
+- 主弹窗底部「删除」按钮可删当前选中项（含内置项，删内置项后下次重建默认）。
+- 切换下拉项 apiKey/endpoint/model 跟随。
+
+**OpenAI 兼容客户端**
+- `OpenAiCompatibleClient.buildPayload`：model、messages（ping）、thinking.type、reasoning_effort（仅 Provider 支持且非空时）、temperature/top_p、max_tokens、stream。
+- temperature/top_p 经 `formatTemperature` 限制为最多 2 位小数，避免 float 精度尾巴（`0.2f.toDouble()` = 0.20000000298023224）导致服务端校验失败。
+- 失败分类：`MissingField/InvalidEndpoint/Unauthorized(401/403)/NotFound(404)/RateLimited(429)/ServerError(5xx)/Timeout/NetworkError/BadResponse`。
+- 日志仅输出 endpointHash、model、code、type、elapsedMs、thinking/reasoningEffort/stream，不输出 Key 或 Header。
+
+**UI 与入口**
+- `AiServiceConfigDialog`（布局 `dialog_ai_service_config.xml`）：启用开关、Provider 下拉、Mode 下拉、endpoint、API Key（密码态）、model（可编辑）、思考模式开关、推理强度下拉、temperature、timeout、maxTokens、topP、stream 开关、扩展 JSON、连接测试、恢复推荐参数、删除、保存/取消。
+- 入口：朗读配置弹窗「AI 服务」preference（key `aiServiceConfig`）。
+- 全链路日志（前缀 `aiConfig`）：initData/load/save/providerOptionChanged/modeChanged/restoreDefaults/buildPayload/testStart/testSuccess/testFailed。
+
+**已知限制**
+- stream 开关当前只传字段，`testConnection` 响应解析只处理非流式（`choices[0].message.content`）；开 stream 后连接测试会因拿不到 message 而归类 BadResponse。MVP6A 连接测试应保持 stream 关闭。
+- 不接入 Segment 缓存或朗读链路。
 
 ## MVP 6B：Prompt 管理
 
 目标：独立完成 AI 解析 Prompt 的查看、编辑和恢复默认。
+状态：✅ 已完成（分支：mvp6b）
 
 范围：
 - 内置默认 Prompt。
 - 支持用户编辑和恢复默认。
-- 支持导入/导出 Prompt 文本。
+- 支持复制与剪贴板粘贴 Prompt 文本。
 
 验收：
 - 修改 Prompt 后可保存。
-- 导出后再导入内容一致。
+- 复制后再粘贴内容一致。
+
+实现状态（2026-06-19，分支 mvp6b）：
+- 新增 `DefaultAiPrompts`（默认 Prompt 常量、`DEFAULT_AI_PROMPT_VERSION=1`、`normalizePrompt`、`promptHash` 基于 MD5）。
+- 新增 `AiPromptConfig` 数据类（promptText/version/contentHash/updatedAt/isDefault）。
+- 新增 `AiPromptStore`，基于 SharedPreferences 持久化（key：`aiPromptText/aiPromptVersion/aiPromptHash/aiPromptUpdatedAt`），未保存时返回默认 Prompt，不新增 Room 表。
+- 新增 `AiPromptConfigDialog` + `dialog_ai_prompt_config.xml`：显示版本/hash/更新时间/是否默认/未保存状态；按钮栏含恢复默认、复制、粘贴、取消、保存；编辑框区域用 NestedScrollView 限制高度，按钮栏固定底部始终可见；保存做空校验，恢复默认前确认，粘贴只填编辑框不自动保存，有未保存修改时关闭需确认。
+- 入口：AI 服务配置弹窗按钮栏新增“Prompt 管理”按钮，打开 `AiPromptConfigDialog`。
+- 不调用 AI、不解析章节、不写/清 segment 缓存、不修改数据库版本。
+- 后续 MVP6C 读取当前 Prompt 发起解析；MVP6D 使用 `promptHash`/`promptVersion` 判断缓存失效。
 
 ## MVP 6C：AI 单章解析最小闭环
 
 目标：AI 只解析当前章节为旁白/对白/具体角色 segment。
+状态：✅ 已完成（分支：mvp6c）
 
 范围：
 - 输入当前章节文本。
@@ -380,18 +542,35 @@ HTTP_TTS 配置：
 - 能识别旁白和至少一个具体角色名。
 - AI 输出映射失败时回退 MVP3 规则分段。
 
+实现状态（2026-06-19，分支 mvp6c）：
+- 新增 `AiSegmentResponse`：解析 AI 返回 JSON（兼容 ```json 代码块/外层说明），缺失字段回退默认值（role 合法化为 narrator/dialog/unknown，emotion 默认 neutral，emotionIntensity 限制 0..1 默认 1.0）。
+- 新增 `AiChapterParseResult` + `AiParseFallbackReason`：解析结果（segments/provider/model/promptHash/promptVersion/elapsedMs/fallbackUsed/errorMessage）与回退原因枚举。
+- `OpenAiCompatibleClient` 新增 `chatCompletion(config, messages)` + `AiChatResult`/`AiChatMessage`：复用 MVP6A 参数生成（thinking/reasoning_effort/temperature/top_p/max_tokens/stream），messages 为 system(Prompt)+user(正文)；日志只打 endpointHash/model/messages 数量/elapsedMs，不输出 payload、正文、Prompt、API Key。
+- 新增 `AiSegmentMapper`：章节正文规范化换行后顺序查找，依次精确 → 压缩空白（全角/连续空白，带 offset 索引二分定位）→ trim；单段失败或成功率 < 95% 判定整体回退，避免局部混合造成进度错位。
+- 新增 `AiChapterParser`：统一入口，前置校验（未启用/缺 endpoint|apiKey|model/Prompt 空/章节 > 12000 字直接回退），调 AI → 解析 → 映射，失败回退 `ReadAloudChapterSegmenter.buildChapterRuleSegments`；日志前缀 `aiChapterParse`，只输出 chapterIndex/chars/provider/model/promptHash 前 8 位/segment 数/elapsedMs/fallback reason。
+- 接入 `HttpReadAloudService.buildRuleContentList`（改为 suspend）：优先 `tryAiChapterSegments`，成功用 AI segments 走原有 windowing + `renderRuleContents` 渲染（坐标与规则分段一致），失败回退 `segmentCacheRepository.getOrBuildRuleSegments`；`buildAudioTasks` 同步改 suspend（两处调用点已在协程上下文）。
+- MVP6C 不写缓存（留 MVP6D）、不新增 Room 表、不改 `AppDatabase.version`、不改 TTS Provider 渲染接口。
+- 回退原因：aiDisabled/missingConfig/emptyPrompt/chapterTooLong/requestFailed/unauthorized/emptySegments/jsonInvalid/mappingFailed。
+
 ## MVP 6D：AI 结果缓存接入
 
-目标：把 AI 解析结果接入 MVP4 缓存。
+目标：把 AI 解析结果接入缓存，并减少跨章等待 AI 解析的停顿。
 
 范围：
 - AI 成功后写入 segment 缓存。
 - 再次朗读同章优先读取缓存。
 - Prompt 版本或内容 hash 变化时缓存失效。
+- 当前章接近结束时，可提前对下一章发起 AI 标注。
+- 下一章 AI 预热结果先放服务内存缓存，不落库；切到下一章时若章节内容、Prompt、AI 配置一致，则直接复用，跳过等待。
+- 下一章 AI 预热失败不影响当前播放；正式进入下一章时继续按正常 AI/规则回退链路执行。
+- 停止朗读、跳章、TTS/AI 配置或 Prompt 变化时，清理下一章内存预热结果。
 
 验收：
 - 同章第二次朗读不重复调用 AI。
 - 修改 Prompt 后会重新解析。
+- 当前章最后几个 Segment 内触发下一章 AI 预热日志。
+- 下一章预热命中时，章节开始不再等待 AI 请求完成。
+- 下一章预热失败时，当前章播放不受影响，下一章仍可正常回退解析。
 
 ## MVP 6E：角色档案持久化
 
@@ -509,14 +688,14 @@ MVP 7 / 7.1 (缓存管理与调试)
 | 3.1 | 豆包 HTTP_TTS 集成 + 分角色音色 | ✅ 完成 | mvp3.1 |
 | **3.2** | 通用 Segment 去 Provider 渲染字段 | ✅ 完成 | mvp3.2 |
 | **3.3** | 书籍级音色管理 | ✅ 完成 | mvp3.3 |
-| **3.4** | 书籍级角色管理 | ⏳ 计划中 | - |
-| **4** | Segment 缓存表 | ⏳ 计划中 | - |
-| **4.1** | 缓存失效与手动刷新 | ⏳ 计划中 | - |
-| **5** | 当前章节音频预取 | ⏳ 计划中 | - |
-| **5.1** | 下一章预处理 | ⏳ 计划中 | - |
-| **6A** | AI 服务配置 | ⏳ 计划中 | - |
-| **6B** | Prompt 管理 | ⏳ 计划中 | - |
-| **6C** | AI 单章解析最小闭环 | ⏳ 计划中 | - |
+| **3.4** | 书籍级角色管理 | ✅ 完成 | mvp3.4 |
+| **4** | Segment 缓存表 | ✅ 完成 | mvp4.0 |
+| **4.1** | 缓存失效与手动刷新 | ✅ 完成 | mvp4.1 |
+| **5** | 当前章节音频预取 | ✅ 完成 | mvp5 |
+| **5.1** | 下一章预处理 | ✅ 完成 | mvp5.1 |
+| **6A** | AI 服务配置 | ✅ 完成 | mvp5.1 |
+| **6B** | Prompt 管理 | ✅ 已完成 | - |
+| **6C** | AI 单章解析最小闭环 | ✅ 已完成 | - |
 | **6D** | AI 结果缓存接入 | ⏳ 计划中 | - |
 | **6E** | 角色档案持久化 | ⏳ 计划中 | - |
 | **6F** | 角色匹配与跨章节音色复用 | ⏳ 计划中 | - |
@@ -554,14 +733,14 @@ MVP 7 / 7.1 (缓存管理与调试)
 4. ✅ MVP 3.1：豆包 HTTP_TTS 集成 + 分角色音色（已完成）
 5. ✅ MVP 3.2：通用 Segment 去 Provider 渲染字段（已完成）
 6. ✅ MVP 3.3：书籍级音色管理（已完成）
-7. ⏳ MVP 3.4：书籍级角色管理
-8. ⏳ MVP 4：Segment 缓存表
-9. ⏳ MVP 4.1：缓存失效与手动刷新
-10. ⏳ MVP 5：当前章节音频预取
-11. ⏳ MVP 5.1：下一章预处理
+7. ✅ MVP 3.4：书籍级角色管理（已完成）
+8. ✅ MVP 4：Segment 缓存表（已完成）
+9. ✅ MVP 4.1：缓存失效与手动刷新（已完成）
+10. ✅ MVP 5：当前章节音频预取（已完成）
+11. ✅ MVP 5.1：下一章预处理（已完成）
 12. ⏳ MVP 6A：AI 服务配置
-13. ⏳ MVP 6B：Prompt 管理
-14. ⏳ MVP 6C：AI 单章解析最小闭环
+13. ✅ MVP 6B：Prompt 管理
+14. ✅ MVP 6C：AI 单章解析最小闭环
 15. ⏳ MVP 6D：AI 结果缓存接入
 16. ⏳ MVP 6E：角色档案持久化
 17. ⏳ MVP 6F：角色匹配与跨章节音色复用
