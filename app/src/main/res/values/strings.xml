@@ -599,8 +599,6 @@
     <string name="ai_service_api_key">API Key</string>
     <string name="ai_service_model">Model</string>
     <string name="ai_service_temperature">Temperature</string>
-    <string name="ai_service_timeout">Timeout (s)</string>
-    <string name="ai_service_max_tokens">Max tokens (optional)</string>
     <string name="ai_service_test">Test connection</string>
     <string name="ai_service_testing">Testing…</string>
     <string name="ai_service_test_running">Connecting to AI service…</string>
@@ -625,7 +623,6 @@
     <string name="ai_service_mode_refine">Refine</string>
     <string name="ai_service_thinking">Thinking mode</string>
     <string name="ai_service_reasoning_effort">Reasoning effort</string>
-    <string name="ai_service_top_p">Top P (optional)</string>
     <string name="ai_service_stream">Stream response</string>
     <string name="ai_service_provider_extra_json">Extra JSON</string>
     <string name="ai_service_restore_defaults">Restore defaults</string>

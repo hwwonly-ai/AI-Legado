@@ -1,6 +1,6 @@
 # AI 分角色朗读 MVP 执行计划（V1）
 
-本文档定义 MVP 1-7 的**技术实现细节、架构设计、依赖关系和验收标准**。
+本文档定义 MVP 1-10 的**技术实现细节、架构设计、依赖关系和验收标准**。
 配套的 PRD（AI_IMMERSIVE_READING_PRD.md）定义**产品功能、用户体验和业务目标**。
 
 ---
@@ -466,14 +466,14 @@ HTTP_TTS 配置：
 实现记录：
 
 **配置模型与存储**
-- `AiServiceConfig`（data class）：enabled、provider、selectedInstanceId、endpoint、apiKey（运行时解密值）、model、mode、thinkingEnabled、reasoningEffort、temperature、topP、maxTokens、stream、timeoutSeconds、providerExtraJson。
+- `AiServiceConfig`（data class）：enabled、provider、selectedInstanceId、endpoint、apiKey（运行时解密值）、model、mode、thinkingEnabled、reasoningEffort、temperature、stream、providerExtraJson。maxTokens 由 labeler 动态计算作请求参数（不入 config），topP/timeoutSeconds 已移除（timeout 固定 600s）。
 - `AiServiceConfigStore` + `AiServiceConfig.load()`：读写 SharedPreferences，apiKey 不再落偏好（仅 selectedInstanceId 落偏好）。
-- 偏好 key 新增于 `PreferKey`：`aiServiceEnabled/Endpoint/Model/Temperature/TimeoutSeconds/MaxTokens/Provider/Mode/ThinkingEnabled/ReasoningEffort/TopP/Stream/ProviderExtraJson/SelectedInstance`。
+- 偏好 key 新增于 `PreferKey`：`aiServiceEnabled/Endpoint/Model/Temperature/Provider/Mode/ThinkingEnabled/ReasoningEffort/Stream/ProviderExtraJson/SelectedInstance`。旧 `aiServiceMaxTokens/TopP/TimeoutSeconds` key 已在 `load()` 中清理删除。
 - 首次升级检测旧 `aiServiceApiKey` 偏好 → 加密迁移为实例 → 删除旧 key。
 
 **Provider 预设与调用模式**
 - `ProviderPresets.forProvider(AiProvider)` / `forProviderName(String)`：DeepSeek（`https://api.deepseek.com`、deepseek-v4-flash/pro、支持 thinking + reasoning_effort=high/max）、GLM（`https://open.bigmodel.cn/api/paas/v4`、glm-4.7-flashx/glm-4.7、支持 thinking、不传 reasoning_effort）、Custom（空预设）。
-- `AiCallMode` 枚举（Fast/Balanced/Refine）+ `defaultParamsForMode(mode, provider)`：按 Provider 返回 thinking/reasoningEffort/temperature/maxTokens/timeoutSeconds 推荐值。
+- `AiCallMode` 枚举（Fast/Balanced/Refine）+ `defaultParamsForMode(mode, provider)`：按 Provider 返回 thinking/reasoningEffort/temperature 推荐值。
 - 切换模式自动填充推荐参数；手动改过的高级参数不被覆盖；「恢复推荐参数」按钮按当前 Provider+模式重置高级参数（不覆盖 endpoint/apiKey/model）。
 
 **多实例与加密存储**
@@ -491,13 +491,13 @@ HTTP_TTS 配置：
 - 切换下拉项 apiKey/endpoint/model 跟随。
 
 **OpenAI 兼容客户端**
-- `OpenAiCompatibleClient.buildPayload`：model、messages（ping）、thinking.type、reasoning_effort（仅 Provider 支持且非空时）、temperature/top_p、max_tokens、stream。
-- temperature/top_p 经 `formatTemperature` 限制为最多 2 位小数，避免 float 精度尾巴（`0.2f.toDouble()` = 0.20000000298023224）导致服务端校验失败。
+- `OpenAiCompatibleClient.buildPayload`（ping）：model、messages（ping）、thinking.type、reasoning_effort（仅 Provider 支持且非空时）、temperature、max_tokens（固定 16）、stream。`buildChatPayload(config, messages, maxTokens)`：max_tokens/max_completion_tokens 由参数传入。
+- temperature 经 `formatTemperature` 限制为最多 2 位小数，避免 float 精度尾巴（`0.2f.toDouble()` = 0.20000000298023224）导致服务端校验失败。请求超时固定 `REQUEST_TIMEOUT_SECONDS=600`。
 - 失败分类：`MissingField/InvalidEndpoint/Unauthorized(401/403)/NotFound(404)/RateLimited(429)/ServerError(5xx)/Timeout/NetworkError/BadResponse`。
 - 日志仅输出 endpointHash、model、code、type、elapsedMs、thinking/reasoningEffort/stream，不输出 Key 或 Header。
 
 **UI 与入口**
-- `AiServiceConfigDialog`（布局 `dialog_ai_service_config.xml`）：启用开关、Provider 下拉、Mode 下拉、endpoint、API Key（密码态）、model（可编辑）、思考模式开关、推理强度下拉、temperature、timeout、maxTokens、topP、stream 开关、扩展 JSON、连接测试、恢复推荐参数、删除、保存/取消。
+- `AiServiceConfigDialog`（布局 `dialog_ai_service_config.xml`）：启用开关、Provider 下拉、Mode 下拉、endpoint、API Key（密码态）、model（可编辑）、思考模式开关、推理强度下拉、temperature、stream 开关、扩展 JSON、连接测试、恢复推荐参数、删除、保存/取消。maxTokens/topP/timeout 控件已移除。
 - 入口：朗读配置弹窗「AI 服务」preference（key `aiServiceConfig`）。
 - 全链路日志（前缀 `aiConfig`）：initData/load/save/providerOptionChanged/modeChanged/restoreDefaults/buildPayload/testStart/testSuccess/testFailed。
 
@@ -542,19 +542,20 @@ HTTP_TTS 配置：
 - 能识别旁白和至少一个具体角色名。
 - AI 输出映射失败时回退 MVP3 规则分段。
 
-实现状态（2026-06-19，分支 mvp6c）：
-- 新增 `AiSegmentResponse`：解析 AI 返回 JSON（兼容 ```json 代码块/外层说明），缺失字段回退默认值（role 合法化为 narrator/dialog/unknown，emotion 默认 neutral，emotionIntensity 限制 0..1 默认 1.0）。
-- 新增 `AiChapterParseResult` + `AiParseFallbackReason`：解析结果（segments/provider/model/promptHash/promptVersion/elapsedMs/fallbackUsed/errorMessage）与回退原因枚举。
-- `OpenAiCompatibleClient` 新增 `chatCompletion(config, messages)` + `AiChatResult`/`AiChatMessage`：复用 MVP6A 参数生成（thinking/reasoning_effort/temperature/top_p/max_tokens/stream），messages 为 system(Prompt)+user(正文)；日志只打 endpointHash/model/messages 数量/elapsedMs，不输出 payload、正文、Prompt、API Key。
-- 新增 `AiSegmentMapper`：章节正文规范化换行后顺序查找，依次精确 → 压缩空白（全角/连续空白，带 offset 索引二分定位）→ trim；单段失败或成功率 < 95% 判定整体回退，避免局部混合造成进度错位。
-- 新增 `AiChapterParser`：统一入口，前置校验（未启用/缺 endpoint|apiKey|model/Prompt 空/章节 > 12000 字直接回退），调 AI → 解析 → 映射，失败回退 `ReadAloudChapterSegmenter.buildChapterRuleSegments`；日志前缀 `aiChapterParse`，只输出 chapterIndex/chars/provider/model/promptHash 前 8 位/segment 数/elapsedMs/fallback reason。
-- 接入 `HttpReadAloudService.buildRuleContentList`（改为 suspend）：优先 `tryAiChapterSegments`，成功用 AI segments 走原有 windowing + `renderRuleContents` 渲染（坐标与规则分段一致），失败回退 `segmentCacheRepository.getOrBuildRuleSegments`；`buildAudioTasks` 同步改 suspend（两处调用点已在协程上下文）。
+实现状态（2026-06-19，分支 mvp6c；2026-06-20 同步修正描述）：
+- 方案演进：早期实现过“AI 切整章文本”模型（`AiChapterParser`/`AiSegmentMapper`/`AiSegmentResponse`），后改为“规则切分 + AI 标注对白”模型。旧方案类已于 mvp6d 清理时删除（彼此互引用、无外部调用方），最终链路只用 `AiDialogLabeler`。
+- 新增 `AiDialogLabel`（`AiDialogLabelResponse.kt`）：解析 AI 返回 JSON（兼容 ```json 代码块/外层说明），输出 `labels` 列表（id/role/roleName/emotion/emotionIntensity），缺失字段回退默认值（roleName 默认“对白”，emotion 默认 neutral，emotionIntensity 限制 0..1 默认 1.0）。
+- `AiChapterParseResult` + `AiParseFallbackReason`：解析结果（segments/provider/model/promptHash/promptVersion/elapsedMs/fallbackUsed/errorMessage）与回退原因枚举。`AiChapterParseResult` 被 `AiDialogLabeler` 复用作为标注结果载体。
+- `OpenAiCompatibleClient` 提供 `chatCompletion(config, messages, maxTokens)` + `AiChatResult`/`AiChatMessage`：复用 MVP6A 参数生成（thinking/reasoning_effort/temperature/max_tokens/stream），messages 为 system(Prompt)+user(对白上下文 payload)；maxTokens 由 labeler 按对白数动态算后传入，请求超时固定 600s；日志只打 endpointHash/model/messages 数量/elapsedMs，不输出 payload、正文、Prompt、API Key。
+- 新增 `AiDialogLabeler.labelRuleSegments(...)`：规则先切出 narrator/dialog segment，AI 只标注对白的 roleName/emotion/emotionIntensity；`text/startPosition/plainLength` 由规则保证，AI 不改正文。系统 Prompt 限定只输出 JSON、禁改写正文、emotion 限定枚举、不确定 roleName 返回“对白”。每条对白带 before/after 上下文段（前 3 段 500 字 / 后 2 段 300 字），单次最多 80 条对白；label 请求固定 thinking=false/reasoningEffort=null，maxTokens 按 `4096 + 对白数×96` 上限 16000 动态计算并作为 `chatCompletion` 参数传入。
+- 接入 `HttpReadAloudService.buildRuleContentList`（改为 suspend）：规则 segment 由 `segmentCacheRepository.getOrBuildRuleSegments` 提供，经 `tryAiLabelRuleSegments` 调 `AiDialogLabeler` 标注；AI 成功用标注后 segment 走原有 windowing + `renderRuleContents` 渲染（坐标与规则分段一致），失败/未启用返回 null 回退规则 segment。`aiDialogLabel` tag 可逐段查看对白 name/emotion/intensity，`audioTaskBatchSummary` 验证 TTS 任务完整构建。
+- 回退原因：aiDisabled/missingConfig/emptyPrompt/requestFailed/labelParseFailed（对应 `AiDialogLabeler.fallback` 的 reason）。
 - MVP6C 不写缓存（留 MVP6D）、不新增 Room 表、不改 `AppDatabase.version`、不改 TTS Provider 渲染接口。
-- 回退原因：aiDisabled/missingConfig/emptyPrompt/chapterTooLong/requestFailed/unauthorized/emptySegments/jsonInvalid/mappingFailed。
 
 ## MVP 6D：AI 结果缓存接入
 
 目标：把 AI 解析结果接入缓存，并减少跨章等待 AI 解析的停顿。
+状态：✅ 已完成（分支：mvp6d）
 
 范围：
 - AI 成功后写入 segment 缓存。
@@ -572,44 +573,93 @@ HTTP_TTS 配置：
 - 下一章预热命中时，章节开始不再等待 AI 请求完成。
 - 下一章预热失败时，当前章播放不受影响，下一章仍可正常回退解析。
 
-## MVP 6E：角色档案持久化
+实现状态（2026-06-20，分支 mvp6d）：
+- 复用 MVP4 的 `ReadAloudSegmentCache` 表，不新增 Room 迁移、不改 `AppDatabase.version`（仍 78）。AI 缓存与规则缓存通过 producer 区分：规则 `rule`，AI `ai_dialog_label`。
+- `ReadAloudSegmentCacheKey` 新增 `PRODUCER_AI_DIALOG_LABEL` / `AI_DIALOG_LABEL_VERSION=1` 与 `aiDialogLabelProducer(...)`：把 promptVersion/promptHash/provider/selectedInstanceId/endpointHash/model/mode 全部失效维度编码进一个不透明 producer 字符串，复用现有 (bookUrl, chapterUrl, producer) 主键。API Key、thinking/reasoningEffort 不入 key。外加 `logKey(...)` 截断展示。
+- `ReadAloudSegmentCacheRepository` 新增 `getAiDialogLabelSegments(...)` / `saveAiDialogLabelSegments(...)`：复用 `parseSegmentsJson` 与 `ReadAloudSegmentCacheValidator`，写入前校验位置/长度/文本一致性；命中缺失/失效/校验失败都返回 null 由调用方回退。
+- `HttpReadAloudService.tryAiLabelRuleSegments` 改为三级读取：内存预热 → 持久化 AI 缓存 → 实时 AI 标注。内存命中即消费并清理（`aiMemoryHit`）；持久化命中直接用（`cacheHit`）；未命中调 `AiDialogLabeler.labelRuleSegments()`，成功非 fallback 写持久化缓存（`cacheWrite`），fallback 返回 null 走规则回退。`AiDialogLabeler` 保持纯标注，不写缓存。
+- 下一章 AI 预热 `prepareNextChapterAiLabels(...)`：插入 `maybePrepareNextChapter` 音频下载前，复用既有触发条件/`prefetchRequestLock`/generation 取消点。先查持久化缓存（命中写内存，`aiCheck cacheHit`），未命中后台标注下一章（`aiStart`→`aiPrepared`，失败 `aiFailed`），成功同步落库 + 写内存。内存只保存一章（`nextChapterPreparedAiKey/Segments`）。
+- 切章 key 比对：`buildAiDialogLabelProducerKey(...)` 当前章与下一章预热共用同一构造，切章时重算比对一致才复用，不一致丢弃走正常链路。清理点挂 `cancelNextChapterPrepare` → 覆盖停读/跳章/换速/播放重置。
+- 日志：判断缓存是否生效的关键组合统一输出到 tag `AICache`（`cacheHit`/`cacheMiss`/`cacheWrite`/`cacheWriteFailed`/`aiCheck`/`aiStart`/`aiPrepared`/`aiFailed`/`aiSkip`/`aiMemoryHit`/`aiLabel`），一条 `adb logcat -s AICache` 可看完整链路；逐段角色仍走 `aiDialogLabel`，规则缓存走 `segmentCache`，下一章音频预热走 `nextChapterPrepare`。不输出正文/Prompt/API Key/完整响应。
+- 不缓存 AI 原始响应、Prompt 文本、API Key、SSML、音频文件路径；不改 TTS Provider 渲染接口。
 
-目标：只建立每本书的角色档案表。
+## MVP 7：角色匹配与跨章节音色复用
 
-范围：
-- 保存角色名、别名、音色 ID、锁定状态、描述。
-- 不做自动匹配、不做导入导出。
-
-验收：
-- 用户新增角色后，重启仍保留。
-- 锁定状态可保存。
-
-## MVP 6F：角色匹配与跨章节音色复用
-
-目标：让 AI 识别出的角色优先匹配书籍角色档案。
+目标：升级书籍级角色结构，增加角色分类、8 种角色属性和 8 个固定龙套；重设计角色管理 UI；让 AI 识别出的角色只匹配已有角色档案，并复用角色已绑定音色。
 
 范围：
+- 不新增角色档案表，不新增 Room migration。
+- 复用 `BookReadAloudRole`、`Book.ReadConfig.readAloudRoles` 和现有角色管理 UI。
+- 增加 `roleCategory/roleAttribute/autoManaged/systemRole`。
+- 定义男主角、女主角、主要配角、次要配角、龙套分类。
+- 定义 8 种角色属性和 8 个固定龙套角色。
+- 重设计角色管理 UI，按主角、主要配角、次要配角、龙套分组展示。
+- 梳理角色名 / 别名规范化规则，新增轻量 matcher 工具。
 - 按角色名和别名匹配角色档案。
 - 匹配成功时使用已绑定音色。
-- 锁定角色不被 AI 覆盖。
+- AI 不创建角色、不改分类、不改属性、不改别名、不改音色。
+- 未匹配角色不写入角色档案，只使用默认对白音色并记录日志。
+- 测试期 `roleMatch` 日志允许输出对白正文，便于验证匹配准确性。
+- 测试期角色音色变更后清理当前章节音频缓存；正式缓存失效策略留到 MVP10。
+- 不做导入导出。
 
 验收：
+- 8 个固定龙套角色自动存在且不可删除。
+- 男主角、女主角、主要配角、次要配角数量限制可校验。
 - 连续两章同一角色使用同一音色。
-- 手动锁定音色后，下一章不被覆盖。
+- AI 命中已有角色时只读取档案，不修改档案。
+- 未匹配角色不污染角色档案，并可通过 `roleMatch miss` 日志定位。
+- 改角色音色后，当前章节可重新合成新音色音频用于测试验证。
 
-## MVP 6G：当前段轻量修正
+## MVP 7.1：未匹配角色自动归档与动态次要配角
 
-目标：只做当前朗读段的角色/音色情绪修正。
+目标：在 MVP7 已能匹配已有角色的基础上，处理 AI Segment 中未匹配到现有角色的 `roleName`，并用全书累计对白次数维护动态次要配角 Top10。
 
 范围：
-- 当前段可修改角色、音色、情绪。
-- 支持“仅本段 / 本章 / 全书记住”三种范围。
+- AI 返回新增 `roleAttribute`。
+- 维护全书累计 `roleName` 对白次数。
+- 非主角、非主要配角、未锁定候选按对白次数 Top10 成为次要配角。
+- Top10 之外的未锁定次要配角降入对应属性龙套 aliases。
+- 次要配角默认跟随同属性龙套音色。
+- 锁定次要配角不参与动态调整。
+- 主角和主要配角只允许用户手动管理，AI 不创建、不修改。
+- 不做模糊匹配、角色合并或拆分。
 
 验收：
-- 修改当前段后立即影响重新合成。
-- 选择“全书记住”会写入角色档案。
+- `王丽 + middle_female` 全书对白次数进入 Top10 后自动成为次要配角。
+- 次要配角默认使用同属性龙套音色。
+- Top10 外未锁定次要配角可降入对应龙套别名。
+- 锁定次要配角不会被降级。
+- `侍卫/路人/众人` 等泛称归入对应属性龙套，不创建独立角色。
+- AI 不能创建或修改男主角、女主角、主要配角。
 
-## MVP 6H：剧本与角色导入导出
+## MVP 8：音色管理
+
+目标：提供类似 MultiTTS 的音色库管理入口，按 TTS Provider 展示官方音色列表，支持搜索、试听、编辑试听文本和参数，并可将音色分配给书籍默认音色、龙套或不同角色。
+
+范围：
+- 顶部选择 TTS Provider，默认当前朗读 Provider。
+- 阿里云展示官方音色列表。
+- 豆包只展示“豆包语音合成模型2.0”音色列表。
+- 展示音色名称、voiceId、性别、年龄、角色属性、场景等信息。
+- 每个音色以卡片呈现，可点击试听。
+- 支持按名称、voiceId、性别、年龄、场景搜索或筛选。
+- 支持编辑试听文本。
+- 支持调整试听语速、音量、语调。
+- 支持将音色分配给一个或多个角色。
+- 支持将音色设为书籍默认旁白/对白，或分配给 8 个固定龙套。
+- 支持清空角色音色，回退默认规则。
+- 复用现有书籍音色与角色音色存储，不新增表。
+
+验收：
+- 切换 Provider 后，音色库按 Provider 隔离展示。
+- 点击任意音色卡片可用试听文本试听。
+- 搜索名称或 voiceId 可以过滤列表。
+- 分配音色给角色后，角色朗读使用该音色。
+- 分配音色给书籍默认旁白/对白后，默认朗读使用该音色。
+- 修改龙套音色后，跟随该龙套的次要配角使用新音色。
+
+## MVP 9：剧本与角色导入导出
 
 目标：把导入导出独立成最后一步。
 
@@ -622,30 +672,22 @@ HTTP_TTS 配置：
 - 清空缓存后导入剧本可直接朗读。
 - 导入角色档案后角色和音色恢复。
 
-## MVP 7：缓存管理
+## MVP 10：缓存与调试管理
 
-目标：只做缓存清理和空间管理。
+目标：提供缓存清理、空间管理和排错信息查看能力，作为 V1 上线前的维护工具集合。
 
 范围：
 - 清理音频缓存。
 - 清理 segment/AI 剧本缓存。
 - 保留角色配置重新生成缓存。
-
-验收：
-- 清理音频缓存不影响角色档案。
-- 清理剧本缓存不影响 HTTP_TTS 登录配置。
-
-## MVP 7.1：调试视图
-
-目标：独立提供排错信息展示。
-
-范围：
 - 查看当前段 segment JSON。
 - 查看当前段 TTS 请求摘要。
 - 查看 AI 原始返回和映射结果。
 - 查看角色匹配结果和错误日志。
 
 验收：
+- 清理音频缓存不影响角色档案。
+- 清理剧本缓存不影响 HTTP_TTS 登录配置。
 - 出错时能定位是规则分段、AI 解析、角色匹配还是 TTS 请求问题。
 
 ## V1 最小可上线 MVP 依赖关系
@@ -665,11 +707,13 @@ MVP 6A / 6B (AI 配置与 Prompt)
     ↓
 MVP 6C / 6D (AI 解析与缓存)
     ↓
-MVP 6E / 6F (角色档案与匹配)
+MVP 7 (角色匹配与跨章节音色复用)
     ↓
-MVP 6G / 6H (修正与导入导出)
+MVP 7.1 (未匹配角色自动归档)
     ↓
-MVP 7 / 7.1 (缓存管理与调试)
+MVP 8 / 9 (音色管理与导入导出)
+    ↓
+MVP 10 (缓存与调试管理)
     ↓
 可上线 V1
 ```
@@ -696,17 +740,16 @@ MVP 7 / 7.1 (缓存管理与调试)
 | **6A** | AI 服务配置 | ✅ 完成 | mvp5.1 |
 | **6B** | Prompt 管理 | ✅ 已完成 | - |
 | **6C** | AI 单章解析最小闭环 | ✅ 已完成 | - |
-| **6D** | AI 结果缓存接入 | ⏳ 计划中 | - |
-| **6E** | 角色档案持久化 | ⏳ 计划中 | - |
-| **6F** | 角色匹配与跨章节音色复用 | ⏳ 计划中 | - |
-| **6G** | 当前段轻量修正 | ⏳ 计划中 | - |
-| **6H** | 剧本与角色导入导出 | ⏳ 计划中 | - |
-| **7** | 缓存管理 | ⏳ 计划中 | - |
-| **7.1** | 调试视图 | ⏳ 计划中 | - |
+| **6D** | AI 结果缓存接入 | ✅ 已完成 | mvp6d |
+| **7** | 角色匹配与跨章节音色复用 | ⏳ 计划中 | - |
+| **7.1** | 未匹配角色自动归档 | ⏳ 计划中 | - |
+| **8** | 音色管理 | ⏳ 计划中 | - |
+| **9** | 剧本与角色导入导出 | ⏳ 计划中 | - |
+| **10** | 缓存与调试管理 | ⏳ 计划中 | - |
 
 ### V1 最小可上线条件
 
-执行顺序：MVP 1-3.3（已完成）→ MVP 3.4 → MVP 4 → MVP 4.1 → MVP 5 → MVP 5.1 → MVP 6A → MVP 6B → MVP 6C → MVP 6D → MVP 6E → MVP 6F → MVP 6G → MVP 6H → MVP 7 → MVP 7.1
+执行顺序：MVP 1-3.3（已完成）→ MVP 3.4 → MVP 4 → MVP 4.1 → MVP 5 → MVP 5.1 → MVP 6A → MVP 6B → MVP 6C → MVP 6D → MVP 7 → MVP 7.1 → MVP 8 → MVP 9 → MVP 10
 
 **关键路径：**
 1. MVP 3.3 提供书籍级默认音色管理。
@@ -715,9 +758,10 @@ MVP 7 / 7.1 (缓存管理与调试)
 4. MVP 5/5.1 提供当前章和下一章预取。
 5. MVP 6A/6B 提供 AI 服务配置和 Prompt 管理。
 6. MVP 6C/6D 接入 AI 解析并缓存结果。
-7. MVP 6E/6F 提供角色档案和跨章节音色复用。
-8. MVP 6G/6H 提供修正与导入导出。
-9. MVP 7/7.1 提供缓存管理和调试。
+7. MVP 7 复用 MVP3.4 角色档案，提供已有角色匹配与跨章节音色复用。
+8. MVP 7.1 处理未匹配角色自动归档。
+9. MVP 8/9 提供音色管理与导入导出。
+10. MVP 10 提供缓存管理和调试。
 
 ---
 
@@ -738,16 +782,15 @@ MVP 7 / 7.1 (缓存管理与调试)
 9. ✅ MVP 4.1：缓存失效与手动刷新（已完成）
 10. ✅ MVP 5：当前章节音频预取（已完成）
 11. ✅ MVP 5.1：下一章预处理（已完成）
-12. ⏳ MVP 6A：AI 服务配置
+12. ✅ MVP 6A：AI 服务配置（已完成）
 13. ✅ MVP 6B：Prompt 管理
 14. ✅ MVP 6C：AI 单章解析最小闭环
-15. ⏳ MVP 6D：AI 结果缓存接入
-16. ⏳ MVP 6E：角色档案持久化
-17. ⏳ MVP 6F：角色匹配与跨章节音色复用
-18. ⏳ MVP 6G：当前段轻量修正
-19. ⏳ MVP 6H：剧本与角色导入导出
-20. ⏳ MVP 7：缓存管理
-21. ⏳ MVP 7.1：调试视图
+15. ✅ MVP 6D：AI 结果缓存接入（已完成）
+16. ⏳ MVP 7：角色匹配与跨章节音色复用
+17. ⏳ MVP 7.1：未匹配角色自动归档
+18. ⏳ MVP 8：音色管理
+19. ⏳ MVP 9：剧本与角色导入导出
+20. ⏳ MVP 10：缓存与调试管理
 
 ---
 
@@ -760,7 +803,7 @@ MVP 7 / 7.1 (缓存管理与调试)
 - Segment 与纯文本位置映射稳定
 - 豆包 TTS 可用（用户自配）
 - AI 能识别旁白和多个角色
-- 用户可修正和锁定角色
+- 用户可维护、锁定角色，并管理角色音色
 - 角色档案可导出导入
 - AI 剧本和音频可缓存复用
 - 边读边处理，无需离线预处理

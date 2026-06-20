@@ -21,8 +21,7 @@ object AiDialogLabeler {
     suspend fun labelRuleSegments(
         chapterIndex: Int,
         segments: List<ReadAloudSegment>,
-        candidates: List<String>,
-        requestTimeoutSeconds: Int? = null
+        candidates: List<String>
     ): AiChapterParseResult {
         val startNs = System.nanoTime()
         val promptConfig = AiPromptStore.load()
@@ -58,22 +57,27 @@ object AiDialogLabeler {
         }
 
         val messages = listOf(
-            AiChatMessage(role = "system", content = buildSystemPrompt(promptConfig.promptText)),
+            AiChatMessage(role = "system", content = promptConfig.promptText),
             AiChatMessage(role = "user", content = buildUserPayload(segments, dialogIndexes, candidates))
         )
-        val labelConfig = config
-            .copy(
+        val maxTokens = computeLabelMaxTokens(dialogIndexes.size)
+        logLabelConfig(config, maxTokens, "primary")
+        var chatResult = client.chatCompletion(config, messages, maxTokens)
+        if (chatResult is AiChatResult.Failure &&
+            shouldRetryWithoutThinking(chatResult) &&
+            (config.thinkingEnabled || !config.reasoningEffort.isNullOrEmpty())
+        ) {
+            val retryConfig = config.copy(
                 thinkingEnabled = false,
                 reasoningEffort = null
             )
-            .withLabelMaxTokens(dialogIndexes.size)
-            .withRequestTimeout(requestTimeoutSeconds)
-        AppLog.putDebug(
-            "aiChapterParse labelConfig model=${labelConfig.model} mode=${labelConfig.mode} " +
-                "thinking=${labelConfig.thinkingEnabled} reasoningEffort=${labelConfig.reasoningEffort} " +
-                "maxTokens=${labelConfig.maxTokens}"
-        )
-        val chatResult = client.chatCompletion(labelConfig, messages)
+            AppLog.putDebug(
+                "aiChapterParse labelRetry reason=thinkingRejected code=${chatResult.code} " +
+                    "thinking=false reasoningEffort=null"
+            )
+            logLabelConfig(retryConfig, maxTokens, "retry")
+            chatResult = client.chatCompletion(retryConfig, messages, maxTokens)
+        }
         when (chatResult) {
             is AiChatResult.Failure -> {
                 return fallback(
@@ -115,6 +119,13 @@ object AiDialogLabeler {
             val label = labelMap[index]
             if (label == null || segment.role != ReadAloudRole.DIALOG) {
                 segment
+            } else if (label.role == ReadAloudRole.NARRATOR) {
+                segment.copy(
+                    role = ReadAloudRole.NARRATOR,
+                    roleName = "旁白",
+                    emotion = "neutral",
+                    emotionIntensity = 1.0f
+                )
             } else {
                 segment.copy(
                     roleName = label.roleName.ifBlank { "对白" },
@@ -136,6 +147,19 @@ object AiDialogLabeler {
             promptVersion = promptConfig.version,
             elapsedMs = elapsedMs,
             fallbackUsed = false
+        )
+    }
+
+    private fun shouldRetryWithoutThinking(failure: AiChatResult.Failure): Boolean {
+        if (failure.code == 422) return true
+        return failure.code == 400 && failure.message.contains("thinking", ignoreCase = true)
+    }
+
+    private fun logLabelConfig(config: AiServiceConfig, maxTokens: Int, attempt: String) {
+        AppLog.putDebug(
+            "aiChapterParse labelConfig attempt=$attempt model=${config.model} " +
+                "mode=${config.mode} thinking=${config.thinkingEnabled} " +
+                "reasoningEffort=${config.reasoningEffort} maxTokens=$maxTokens"
         )
     }
 
@@ -165,35 +189,6 @@ object AiDialogLabeler {
             fallbackUsed = true,
             errorMessage = reason
         )
-    }
-
-    private fun buildSystemPrompt(userPrompt: String): String {
-        return """
-            ${userPrompt.trim()}
-
-            最高优先级任务：你现在只负责给已经由规则切出的小说对白标注说话人和情绪。
-            禁止改写、补写或返回原文正文。只输出 JSON，不输出解释。
-
-            输入包含：
-            - candidates：候选角色名。
-            - dialogs：需要标注的对白，每条有 id、text、beforeSegments、afterSegments。
-
-            判断规则：
-            1. 根据当前对白和前后上下文判断说话人。
-            2. 前文若出现“甲说道/问道/笑道/拱手问道：”，通常当前对白为甲。
-            3. 前文若出现“甲问/看向/询问乙”，且当前对白像回答，优先判定为乙。
-            4. 后文出现“某人说道/问道”通常用于引出下一句，不要反推当前对白，除非语义明确。
-            5. 无法确定说话人时，roleName 返回 "对白"，不要编造人物。
-            6. emotion 只使用 neutral、happy、sad、angry、fear、surprise；不确定用 neutral。
-            7. emotionIntensity 范围 0.0 到 1.0，不确定用 1.0。
-
-            输出格式：
-            {
-              "labels": [
-                {"id": 1, "roleName": "黑夫", "emotion": "neutral", "emotionIntensity": 1.0}
-              ]
-            }
-        """.trimIndent()
     }
 
     private fun buildUserPayload(
@@ -252,15 +247,9 @@ object AiDialogLabeler {
         return result
     }
 
-    private fun AiServiceConfig.withLabelMaxTokens(dialogCount: Int): AiServiceConfig {
-        val target = (MIN_LABEL_MAX_TOKENS + dialogCount * LABEL_TOKENS_PER_DIALOG)
+    private fun computeLabelMaxTokens(dialogCount: Int): Int {
+        return (MIN_LABEL_MAX_TOKENS + dialogCount * LABEL_TOKENS_PER_DIALOG)
             .coerceAtMost(16000)
-        return if (maxTokens >= target) this else copy(maxTokens = target)
-    }
-
-    private fun AiServiceConfig.withRequestTimeout(timeoutSeconds: Int?): AiServiceConfig {
-        val timeout = timeoutSeconds ?: return this
-        return copy(timeoutSeconds = timeout.coerceIn(5, this.timeoutSeconds))
     }
 
     private fun String.logSafe(limit: Int = 160): String {

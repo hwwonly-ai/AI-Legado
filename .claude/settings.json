@@ -3,7 +3,11 @@
     "allow": [
       "Bash(python3)",
       "Bash(./gradlew app:assembleAppDebug)",
-      "Read(//Users/huiweiwei/.claude/plans/**)"
+      "Read(//Users/huiweiwei/.claude/plans/**)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'Implement MVP6A-6C AI dialog labeling and read aloud segment cache *)",
+      "Bash(grep -n 'val prepareKey = MD5Utils\\\\|nextChapterPreparedKey = prepareKey\\\\|logNextChapterPrepare\\(\\\\s*$\\\\|val tasks = buildNextChapterAudioTasks\\\\|generation=$generation trigger' app/src/main/java/io/legado/app/service/HttpReadAloudService.kt)"
     ]
   }
 }

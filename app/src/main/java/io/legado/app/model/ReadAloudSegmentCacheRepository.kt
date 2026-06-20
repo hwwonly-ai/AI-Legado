@@ -18,6 +18,7 @@ class ReadAloudSegmentCacheRepository(
 ) {
     companion object {
         private const val TAG = "segmentCache"
+        private const val AI_CACHE_TAG = "AICache"
     }
 
     fun getOrBuildRuleSegments(
@@ -51,6 +52,118 @@ class ReadAloudSegmentCacheRepository(
         val segments = ReadAloudChapterSegmenter.buildChapterRuleSegments(chapterContent)
         writeCache(book, chapter, hash, version, segments)
         return SegmentCacheResult(segments, cacheHit = false)
+    }
+
+    /**
+     * 读取 AI 对白标注缓存。
+     *
+     * 命中且 validator 通过返回 segments；缓存缺失、contentHash/version 不匹配、
+     * JSON 解析失败或校验失败都返回 null（记 cacheMiss，reason 区分原因）。
+     * 不在此处触发 AI 请求，调用方负责回退链路。
+     */
+    fun getAiDialogLabelSegments(
+        book: Book,
+        chapter: BookChapter,
+        chapterContent: String,
+        producerKey: String
+    ): List<ReadAloudSegment>? {
+        val hash = ReadAloudSegmentCacheKey.contentHash(chapterContent)
+        val version = ReadAloudSegmentCacheKey.AI_DIALOG_LABEL_VERSION
+        val cacheEntry = dao.get(
+            bookUrl = book.bookUrl,
+            chapterUrl = chapter.url,
+            producer = producerKey
+        )
+        if (cacheEntry != null) {
+            if (cacheEntry.contentHash == hash && cacheEntry.segmentVersion == version) {
+                val segments = parseSegmentsJson(cacheEntry.segmentsJson)
+                if (segments != null && ReadAloudSegmentCacheValidator.validate(segments, chapterContent)) {
+                    Log.i(
+                        AI_CACHE_TAG,
+                        "aiChapterParse cacheHit chapter=${chapter.index} " +
+                            "segments=${segments.size} key=${ReadAloudSegmentCacheKey.logKey(producerKey)}"
+                    )
+                    return segments
+                } else {
+                    Log.w(
+                        AI_CACHE_TAG,
+                        "aiChapterParse cacheMiss chapter=${chapter.index} reason=invalid " +
+                            "key=${ReadAloudSegmentCacheKey.logKey(producerKey)}"
+                    )
+                }
+            } else {
+                val reason = when {
+                    cacheEntry.contentHash != hash -> "contentHash"
+                    cacheEntry.segmentVersion != version -> "version"
+                    else -> "unknown"
+                }
+                Log.i(
+                    AI_CACHE_TAG,
+                    "aiChapterParse cacheMiss chapter=${chapter.index} reason=$reason " +
+                        "key=${ReadAloudSegmentCacheKey.logKey(producerKey)}"
+                )
+            }
+        } else {
+            Log.i(
+                AI_CACHE_TAG,
+                "aiChapterParse cacheMiss chapter=${chapter.index} reason=missing " +
+                    "key=${ReadAloudSegmentCacheKey.logKey(producerKey)}"
+            )
+        }
+        return null
+    }
+
+    /**
+     * 写入 AI 对白标注缓存。
+     *
+     * 写入前用 validator 校验位置、长度、文本一致性；校验失败不写缓存。
+     * 写入失败不影响当前播放，记日志后由调用方继续使用本次内存结果。
+     */
+    fun saveAiDialogLabelSegments(
+        book: Book,
+        chapter: BookChapter,
+        chapterContent: String,
+        producerKey: String,
+        segments: List<ReadAloudSegment>
+    ) {
+        val hash = ReadAloudSegmentCacheKey.contentHash(chapterContent)
+        val version = ReadAloudSegmentCacheKey.AI_DIALOG_LABEL_VERSION
+        if (!ReadAloudSegmentCacheValidator.validate(segments, chapterContent)) {
+            Log.w(
+                AI_CACHE_TAG,
+                "aiChapterParse cacheWriteFailed chapter=${chapter.index} reason=invalid " +
+                    "key=${ReadAloudSegmentCacheKey.logKey(producerKey)}"
+            )
+            return
+        }
+        val startMs = System.currentTimeMillis()
+        try {
+            val json = GSON.toJson(segments)
+            dao.insert(
+                ReadAloudSegmentCache(
+                    bookUrl = book.bookUrl,
+                    chapterUrl = chapter.url,
+                    producer = producerKey,
+                    chapterIndex = chapter.index,
+                    contentHash = hash,
+                    segmentVersion = version,
+                    segmentsJson = json,
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+            Log.i(
+                AI_CACHE_TAG,
+                "aiChapterParse cacheWrite chapter=${chapter.index} segments=${segments.size} " +
+                    "elapsedMs=${System.currentTimeMillis() - startMs} " +
+                    "key=${ReadAloudSegmentCacheKey.logKey(producerKey)}"
+            )
+        } catch (e: Exception) {
+            Log.w(
+                AI_CACHE_TAG,
+                "aiChapterParse cacheWriteFailed chapter=${chapter.index} reason=exception " +
+                    "key=${ReadAloudSegmentCacheKey.logKey(producerKey)}: ${e.message}"
+            )
+        }
     }
 
     private fun parseSegmentsJson(json: String): List<ReadAloudSegment>? {

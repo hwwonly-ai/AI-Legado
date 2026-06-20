@@ -10,7 +10,7 @@ import io.legado.app.utils.MD5Utils
  */
 object DefaultAiPrompts {
 
-    const val DEFAULT_AI_PROMPT_VERSION = 3
+    const val DEFAULT_AI_PROMPT_VERSION = 4
 
     val DEFAULT_AI_PROMPT: String = """
         你是一个小说对白说话人和情绪标注器。
@@ -23,20 +23,26 @@ object DefaultAiPrompts {
         2. 不返回原文正文。
         3. 不新增原文不存在的台词。
         4. 只标注输入 dialogs 中已有 id。
-        5. 无法确定说话人时，roleName 使用 "对白"。
-        6. 情绪不确定时使用 "neutral"。
-        7. 情绪强度范围为 0.0 到 1.0，默认 1.0。
-        8. 只输出 JSON，不输出解释说明。
+        5. 人物发言 role 使用 "dialog"。
+        6. 无法确定说话人时，roleName 使用 "对白"，不要编造人物。
+        7. 若 text 是术语、称号、罪名、律法条目、案由等引用，不是人物发言，role 使用 "narrator"，roleName 使用 "旁白"。
+        8. 情绪不确定时使用 "neutral"。
+        9. 情绪强度范围为 0.0 到 1.0，默认 1.0。
+        10. 只输出 JSON，不输出解释说明。
 
         判断规则：
         - 前文若出现“甲说道/问道/笑道/拱手问道：”，通常当前对白为甲。
         - 前文若出现“甲问/看向/询问乙”，且当前对白像回答，优先判定为乙。
-        - 后文出现“某人说道/问道”通常用于引出下一句，不要反推当前对白，除非语义明确。
+        - 对白后紧跟“甲说道/问道/反驳/诘问/喊道/骂道/答道/没忍住”等动作归因时，当前对白通常为甲。
+        - 例：“……？”黑夫没忍住，开始诘问他。当前对白说话人是黑夫。
+        - 后文若是另起一句并用于引出下一句对白，才不要反推当前对白。
+        - 短引号内容若像术语、称号、罪名、律法条目、案由，而不是人物正在说的话，返回 role="narrator"。
         - 相邻已标注对白的 roleName 可用于判断轮流对话。
         - candidates 是候选角色名，优先从中选择；无法确定时用 "对白"。
 
         你需要返回：
         - id：输入对白 id。
+        - role："dialog" 或 "narrator"。
         - roleName：具体说话人名称，无法确定时为 "对白"。
         - emotion：情绪，例如 neutral、happy、sad、angry、fear、surprise。
         - emotionIntensity：情绪强度。
@@ -46,6 +52,7 @@ object DefaultAiPrompts {
           "labels": [
             {
               "id": 1,
+              "role": "dialog",
               "roleName": "黑夫",
               "emotion": "neutral",
               "emotionIntensity": 1.0

@@ -1,9 +1,11 @@
 package io.legado.app.model.ai
 
+import io.legado.app.model.ReadAloudRole
 import org.json.JSONObject
 
 data class AiDialogLabel(
     val id: Int,
+    val role: String,
     val roleName: String,
     val emotion: String,
     val emotionIntensity: Float
@@ -44,6 +46,7 @@ data class AiDialogLabel(
                 parsed.add(
                     AiDialogLabel(
                         id = id,
+                        role = normalizeRole(item.optString("role")),
                         roleName = item.optString("roleName").ifBlank { "对白" },
                         emotion = item.optString("emotion").ifBlank { "neutral" },
                         emotionIntensity = normalizeIntensity(item.opt("emotionIntensity"))
@@ -55,6 +58,12 @@ data class AiDialogLabel(
             } else {
                 ParseResult.Ok(parsed)
             }
+        }
+
+        private fun normalizeRole(raw: String): String = when (raw) {
+            ReadAloudRole.NARRATOR -> ReadAloudRole.NARRATOR
+            ReadAloudRole.DIALOG, "" -> ReadAloudRole.DIALOG
+            else -> ReadAloudRole.DIALOG
         }
 
         private fun normalizeIntensity(raw: Any?): Float {

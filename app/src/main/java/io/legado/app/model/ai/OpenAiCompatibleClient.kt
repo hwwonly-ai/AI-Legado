@@ -66,6 +66,25 @@ class OpenAiCompatibleClient(
     private val okHttpClient: OkHttpClient = defaultOkHttpClient
 ) {
 
+    companion object {
+        /** 请求超时固定 600s，不再可配。 */
+        private const val REQUEST_TIMEOUT_SECONDS = 600
+        /** 连接测试 ping 用的固定 maxTokens。给足余量避免思考模型把 token 全用在 reasoning 上。 */
+        private const val TEST_MAX_TOKENS = 64
+    }
+
+    private fun validate(config: AiServiceConfig): String? {
+        return when {
+            config.endpoint.isEmpty() -> "endpoint"
+            !config.endpoint.startsWith("http://") &&
+                !config.endpoint.startsWith("https://") -> "endpoint"
+            config.apiKey.isEmpty() -> "apiKey"
+            config.model.isEmpty() -> "model"
+            config.temperature < 0.0f || config.temperature > 2.0f -> "temperature"
+            else -> null
+        }
+    }
+
     suspend fun testConnection(config: AiServiceConfig): AiConnectionTestResult =
         withContext(Dispatchers.IO) {
             val endpoint = AiServiceConfig.normalizeEndpoint(config.endpoint)
@@ -88,10 +107,10 @@ class OpenAiCompatibleClient(
             )
 
             val client = okHttpClient.newBuilder()
-                .setConnectTimeout(config.timeoutSeconds)
-                .setReadTimeout(config.timeoutSeconds)
-                .setWriteTimeout(config.timeoutSeconds)
-                .setCallTimeout(config.timeoutSeconds)
+                .setConnectTimeout(REQUEST_TIMEOUT_SECONDS)
+                .setReadTimeout(REQUEST_TIMEOUT_SECONDS)
+                .setWriteTimeout(REQUEST_TIMEOUT_SECONDS)
+                .setCallTimeout(REQUEST_TIMEOUT_SECONDS)
                 .build()
 
             val request = Request.Builder()
@@ -164,20 +183,6 @@ class OpenAiCompatibleClient(
             }
         }
 
-    private fun validate(config: AiServiceConfig): String? {
-        return when {
-            config.endpoint.isEmpty() -> "endpoint"
-            !config.endpoint.startsWith("http://") &&
-                !config.endpoint.startsWith("https://") -> "endpoint"
-            config.apiKey.isEmpty() -> "apiKey"
-            config.model.isEmpty() -> "model"
-            config.temperature < 0.0f || config.temperature > 2.0f -> "temperature"
-            config.timeoutSeconds < 5 || config.timeoutSeconds > 180 -> "timeoutSeconds"
-            config.maxTokens <= 0 -> "maxTokens"
-            else -> null
-        }
-    }
-
     /**
      * 调用 OpenAI-compatible chat completions，返回原始 content。
      *
@@ -186,7 +191,8 @@ class OpenAiCompatibleClient(
      */
     suspend fun chatCompletion(
         config: AiServiceConfig,
-        messages: List<AiChatMessage>
+        messages: List<AiChatMessage>,
+        maxTokens: Int
     ): AiChatResult = withContext(Dispatchers.IO) {
         val endpoint = AiServiceConfig.normalizeEndpoint(config.endpoint)
         val validation = validate(config.copy(endpoint = endpoint))
@@ -199,23 +205,23 @@ class OpenAiCompatibleClient(
         }
         val endpointHash = AiServiceConfig.endpointHash(endpoint)
         val url = "$endpoint/chat/completions"
-        val payload = buildChatPayload(config, messages)
+        val payload = buildChatPayload(config, messages, maxTokens)
         val startNs = System.nanoTime()
 
         AppLog.putDebug(
             "aiChapterParse requestStart endpointHash=$endpointHash model=${config.model} " +
                 "mode=${config.mode} thinking=${config.thinkingEnabled} " +
-                "stream=${config.stream} messages=${messages.size} " +
-                "timeoutSeconds=${config.timeoutSeconds} " +
-                "callTimeoutMs=${config.timeoutSeconds * 1000} " +
+                "stream=${config.stream} messages=${messages.size} maxTokens=$maxTokens " +
+                "timeoutSeconds=$REQUEST_TIMEOUT_SECONDS " +
+                "callTimeoutMs=${REQUEST_TIMEOUT_SECONDS * 1000} " +
                 "screenInteractive=${powerManager.isInteractive}"
         )
 
         val client = okHttpClient.newBuilder()
-            .setConnectTimeout(config.timeoutSeconds)
-            .setReadTimeout(config.timeoutSeconds)
-            .setWriteTimeout(config.timeoutSeconds)
-            .setCallTimeout(config.timeoutSeconds)
+            .setConnectTimeout(REQUEST_TIMEOUT_SECONDS)
+            .setReadTimeout(REQUEST_TIMEOUT_SECONDS)
+            .setWriteTimeout(REQUEST_TIMEOUT_SECONDS)
+            .setCallTimeout(REQUEST_TIMEOUT_SECONDS)
             .build()
 
         val request = Request.Builder()
@@ -311,28 +317,20 @@ class OpenAiCompatibleClient(
         messages.put(message)
         json.put("messages", messages)
 
+        // 连接测试强制关闭 thinking/reasoning_effort 并给足 max_tokens，
+        // 否则思考模型会把 token 全用在 reasoning 上导致 content 为空、误判为格式错误。
         val thinking = JSONObject()
-        thinking.put(
-            "type",
-            if (config.thinkingEnabled) "enabled" else "disabled"
-        )
+        thinking.put("type", "disabled")
         json.put("thinking", thinking)
 
-        val preset = ProviderPresets.forProvider(config.provider)
-        if (preset.supportsReasoningEffort && !config.reasoningEffort.isNullOrEmpty()) {
-            json.put("reasoning_effort", config.reasoningEffort)
-        }
-
         json.put("temperature", formatTemperature(config.temperature))
-        config.topP?.let { json.put("top_p", formatTemperature(it)) }
-        json.put("max_tokens", config.maxTokens)
-        json.put("stream", config.stream)
+        json.put("max_tokens", TEST_MAX_TOKENS)
+        json.put("stream", false)
 
         val payload = json.toString()
         AppLog.putDebug(
             "aiConfig buildPayload provider=${config.provider} mode=${config.mode} " +
-                "thinking=${config.thinkingEnabled} reasoningEffort=${config.reasoningEffort} " +
-                "stream=${config.stream} payload=$payload"
+                "thinking=false stream=false payload=$payload"
         )
         return payload
     }
@@ -343,7 +341,8 @@ class OpenAiCompatibleClient(
      */
     private fun buildChatPayload(
         config: AiServiceConfig,
-        messages: List<AiChatMessage>
+        messages: List<AiChatMessage>,
+        maxTokens: Int
     ): String {
         val json = JSONObject()
         json.put("model", config.model)
@@ -357,14 +356,9 @@ class OpenAiCompatibleClient(
         json.put("messages", messagesArray)
 
         if (config.thinkingEnabled) {
-            if (config.model.startsWith("deepseek-v4")) {
-                // DeepSeek V4：thinking 参数用字符串 "enabled"
-                json.put("thinking", "enabled")
-            } else {
-                val thinking = JSONObject()
-                thinking.put("type", "enabled")
-                json.put("thinking", thinking)
-            }
+            val thinking = JSONObject()
+            thinking.put("type", "enabled")
+            json.put("thinking", thinking)
         }
 
         val preset = ProviderPresets.forProvider(config.provider)
@@ -373,11 +367,10 @@ class OpenAiCompatibleClient(
         }
 
         json.put("temperature", formatTemperature(config.temperature))
-        config.topP?.let { json.put("top_p", formatTemperature(it)) }
         if (config.model.startsWith("deepseek-v4")) {
-            json.put("max_completion_tokens", config.maxTokens)
+            json.put("max_completion_tokens", maxTokens)
         } else {
-            json.put("max_tokens", config.maxTokens)
+            json.put("max_tokens", maxTokens)
         }
         json.put("stream", config.stream)
 

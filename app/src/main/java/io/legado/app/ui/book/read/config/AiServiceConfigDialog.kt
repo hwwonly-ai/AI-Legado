@@ -105,15 +105,6 @@ class AiServiceConfigDialog : BaseDialogFragment(R.layout.dialog_ai_service_conf
         etTemperature.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) advancedUserModified = true
         }
-        etMaxTokens.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) advancedUserModified = true
-        }
-        etTimeout.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) advancedUserModified = true
-        }
-        etTopP.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) advancedUserModified = true
-        }
         etProviderExtraJson.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) advancedUserModified = true
         }
@@ -232,9 +223,6 @@ class AiServiceConfigDialog : BaseDialogFragment(R.layout.dialog_ai_service_conf
     private fun applyAdvancedFields(config: AiServiceConfig) {
         binding.switchThinking.isChecked = config.thinkingEnabled
         binding.etTemperature.setText(config.temperature.toString())
-        binding.etTimeout.setText(config.timeoutSeconds.toString())
-        binding.etMaxTokens.setText(config.maxTokens.toString())
-        binding.etTopP.setText(config.topP?.toString() ?: "")
         binding.switchStream.isChecked = config.stream
         binding.etProviderExtraJson.setText(config.providerExtraJson)
     }
@@ -256,15 +244,12 @@ class AiServiceConfigDialog : BaseDialogFragment(R.layout.dialog_ai_service_conf
         AppLog.putDebug(
             "aiConfig modeChanged to=$mode autoFill=${!advancedUserModified} " +
                 "thinking=${params.thinkingEnabled} reasoningEffort=${params.reasoningEffort} " +
-                "temp=${params.temperature} maxTokens=${params.maxTokens} " +
-                "timeout=${params.timeoutSeconds}"
+                "temp=${params.temperature}"
         )
         if (advancedUserModified) return
         suppressModeListener = true
         binding.switchThinking.isChecked = params.thinkingEnabled
         binding.etTemperature.setText(params.temperature.toString())
-        binding.etMaxTokens.setText(params.maxTokens.toString())
-        binding.etTimeout.setText(params.timeoutSeconds.toString())
         if (!reasoningEffortUserModified) applyReasoningEffortSelection(params.reasoningEffort)
         suppressModeListener = false
     }
@@ -277,16 +262,12 @@ class AiServiceConfigDialog : BaseDialogFragment(R.layout.dialog_ai_service_conf
         AppLog.putDebug(
             "aiConfig restoreDefaults provider=$provider mode=$mode " +
                 "thinking=${params.thinkingEnabled} reasoningEffort=${params.reasoningEffort} " +
-                "temp=${params.temperature} maxTokens=${params.maxTokens} " +
-                "timeout=${params.timeoutSeconds}"
+                "temp=${params.temperature}"
         )
         suppressModeListener = true
         binding.run {
             switchThinking.isChecked = params.thinkingEnabled
             etTemperature.setText(params.temperature.toString())
-            etMaxTokens.setText(params.maxTokens.toString())
-            etTimeout.setText(params.timeoutSeconds.toString())
-            etTopP.setText("")
             etProviderExtraJson.setText("")
             applyReasoningEffortOptions(provider, params.reasoningEffort)
         }
@@ -342,12 +323,7 @@ class AiServiceConfigDialog : BaseDialogFragment(R.layout.dialog_ai_service_conf
             reasoningEffort = reasoningEffort,
             temperature = etTemperature.text?.toString()?.toFloatOrNull()
                 ?: AiServiceConfig().temperature,
-            topP = etTopP.text?.toString()?.toFloatOrNull(),
-            maxTokens = etMaxTokens.text?.toString()?.toIntOrNull()?.takeIf { it > 0 }
-                ?: AiServiceConfig().maxTokens,
             stream = switchStream.isChecked,
-            timeoutSeconds = etTimeout.text?.toString()?.toIntOrNull()
-                ?: AiServiceConfig().timeoutSeconds,
             providerExtraJson = etProviderExtraJson.text?.toString().orEmpty()
         )
     }

@@ -2,11 +2,10 @@ package io.legado.app.model.ai
 
 import io.legado.app.constant.AppLog
 import io.legado.app.constant.PreferKey
+import io.legado.app.utils.defaultSharedPreferences
 import io.legado.app.utils.getPrefBoolean
-import io.legado.app.utils.getPrefInt
 import io.legado.app.utils.getPrefString
 import io.legado.app.utils.putPrefBoolean
-import io.legado.app.utils.putPrefInt
 import io.legado.app.utils.putPrefString
 import io.legado.app.utils.removePref
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -73,9 +72,7 @@ object ProviderPresets {
     data class ModeParams(
         val thinkingEnabled: Boolean,
         val reasoningEffort: String?,
-        val temperature: Float,
-        val maxTokens: Int,
-        val timeoutSeconds: Int
+        val temperature: Float
     )
 
     fun defaultParamsForMode(mode: AiCallMode, provider: AiProvider): ModeParams {
@@ -84,23 +81,17 @@ object ProviderPresets {
             AiCallMode.Fast -> ModeParams(
                 thinkingEnabled = false,
                 reasoningEffort = null,
-                temperature = 0.2f,
-                maxTokens = 4096,
-                timeoutSeconds = 45
+                temperature = 0.2f
             )
             AiCallMode.Balanced -> ModeParams(
                 thinkingEnabled = true,
                 reasoningEffort = if (supportsReasoningEffort) "high" else null,
-                temperature = 0.2f,
-                maxTokens = 8192,
-                timeoutSeconds = 60
+                temperature = 0.2f
             )
             AiCallMode.Refine -> ModeParams(
                 thinkingEnabled = true,
                 reasoningEffort = if (supportsReasoningEffort) "max" else null,
-                temperature = 0.1f,
-                maxTokens = 12000,
-                timeoutSeconds = 90
+                temperature = 0.1f
             )
         }
     }
@@ -117,10 +108,7 @@ data class AiServiceConfig(
     val thinkingEnabled: Boolean = false,
     val reasoningEffort: String? = null,
     val temperature: Float = 0.2f,
-    val topP: Float? = null,
-    val maxTokens: Int = 4096,
     val stream: Boolean = false,
-    val timeoutSeconds: Int = 60,
     val providerExtraJson: String = ""
 ) {
 
@@ -153,13 +141,15 @@ data class AiServiceConfig(
         }
 
         fun load(): AiServiceConfig {
-            val maxTokens = appCtx.getPrefString(PreferKey.aiServiceMaxTokens, "")
-                ?.toIntOrNull()?.takeIf { it > 0 } ?: 4096
-            val topPRaw = appCtx.getPrefString(PreferKey.aiServiceTopP, "")
-            val topP = topPRaw?.toFloatOrNull()
+            val prefs = appCtx.defaultSharedPreferences
             val provider = appCtx.getPrefString(PreferKey.aiServiceProvider, "")
                 ?.let { runCatching { AiProvider.valueOf(it) }.getOrNull() }
                 ?: AiProvider.DeepSeek
+            val mode = appCtx.getPrefString(PreferKey.aiServiceMode, "")
+                ?.let { runCatching { AiCallMode.valueOf(it) }.getOrNull() }
+                ?: AiCallMode.Fast
+            val recommended = ProviderPresets.defaultParamsForMode(mode, provider)
+            cleanupLegacyPrefKeys()
             val selectedInstanceId = appCtx.getPrefString(PreferKey.aiServiceSelectedInstance, "")
                 ?.toLongOrNull()
             migrateLegacyApiKeyIfNeeded(provider)
@@ -170,18 +160,22 @@ data class AiServiceConfig(
                 endpoint = appCtx.getPrefString(PreferKey.aiServiceEndpoint, "") ?: "",
                 apiKey = resolveApiKey(provider, selectedInstanceId),
                 model = appCtx.getPrefString(PreferKey.aiServiceModel, "") ?: "",
-                mode = appCtx.getPrefString(PreferKey.aiServiceMode, "")
-                    ?.let { runCatching { AiCallMode.valueOf(it) }.getOrNull() }
-                    ?: AiCallMode.Fast,
-                thinkingEnabled = appCtx.getPrefBoolean(PreferKey.aiServiceThinkingEnabled, false),
-                reasoningEffort = appCtx.getPrefString(PreferKey.aiServiceReasoningEffort, "")
-                    ?.takeIf { it.isNotEmpty() },
-                temperature = appCtx.getPrefString(PreferKey.aiServiceTemperature, "0.2")
-                    ?.toFloatOrNull() ?: 0.2f,
-                topP = topP,
-                maxTokens = maxTokens,
+                mode = mode,
+                thinkingEnabled = appCtx.getPrefBoolean(
+                    PreferKey.aiServiceThinkingEnabled,
+                    recommended.thinkingEnabled
+                ),
+                reasoningEffort = if (prefs.contains(PreferKey.aiServiceReasoningEffort)) {
+                    appCtx.getPrefString(PreferKey.aiServiceReasoningEffort, "")
+                        ?.takeIf { it.isNotEmpty() }
+                } else {
+                    recommended.reasoningEffort
+                },
+                temperature = appCtx.getPrefString(
+                    PreferKey.aiServiceTemperature,
+                    recommended.temperature.toString()
+                )?.toFloatOrNull() ?: recommended.temperature,
                 stream = appCtx.getPrefBoolean(PreferKey.aiServiceStream, false),
-                timeoutSeconds = appCtx.getPrefInt(PreferKey.aiServiceTimeoutSeconds, 60),
                 providerExtraJson = appCtx.getPrefString(PreferKey.aiServiceProviderExtraJson, "") ?: ""
             )
             AppLog.putDebug(
@@ -198,6 +192,14 @@ data class AiServiceConfig(
             val instance = instanceId?.let { AiServiceInstanceRepo.get(it) }
                 ?: AiServiceInstanceRepo.getDefault(provider) ?: return ""
             return AiServiceInstanceRepo.apiKey(instance)
+        }
+
+        private fun cleanupLegacyPrefKeys() {
+            // MVP6D 后 maxTokens/topP/timeout 不再可配，清理旧 pref 残留值。
+            // 这些 key 已从 PreferKey 移除，这里用字面量清理磁盘残留。
+            appCtx.removePref("aiServiceMaxTokens")
+            appCtx.removePref("aiServiceTopP")
+            appCtx.removePref("aiServiceTimeoutSeconds")
         }
 
         private fun migrateLegacyApiKeyIfNeeded(provider: AiProvider) {
@@ -242,17 +244,6 @@ object AiServiceConfigStore {
             appCtx.putPrefString(PreferKey.aiServiceReasoningEffort, config.reasoningEffort)
         }
         appCtx.putPrefString(PreferKey.aiServiceTemperature, config.temperature.toString())
-        if (config.topP != null) {
-            appCtx.putPrefString(PreferKey.aiServiceTopP, config.topP.toString())
-        } else {
-            appCtx.removePref(PreferKey.aiServiceTopP)
-        }
-        appCtx.putPrefInt(PreferKey.aiServiceTimeoutSeconds, config.timeoutSeconds)
-        if (config.maxTokens > 0) {
-            appCtx.putPrefString(PreferKey.aiServiceMaxTokens, config.maxTokens.toString())
-        } else {
-            appCtx.removePref(PreferKey.aiServiceMaxTokens)
-        }
         appCtx.putPrefBoolean(PreferKey.aiServiceStream, config.stream)
         appCtx.putPrefString(PreferKey.aiServiceProviderExtraJson, config.providerExtraJson)
         AppLog.putDebug(

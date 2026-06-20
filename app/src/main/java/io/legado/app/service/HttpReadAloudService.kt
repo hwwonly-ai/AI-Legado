@@ -90,6 +90,7 @@ private const val AUDIO_PREFETCH_TAG = "audioPrefetch"
 private const val AUDIO_PLAYBACK_TAG = "audioPlayback"
 private const val NEXT_CHAPTER_PREPARE_TAG = "nextChapterPrepare"
 private const val AI_DIALOG_LABEL_TAG = "aiDialogLabel"
+private const val AI_CACHE_TAG = "AICache"
 private const val LOG_PREVIEW_LENGTH = 80
 private const val ALIYUN_PROVIDER = "aliyun"
 private const val DOUBAO_PROVIDER = "doubao"
@@ -126,6 +127,19 @@ private fun logNextChapterPrepare(message: String) {
 private fun logNextChapterPrepareWarn(message: String) {
     android.util.Log.w(NEXT_CHAPTER_PREPARE_TAG, message)
     logWarn("nextChapterPrepare $message")
+}
+
+/**
+ * MVP6D：判断 AI 缓存是否生效的关键日志统一输出到 [AI_CACHE_TAG]，
+ * 便于一条 adb logcat -s AICache 过滤出缓存命中/未命中/写入/预热/内存命中的完整链路。
+ * 仅打摘要，不输出正文/Prompt/API Key/完整响应。
+ */
+private fun logAiCache(message: String) {
+    android.util.Log.i(AI_CACHE_TAG, message)
+}
+
+private fun logAiCacheWarn(message: String) {
+    android.util.Log.w(AI_CACHE_TAG, message)
 }
 
 private fun String.logPreview(limit: Int = LOG_PREVIEW_LENGTH): String {
@@ -550,6 +564,12 @@ class HttpReadAloudService : BaseReadAloudService(),
     private var nextChapterPrepareKey: String? = null
     private var nextChapterPreparedKey: String? = null
 
+    // MVP6D：下一章 AI 预热结果内存缓存，只保存一章。切章命中即消费并清理。
+    @Volatile
+    private var nextChapterPreparedAiKey: String? = null
+    @Volatile
+    private var nextChapterPreparedAiSegments: List<ReadAloudSegment>? = null
+
     private fun registerPlaybackMedia(task: ReadAloudAudioTask): String {
         val mediaId = playbackMediaId(task)
         mediaIdToSegmentIndex[mediaId] = task.segmentIndex
@@ -798,6 +818,7 @@ class HttpReadAloudService : BaseReadAloudService(),
         job?.cancel()
         nextChapterPrepareJob = null
         nextChapterPrepareKey = null
+        clearNextChapterAiPrepare()
     }
 
     private fun maybePrepareNextChapter(chapterPosition: Int, mode: String) {
@@ -898,6 +919,18 @@ class HttpReadAloudService : BaseReadAloudService(),
                 delay(100)
             }
             if (generation != nextChapterPrepareGeneration) return@execute
+
+            // MVP6D：下一章 AI 预热。先查持久化缓存，未命中再后台标注。
+            // 结果写服务内存供切章时 tryAiLabelRuleSegments 复用，成功并同步落库。
+            prepareNextChapterAiLabels(
+                book = book,
+                nextTextChapter = nextChapter,
+                nextContent = nextContent,
+                generation = generation,
+                mode = mode
+            )
+            if (generation != nextChapterPrepareGeneration) return@execute
+
             val tasks = buildNextChapterAudioTasks(
                 httpTts = httpTts,
                 nextTextChapter = nextChapter,
@@ -967,6 +1000,104 @@ class HttpReadAloudService : BaseReadAloudService(),
             }
         }
     }
+
+    /**
+     * MVP6D：标注下一章对白并写入服务内存预热缓存。
+     *
+     * 1. 先查持久化 AI 缓存：命中直接写内存，记 aiCheck cacheHit。
+     * 2. 未命中：后台调 AiDialogLabeler 标注下一章。
+     *    - 成功非 fallback：写持久化缓存 + 写内存，记 aiPrepared。
+     *    - 失败/fallback：记 aiFailed，不影响当前播放与后续音频预热。
+     *
+     * 内存预热 key 用与正式切章相同的 producerKey 构造，切章时比对一致才复用。
+     */
+    private suspend fun prepareNextChapterAiLabels(
+        book: io.legado.app.data.entities.Book,
+        nextTextChapter: TextChapter,
+        nextContent: String,
+        generation: Int,
+        mode: String
+    ) {
+        val config = io.legado.app.model.ai.AiServiceConfig.load()
+        if (!config.enabled) {
+            logAiCache(
+                "aiSkip targetChapter=${nextTextChapter.chapter.index} mode=$mode reason=aiDisabled"
+            )
+            return
+        }
+        val targetChapter = nextTextChapter.chapter.index
+        val producerKey = buildAiDialogLabelProducerKey(config, mode)
+
+        // 1. 持久化缓存优先。
+        val cached = segmentCacheRepository.getAiDialogLabelSegments(
+            book = book,
+            chapter = nextTextChapter.chapter,
+            chapterContent = nextContent,
+            producerKey = producerKey
+        )
+        if (cached != null) {
+            nextChapterPreparedAiKey = producerKey
+            nextChapterPreparedAiSegments = cached
+            logAiCache(
+                "aiCheck targetChapter=$targetChapter cacheHit=true " +
+                    "segments=${cached.size} key=${ReadAloudSegmentCacheKey.logKey(producerKey)}"
+            )
+            return
+        }
+
+        // 2. 未命中：后台标注下一章。
+        val nextRuleSegments = segmentCacheRepository.getOrBuildRuleSegments(
+            book = book,
+            chapter = nextTextChapter.chapter,
+            chapterContent = nextContent
+        ).segments
+        if (nextRuleSegments.isEmpty()) {
+            logAiCache(
+                "aiSkip targetChapter=$targetChapter mode=$mode reason=nextSegmentsEmpty"
+            )
+            return
+        }
+        val dialogs = nextRuleSegments.count { it.role == ReadAloudRole.DIALOG }
+        logAiCache(
+            "aiStart targetChapter=$targetChapter dialogs=$dialogs " +
+                "segments=${nextRuleSegments.size} mode=$mode"
+        )
+        val startNs = System.nanoTime()
+        val result = io.legado.app.model.ai.AiDialogLabeler.labelRuleSegments(
+            chapterIndex = targetChapter,
+            segments = nextRuleSegments,
+            candidates = buildAiDialogCandidates(book, nextContent)
+        )
+        if (generation != nextChapterPrepareGeneration) return
+        val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
+        if (result.segments.isEmpty() || result.fallbackUsed) {
+            logAiCacheWarn(
+                "aiFailed targetChapter=$targetChapter reason=${result.errorMessage ?: "empty"} " +
+                    "elapsedMs=$elapsedMs mode=$mode"
+            )
+            return
+        }
+        segmentCacheRepository.saveAiDialogLabelSegments(
+            book = book,
+            chapter = nextTextChapter.chapter,
+            chapterContent = nextContent,
+            producerKey = producerKey,
+            segments = result.segments
+        )
+        nextChapterPreparedAiKey = producerKey
+        nextChapterPreparedAiSegments = result.segments
+        logAiCache(
+            "aiPrepared targetChapter=$targetChapter segments=${result.segments.size} " +
+                "elapsedMs=$elapsedMs key=${ReadAloudSegmentCacheKey.logKey(producerKey)} mode=$mode"
+        )
+    }
+
+    /** 清理下一章 AI 内存预热缓存。在跳章/停读/换 TTS/换 AI/Prompt 变化等清理点调用。 */
+    private fun clearNextChapterAiPrepare() {
+        nextChapterPreparedAiKey = null
+        nextChapterPreparedAiSegments = null
+    }
+
 
     private fun advancePrefetchWindow(newCurrentIndex: Int, generation: Int, mode: String) {
         if (!prefetchEnabled) return
@@ -1690,26 +1821,84 @@ class HttpReadAloudService : BaseReadAloudService(),
         val config = io.legado.app.model.ai.AiServiceConfig.load()
         AppLog.putDebug(
             "aiChapterParse preCheck mode=$mode enabled=${config.enabled} " +
-                "screenInteractive=${powerManager.isInteractive} timeoutSeconds=${config.timeoutSeconds}"
+                "screenInteractive=${powerManager.isInteractive}"
         )
         if (!config.enabled) {
             AppLog.putDebug("aiChapterParse skip mode=$mode reason=disabled")
             return null
         }
         val chapterIndex = chapter.index
+        val producerKey = buildAiDialogLabelProducerKey(config, mode)
+
+        // 1. 内存预热优先：切章前已标注并缓存到服务内存。
+        val preparedKey = nextChapterPreparedAiKey
+        val preparedSegments = nextChapterPreparedAiSegments
+        if (preparedKey != null && preparedKey == producerKey && preparedSegments != null) {
+            nextChapterPreparedAiKey = null
+            nextChapterPreparedAiSegments = null
+            logAiCache(
+                "aiMemoryHit targetChapter=$chapterIndex mode=$mode " +
+                    "segments=${preparedSegments.size} key=${ReadAloudSegmentCacheKey.logKey(producerKey)}"
+            )
+            return preparedSegments
+        }
+
+        // 2. 持久化缓存：同章再次朗读优先复用，不再请求 AI。
+        val cached = segmentCacheRepository.getAiDialogLabelSegments(
+            book = book,
+            chapter = chapter,
+            chapterContent = chapterContent,
+            producerKey = producerKey
+        )
+        if (cached != null) {
+            return cached
+        }
+
+        // 3. 未命中：实时 AI 标注。成功非 fallback 写持久化缓存；fallback 返回 null 走规则回退。
         val result = io.legado.app.model.ai.AiDialogLabeler.labelRuleSegments(
             chapterIndex = chapterIndex,
             segments = ruleSegments,
             candidates = buildAiDialogCandidates(book, chapterContent)
         )
         if (result.segments.isEmpty()) return null
-        logInfo(
+        logAiCache(
             "aiLabel mode=$mode provider=${result.provider} model=${result.model} " +
                 "fallback=${result.fallbackUsed} reason=${result.errorMessage ?: "ok"} " +
                 "segments=${result.segments.size} elapsedMs=${result.elapsedMs}"
         )
-        return if (result.fallbackUsed) null else result.segments
+        if (result.fallbackUsed) return null
+        segmentCacheRepository.saveAiDialogLabelSegments(
+            book = book,
+            chapter = chapter,
+            chapterContent = chapterContent,
+            producerKey = producerKey,
+            segments = result.segments
+        )
+        return result.segments
     }
+
+    /**
+     * 构造 AI 对白标注缓存 producer key。当前章与下一章预热共用同一构造逻辑，
+     * 保证切章时重算的 key 与预热写入的 key 可比对。
+     */
+    private fun buildAiDialogLabelProducerKey(
+        config: io.legado.app.model.ai.AiServiceConfig,
+        mode: String
+    ): String {
+        val promptConfig = io.legado.app.model.ai.AiPromptStore.load()
+        return ReadAloudSegmentCacheKey.aiDialogLabelProducer(
+            promptVersion = promptConfig.version,
+            promptHash = promptConfig.contentHash,
+            provider = config.provider.name,
+            selectedInstanceId = config.selectedInstanceId,
+            endpointHash = io.legado.app.model.ai.AiServiceConfig.endpointHash(config.normalizedEndpoint),
+            model = config.model,
+            mode = mode,
+            thinkingEnabled = config.thinkingEnabled,
+            reasoningEffort = config.reasoningEffort
+        )
+    }
+
 
     private fun buildAiDialogCandidates(
         book: io.legado.app.data.entities.Book,

@@ -598,8 +598,6 @@
     <string name="ai_service_api_key">API Key</string>
     <string name="ai_service_model">模型</string>
     <string name="ai_service_temperature">温度</string>
-    <string name="ai_service_timeout">超时（秒）</string>
-    <string name="ai_service_max_tokens">最大 tokens（可选）</string>
     <string name="ai_service_test">连接测试</string>
     <string name="ai_service_testing">测试中…</string>
     <string name="ai_service_test_running">正在连接 AI 服务…</string>
@@ -624,7 +622,6 @@
     <string name="ai_service_mode_refine">精修</string>
     <string name="ai_service_thinking">思考模式</string>
     <string name="ai_service_reasoning_effort">推理强度</string>
-    <string name="ai_service_top_p">Top P（可选）</string>
     <string name="ai_service_stream">流式响应</string>
     <string name="ai_service_provider_extra_json">扩展参数</string>
     <string name="ai_service_restore_defaults">恢复推荐参数</string>
