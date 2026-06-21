@@ -4,7 +4,7 @@
 
 在 MVP7 已完成角色结构升级、8 个固定龙套和已有角色匹配的基础上，处理 AI Segment 中未匹配到现有角色的 `roleName`。
 
-MVP7.1 使用全书累计对白次数维护动态次要配角 Top10：出现次数最多的 10 个未锁定候选成为次要配角；随着章节推进，如果其他角色对白次数超过现有次要配角，则将次数较少且未锁定的次要配角降入对应属性龙套别名。
+MVP7.1 使用可配置统计窗口维护动态次要配角 Top10：用户可选择“全书累计统计”或“最近 20 章统计”。统计窗口内出现次数最多的 10 个未锁定候选成为次要配角；随着章节推进，如果其他角色对白次数超过现有次要配角，则将次数较少且未锁定的次要配角降入对应属性龙套别名。
 
 主角和主要配角只允许用户手动管理，AI 不能创建或修改。
 
@@ -36,28 +36,54 @@ girl, young_female, middle_female, elder_female
 - `roleAttribute` 只用于自动创建次要配角和归入龙套。
 - AI 不返回、也不决定 `roleCategory`。
 
-## 3. 全书累计统计
+## 3. 统计窗口与对白次数
 
-在 `Book.ReadConfig` 中保存角色对白统计：
+在 `Book.ReadConfig` 中保存统计模式和角色对白统计：
 
 ```kotlin
+enum class RoleMentionStatWindow {
+    ALL_BOOK,
+    RECENT_20_CHAPTERS
+}
+
 data class BookRoleMentionStat(
     val roleKey: String,
     var displayName: String,
     var roleAttribute: String,
-    var dialogCount: Int,
+    var totalDialogCount: Int,
+    var chapterDialogCounts: MutableMap<Int, Int>,
     var lastSeenChapter: Int,
     var roleId: String? = null
 )
 ```
 
+书籍级隔离：
+
+- `roleMentionStatWindow` 和 `BookRoleMentionStat` 都保存在当前书的 `Book.ReadConfig`。
+- 不同书籍的未匹配角色统计、Top10 次要配角、龙套 aliases 互不共享。
+- 最近 20 章统计只在当前书内计算，不跨书统计章节。
+
+配置项：
+
+- `roleMentionStatWindow = ALL_BOOK`：全书累计统计，默认值。
+- `roleMentionStatWindow = RECENT_20_CHAPTERS`：只按最近 20 章统计。
+
+UI 入口：
+
+- 在书籍角色管理的自动归档设置中增加“次要配角统计范围”。
+- 选项：`全书累计` / `最近 20 章`。
+- 切换后提示会重新计算未锁定次要配角；锁定次要配角不受影响。
+
 统计规则：
 
-- 每次 AI 标注成功后，按规范化 `roleName` 累计 `dialogCount`。
-- 统计范围为全书累计。
+- 每次 AI 标注成功后，按规范化 `roleName` 累计 `totalDialogCount` 和当前章节的 `chapterDialogCounts[chapterIndex]`。
+- Top10 排序使用当前配置对应的统计窗口。
+- 全书累计模式：使用 `totalDialogCount`。
+- 最近 20 章模式：汇总当前章节及之前最近 20 个已解析章节的 `chapterDialogCounts`；不足 20 章时按已有章节统计。
 - 同一段对白只累计一次，避免缓存命中或重复播放导致计数膨胀。
 - `roleAttribute` 使用最近一次合法 AI 返回值更新。
 - `lastSeenChapter` 使用最近出现章节更新。
+- 切换统计窗口后，重新计算动态次要配角 Top10，不清除原始 mention 记录。
 
 冲突排除：
 
@@ -83,6 +109,8 @@ lastSeenChapter desc
 displayName asc
 ```
 
+其中 `dialogCount` 是根据当前统计窗口计算出的临时值，不是单独持久化字段。
+
 动态规则：
 
 - 排名前 10 的候选自动创建或保持为 `minor_supporting`。
@@ -97,7 +125,7 @@ BookReadAloudRole(
     id = UUID.randomUUID().toString(),
     name = displayName,
     aliases = mutableListOf(),
-    note = "AI 自动创建：全书对白次数 Top10 次要配角",
+    note = "AI 自动创建：统计窗口对白次数 Top10 次要配角",
     voices = hashMapOf(currentTtsEngine to "@extra:${roleAttribute}"),
     locked = false,
     roleCategory = RoleCategory.MINOR_SUPPORTING,
@@ -160,7 +188,7 @@ BookReadAloudRole(
 1. 先用 MVP7 matcher 匹配已有角色。
 2. 命中则使用已有角色音色，不调整分类。
 3. 未命中则记录 mention stat。
-4. 根据全书累计 Top10 重算动态次要配角。
+4. 根据当前统计窗口 Top10 重算动态次要配角。
 5. 对泛称角色写入对应龙套 aliases。
 6. 更新 matcher 内存索引。
 7. 再解析最终角色音色。
@@ -183,21 +211,28 @@ roleMatch autoSkip roleName=王丽 reason=conflictWithLead
 
 测试期可输出对白正文；仍不输出 Prompt、API Key、完整 AI 原始响应。
 
-## 9. 静态验证计划
+## 9. 验证计划
 
-按项目规则不跑编译 / Gradle，只做静态检查：
+静态检查：
 
 - `rg "roleAttribute" app/src/main/java/io/legado/app/model/ai app/src/main/java/io/legado/app/model`
-- `rg "BookRoleMentionStat|dialogCount|lastSeenChapter" app/src/main/java/io/legado/app`
+- `rg "BookRoleMentionStat|totalDialogCount|chapterDialogCounts|lastSeenChapter" app/src/main/java/io/legado/app`
+- `rg "RoleMentionStatWindow|RECENT_20_CHAPTERS|ALL_BOOK" app/src/main/java/io/legado/app`
 - `rg "minorPromote|minorDemote|extraAlias|autoSkip" app/src/main/java/io/legado/app`
 - `rg "@extra:|龙套·" app/src/main/java/io/legado/app app/src/main/res`
 - 确认 AI 不写 `male_lead` / `female_lead` / `major_supporting`。
 - 确认锁定次要配角不参与动态调整。
 - 确认未新增 Room Entity、DAO、migration。
 
+Gradle 编译验证：
+
+- `./gradlew :app:assembleDebug`
+
 ## 10. 验收用例
 
-- `王丽 + middle_female` 全书对白次数进入 Top10，自动成为次要配角。
+- 全书累计模式下，`王丽 + middle_female` 全书对白次数进入 Top10，自动成为次要配角。
+- 最近 20 章模式下，只按最近 20 章对白次数计算 Top10。
+- 切换全书累计 / 最近 20 章统计后，动态次要配角重新计算。
 - `王丽` 默认使用“龙套·中年女性”的音色。
 - 后续其他角色次数超过王丽，且王丽未锁定，王丽降入“龙套·中年女性”别名。
 - 锁定的次要配角不会被降级。
@@ -208,7 +243,7 @@ roleMatch autoSkip roleName=王丽 reason=conflictWithLead
 
 ## 11. 风险与处理
 
-- **动态调整抖动**：使用全书累计次数，排序稳定；锁定角色不参与调整。
+- **动态调整抖动**：全书累计模式更稳定；最近 20 章模式更贴合当前剧情但可能更频繁变化。锁定角色不参与调整。
 - **角色档案污染**：主角和主要配角冲突时跳过；泛称只进龙套别名。
 - **音色不一致**：次要配角默认跟随同属性龙套，自定义音色优先。
 - **统计膨胀**：同一段对白只累计一次，避免重复播放增加次数。
@@ -217,10 +252,10 @@ roleMatch autoSkip roleName=王丽 reason=conflictWithLead
 ## 12. 完成定义
 
 - AI 返回支持 `roleAttribute`。
-- 全书累计对白次数可维护。
+- 可配置全书累计统计或最近 20 章统计。
 - 未锁定次要配角按 Top10 动态调整。
 - Top10 外未锁定次要配角可降入同属性龙套。
 - 次要配角默认跟随同属性龙套音色。
 - 主角和主要配角不被 AI 创建或修改。
 - 不新增数据库表、不升级数据库版本。
-- 未执行编译 / Gradle，仅完成静态检查。
+- 静态检查通过，`./gradlew :app:assembleDebug` 通过。

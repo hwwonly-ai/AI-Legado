@@ -7,7 +7,20 @@
       "Bash(git checkout *)",
       "Bash(git add *)",
       "Bash(git commit -m 'Implement MVP6A-6C AI dialog labeling and read aloud segment cache *)",
-      "Bash(grep -n 'val prepareKey = MD5Utils\\\\|nextChapterPreparedKey = prepareKey\\\\|logNextChapterPrepare\\(\\\\s*$\\\\|val tasks = buildNextChapterAudioTasks\\\\|generation=$generation trigger' app/src/main/java/io/legado/app/service/HttpReadAloudService.kt)"
+      "Bash(grep -n 'val prepareKey = MD5Utils\\\\|nextChapterPreparedKey = prepareKey\\\\|logNextChapterPrepare\\(\\\\s*$\\\\|val tasks = buildNextChapterAudioTasks\\\\|generation=$generation trigger' app/src/main/java/io/legado/app/service/HttpReadAloudService.kt)",
+      "Bash(git commit -m 'Implement MVP6D AI dialog labeling refactor and segment cache cleanup *)",
+      "Bash(rg -n \"fun String.logPreview|^import io.legado.app.model.ReadAloudSegment$|^import io.legado.app.model.ReadAloudRole$|^import io.legado.app.model.ReadBook|ReadBook\\\\.book\" app/src/main/java/io/legado/app/service/HttpReadAloudService.kt)",
+      "Bash(awk 'NR>=689 && NR<=790 && /chapterIndex|val chapter|chapter.index/' app/src/main/java/io/legado/app/service/HttpReadAloudService.kt)",
+      "Bash(awk 'NR>=689 && NR<=790' app/src/main/java/io/legado/app/service/HttpReadAloudService.kt)",
+      "Bash(awk 'NR>=689 && NR<=766' app/src/main/java/io/legado/app/service/HttpReadAloudService.kt)",
+      "Bash(awk 'NR>=689 && NR<=790 {print NR\": \"$0}' app/src/main/java/io/legado/app/service/HttpReadAloudService.kt)",
+      "Bash(awk 'NR>=689 && NR<=786 {print NR\": \"$0}' app/src/main/java/io/legado/app/service/HttpReadAloudService.kt)",
+      "Bash(awk 'NR<=540' app/src/main/java/io/legado/app/service/HttpReadAloudService.kt)",
+      "Bash(awk 'NR>=556 && NR<=688 {print NR\": \"$0}' app/src/main/java/io/legado/app/service/HttpReadAloudService.kt)",
+      "Bash(rg -rn \"class TextChapter|val title|var title\" app/src/main/java/io/legado/app/data/entities/TextChapter.kt)",
+      "Bash(awk '/^class Book/{print NR\": \"$0; exit}' app/src/main/java/io/legado/app/data/entities/Book.kt)",
+      "Read(//Users/huiweiwei/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/**)",
+      "Read(//Users/huiweiwei/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-parcelize-runtime/**)"
     ]
   }
 }

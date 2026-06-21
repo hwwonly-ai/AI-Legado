@@ -29,6 +29,22 @@ import java.nio.charset.Charset
 import java.time.LocalDate
 import kotlin.math.max
 
+/**
+ * 8 个固定龙套角色定义：(角色名, 角色属性)。
+ * 龙套为系统角色，不可删除、不可改名、不可改分类和属性。
+ * 放在文件顶层避免被 Room 识别为 Book 实体的列。
+ */
+private val SYSTEM_EXTRA_ROLE_DEFS: List<Pair<String, String>> = listOf(
+    "龙套·男童" to BookReadAloudRole.RoleAttribute.BOY,
+    "龙套·少年男性" to BookReadAloudRole.RoleAttribute.YOUNG_MALE,
+    "龙套·中年男性" to BookReadAloudRole.RoleAttribute.MIDDLE_MALE,
+    "龙套·老年男性" to BookReadAloudRole.RoleAttribute.ELDER_MALE,
+    "龙套·女童" to BookReadAloudRole.RoleAttribute.GIRL,
+    "龙套·少年女性" to BookReadAloudRole.RoleAttribute.YOUNG_FEMALE,
+    "龙套·中年女性" to BookReadAloudRole.RoleAttribute.MIDDLE_FEMALE,
+    "龙套·老年女性" to BookReadAloudRole.RoleAttribute.ELDER_FEMALE
+)
+
 @Parcelize
 @TypeConverters(Book.Converters::class)
 @Entity(
@@ -364,21 +380,6 @@ data class Book(
     }
 
     /**
-     * 8 个固定龙套角色定义：(角色名, 角色属性)。
-     * 龙套为系统角色，不可删除、不可改名、不可改分类和属性。
-     */
-    private val systemExtraRoleDefs: List<Pair<String, String>> = listOf(
-        "龙套·男童" to BookReadAloudRole.RoleAttribute.BOY,
-        "龙套·少年男性" to BookReadAloudRole.RoleAttribute.YOUNG_MALE,
-        "龙套·中年男性" to BookReadAloudRole.RoleAttribute.MIDDLE_MALE,
-        "龙套·老年男性" to BookReadAloudRole.RoleAttribute.ELDER_MALE,
-        "龙套·女童" to BookReadAloudRole.RoleAttribute.GIRL,
-        "龙套·少年女性" to BookReadAloudRole.RoleAttribute.YOUNG_FEMALE,
-        "龙套·中年女性" to BookReadAloudRole.RoleAttribute.MIDDLE_FEMALE,
-        "龙套·老年女性" to BookReadAloudRole.RoleAttribute.ELDER_FEMALE
-    )
-
-    /**
      * 确保当前书存在 8 个固定龙套。幂等：按 name 去重，已存在则跳过，
      * 不覆盖用户已配置的别名/音色。返回 true 表示新增了角色（调用方需 save）。
      */
@@ -386,7 +387,7 @@ data class Book(
         val roles = getReadAloudRoles()
         val existingNames = roles.map { it.name.trim() }.toHashSet()
         var changed = false
-        for ((name, attr) in systemExtraRoleDefs) {
+        for ((name, attr) in SYSTEM_EXTRA_ROLE_DEFS) {
             if (existingNames.contains(name)) continue
             roles.add(
                 BookReadAloudRole(

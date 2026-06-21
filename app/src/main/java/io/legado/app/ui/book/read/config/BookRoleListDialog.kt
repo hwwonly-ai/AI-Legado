@@ -162,7 +162,7 @@ class BookRoleListDialog : BaseDialogFragment(R.layout.dialog_book_role_list),
         const val ROLE = 1
     }
 
-    inner class GroupedRoleAdapter(private val context: Context) :
+    private inner class GroupedRoleAdapter(private val context: Context) :
         RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
         private val items = mutableListOf<RoleListItem>()

@@ -628,6 +628,19 @@ class HttpReadAloudService : BaseReadAloudService(),
         return task?.fileName?.let(::audioLogKey).orEmpty()
     }
 
+    private fun playbackSegmentIndex(mediaId: String?): Int? {
+        return mediaId?.let { mediaIdToSegmentIndex[it] }
+    }
+
+    private fun syncPlaybackPosition(mediaId: String?): Boolean {
+        val segmentIndex = playbackSegmentIndex(mediaId) ?: return false
+        if (segmentIndex !in currentChapterTasks.indices) return false
+        nowSpeak = segmentIndex
+        readAloudNumber = contentStartPosition(segmentIndex)
+            ?: (readAloudNumber + contentPlainLength((segmentIndex - 1).coerceAtLeast(0)) + 1)
+        return true
+    }
+
     override fun onCreate() {
         super.onCreate()
         exoPlayer.addListener(this)
@@ -1304,8 +1317,6 @@ class HttpReadAloudService : BaseReadAloudService(),
                 if (audioGeneration != generation) return@withLock
                 val task = currentChapterTasks.getOrNull(index) ?: return@withLock
                 logAiPlaybackTask("continuePrepare", task)
-                nowSpeak = index
-                readAloudNumber = contentStartPosition(index) ?: readAloudNumber
                 if (mode == "file") {
                     if (!hasSpeakableText(task.speakText)) {
                         AppLog.putDebug(
@@ -2853,6 +2864,7 @@ class HttpReadAloudService : BaseReadAloudService(),
             Player.STATE_READY -> {
                 // 准备好
                 releaseReadAloudPrepareWakeLock()
+                syncPlaybackPosition(exoPlayer.currentMediaItem?.mediaId)
                 AppLog.putDebug(
                     "aiChapterParse playbackReady segment=$nowSpeak " +
                         "durationMs=${exoPlayer.duration} positionMs=${exoPlayer.currentPosition} " +
@@ -2865,17 +2877,29 @@ class HttpReadAloudService : BaseReadAloudService(),
             }
 
             Player.STATE_ENDED -> {
+                val mediaId = exoPlayer.currentMediaItem?.mediaId
+                val endedSegment = playbackSegmentIndex(mediaId)
                 AppLog.putDebug(
                     "aiChapterParse playbackEnded segment=$nowSpeak " +
+                        "mediaSegment=${endedSegment ?: -1} " +
                         "durationMs=${exoPlayer.duration} positionMs=${exoPlayer.currentPosition} " +
                         "mediaKey=${playbackFileKey(exoPlayer.currentMediaItem?.mediaId)} " +
                         "contentLen=${contentPlainLength(nowSpeak)}"
                 )
+                if (endedSegment == null || exoPlayer.duration == C.TIME_UNSET) {
+                    AppLog.putDebug(
+                        "aiChapterParse playbackEndedIgnored reason=invalidMedia " +
+                            "segment=$nowSpeak durationMs=${exoPlayer.duration} " +
+                            "positionMs=${exoPlayer.currentPosition} mediaId=${mediaId.orEmpty()}"
+                    )
+                    return
+                }
+                syncPlaybackPosition(mediaId)
                 playErrorNo = 0
                 exoPlayer.stop()
                 exoPlayer.clearMediaItems()
-                if (nowSpeak < contentList.lastIndex) {
-                    continueCurrentChapterFromIndex(nowSpeak + 1)
+                if (endedSegment < contentList.lastIndex) {
+                    continueCurrentChapterFromIndex(endedSegment + 1)
                 } else {
                     nextChapter()
                 }
@@ -2916,14 +2940,15 @@ class HttpReadAloudService : BaseReadAloudService(),
             AppLog.putDebug("aiChapterParse playbackTransition $message")
             logInfo("audioPlayback $message")
         }
-        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) return
+        val synced = syncPlaybackPosition(mediaId)
+        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
+            if (synced) upPlayPos()
+            return
+        }
         if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
             playErrorNo = 0
         }
-        if (tagIndex != null && currentChapterTasks.isNotEmpty()) {
-            nowSpeak = tagIndex
-            readAloudNumber = contentStartPosition(tagIndex)
-                ?: (readAloudNumber + contentPlainLength((tagIndex - 1).coerceAtLeast(0)) + 1)
+        if (synced && tagIndex != null) {
             val mode = if (AppConfig.streamReadAloudAudio) "stream" else "file"
             advancePrefetchWindow(tagIndex, audioGeneration, mode)
             maybePrepareNextChapter(readAloudNumber, mode)

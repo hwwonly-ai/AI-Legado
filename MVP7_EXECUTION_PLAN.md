@@ -17,6 +17,13 @@ var autoManaged: Boolean = false
 var systemRole: Boolean = false
 ```
 
+书籍级隔离：
+
+- 所有角色数据保存在当前书的 `Book.ReadConfig.readAloudRoles`。
+- 不同书籍的角色、别名、分类、属性、锁定状态和角色音色互不共享。
+- 8 个固定龙套也是每本书各自初始化一套；修改某本书的龙套别名或音色，不影响其他书。
+- 角色匹配只读取当前书的角色档案，不跨书匹配。
+
 ### 角色分类
 
 ```text
@@ -179,6 +186,11 @@ object BookReadAloudRoleMatcher {
 └─────────────────────────────────────┘
 ```
 
+说明：
+
+- MVP7 阶段仍保留手动输入自定义音色 ID。
+- MVP8.1 会将“自定义 [ voice_xxx ]”替换为“选择音色”入口，从角色侧打开轻量音色选择器。
+
 龙套编辑页差异：
 
 ```text
@@ -225,9 +237,9 @@ roleMatch fallbackVoice chapter=12 segment=37 roleId=... reason=noRoleVoice text
 
 日志仍不输出 Prompt、API Key、完整 AI 原始响应。
 
-## 7. 静态验证计划
+## 7. 验证计划
 
-按项目规则不跑编译 / Gradle，只做静态检查：
+静态检查：
 
 - `rg "roleCategory|roleAttribute|autoManaged|systemRole" app/src/main/java/io/legado/app`
 - `rg "BookReadAloudRoleMatcher|normalizeRoleKey|findByNameOrAlias" app/src/main/java/io/legado/app`
@@ -235,6 +247,10 @@ roleMatch fallbackVoice chapter=12 segment=37 roleId=... reason=noRoleVoice text
 - `rg "roleMatch" app/src/main/java/io/legado/app`
 - 确认 MVP7 没有自动创建未匹配角色的逻辑。
 - 确认未新增 Room Entity、DAO、migration。
+
+Gradle 编译验证：
+
+- `./gradlew :app:assembleDebug`
 
 ## 8. 验收用例
 
@@ -254,4 +270,4 @@ roleMatch fallbackVoice chapter=12 segment=37 roleId=... reason=noRoleVoice text
 - AI 只匹配已有角色，不写未匹配角色。
 - 匹配成功时按当前 TTS 引擎使用角色音色。
 - 不新增数据库表、不升级数据库版本。
-- 未执行编译 / Gradle，仅完成静态检查。
+- 静态检查通过，`./gradlew :app:assembleDebug` 通过。
