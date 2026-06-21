@@ -363,6 +363,59 @@ data class Book(
         return aliases.map { it.trim() }.filter { it.isNotBlank() }.distinctBy { it.lowercase() }.toMutableList()
     }
 
+    /**
+     * 8 个固定龙套角色定义：(角色名, 角色属性)。
+     * 龙套为系统角色，不可删除、不可改名、不可改分类和属性。
+     */
+    private val systemExtraRoleDefs: List<Pair<String, String>> = listOf(
+        "龙套·男童" to BookReadAloudRole.RoleAttribute.BOY,
+        "龙套·少年男性" to BookReadAloudRole.RoleAttribute.YOUNG_MALE,
+        "龙套·中年男性" to BookReadAloudRole.RoleAttribute.MIDDLE_MALE,
+        "龙套·老年男性" to BookReadAloudRole.RoleAttribute.ELDER_MALE,
+        "龙套·女童" to BookReadAloudRole.RoleAttribute.GIRL,
+        "龙套·少年女性" to BookReadAloudRole.RoleAttribute.YOUNG_FEMALE,
+        "龙套·中年女性" to BookReadAloudRole.RoleAttribute.MIDDLE_FEMALE,
+        "龙套·老年女性" to BookReadAloudRole.RoleAttribute.ELDER_FEMALE
+    )
+
+    /**
+     * 确保当前书存在 8 个固定龙套。幂等：按 name 去重，已存在则跳过，
+     * 不覆盖用户已配置的别名/音色。返回 true 表示新增了角色（调用方需 save）。
+     */
+    fun ensureSystemExtraRoles(): Boolean {
+        val roles = getReadAloudRoles()
+        val existingNames = roles.map { it.name.trim() }.toHashSet()
+        var changed = false
+        for ((name, attr) in systemExtraRoleDefs) {
+            if (existingNames.contains(name)) continue
+            roles.add(
+                BookReadAloudRole(
+                    id = java.util.UUID.randomUUID().toString(),
+                    name = name,
+                    roleCategory = BookReadAloudRole.RoleCategory.EXTRA,
+                    roleAttribute = attr,
+                    autoManaged = true,
+                    systemRole = true,
+                    locked = false
+                )
+            )
+            changed = true
+        }
+        return changed
+    }
+
+    /**
+     * 校验将某角色归入 targetCategory 是否超出上限。excludeId 为正在编辑的角色 id。
+     * 返回非 null 表示超限，调用方应拒绝保存。
+     */
+    fun validateRoleCategoryCap(targetCategory: String, excludeId: String? = null): String? {
+        val max = BookReadAloudRole.RoleCategory.MAX_COUNT[targetCategory] ?: return null
+        if (max == Int.MAX_VALUE) return null
+        val count = getReadAloudRoles()
+            .count { it.id != excludeId && it.roleCategory == targetCategory }
+        return if (count >= max) "category_cap_exceeded" else null
+    }
+
     // endregion
 
     fun setSplitLongChapter(limitLongContent: Boolean) {
