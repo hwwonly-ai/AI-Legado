@@ -690,11 +690,14 @@
     <string name="book_role_voice_dialog_option">Book dialog voice: %1$s</string>
     <string name="book_role_voice_custom_option">Custom voice</string>
     <string name="book_role_voice_custom_hint">Voice / Speaker ID</string>
+    <string name="book_role_voice_select">Select role voice</string>
+    <string name="book_role_voice_select_action">Select</string>
     <string name="book_role_voice_required">Enter a custom voice ID</string>
     <string name="book_role_voice_follow_narrator">Follows book narrator voice</string>
     <string name="book_role_voice_follow_dialog">Forces book dialog voice</string>
     <string name="book_role_voice_not_configured">Not configured</string>
     <string name="book_role_voice_select_hint">Default follows the effective dialog voice; book voice pins the book-level setting</string>
+    <string name="book_role_voice_picker_unsupported">Current TTS does not support voice selection</string>
     <string name="book_role_note">Note</string>
     <string name="book_role_locked">Locked</string>
     <string name="book_role_locked_hint">AI will not automatically modify a locked role</string>

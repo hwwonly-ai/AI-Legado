@@ -28,6 +28,14 @@ fun HttpTTS.isSupportedRoleVoice(): Boolean {
     return isAliyunTTS() || isDoubaoTTS()
 }
 
+fun HttpTTS.bookVoiceProvider(): BookVoiceProvider? {
+    return when {
+        isAliyunTTS() -> BookVoiceProvider.ALIYUN
+        isDoubaoTTS() -> BookVoiceProvider.DOUBAO
+        else -> null
+    }
+}
+
 fun HttpTTS.voiceHint(context: Context, isNarrator: Boolean): String {
     val resId = if (isDoubaoTTS()) {
         if (isNarrator) R.string.book_voice_narrator_hint_doubao

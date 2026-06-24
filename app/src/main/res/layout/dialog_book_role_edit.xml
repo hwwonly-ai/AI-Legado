@@ -175,6 +175,38 @@
 
                 </io.legado.app.ui.widget.text.TextInputLayout>
 
+                <LinearLayout
+                    android:id="@+id/ll_custom_voice_actions"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="end|center_vertical"
+                    android:orientation="horizontal">
+
+                    <io.legado.app.ui.widget.text.AccentTextView
+                        android:id="@+id/tv_select_voice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:paddingStart="12dp"
+                        android:paddingTop="8dp"
+                        android:paddingEnd="12dp"
+                        android:paddingBottom="8dp"
+                        android:text="@string/book_role_voice_select_action" />
+
+                    <TextView
+                        android:id="@+id/tv_clear_voice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:paddingStart="12dp"
+                        android:paddingTop="8dp"
+                        android:paddingEnd="12dp"
+                        android:paddingBottom="8dp"
+                        android:text="@string/clear"
+                        android:textColor="@color/secondaryText" />
+
+                </LinearLayout>
+
                 <TextView
                     android:id="@+id/tv_voice_hint"
                     android:layout_width="match_parent"

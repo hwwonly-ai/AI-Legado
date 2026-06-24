@@ -19,6 +19,7 @@ import io.legado.app.model.ReadBook
 import io.legado.app.utils.GSON
 import io.legado.app.utils.fromJsonObject
 import io.legado.app.utils.setLayout
+import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 
 class BookRoleEditDialog : BaseDialogFragment(R.layout.dialog_book_role_edit) {
@@ -53,37 +54,61 @@ class BookRoleEditDialog : BaseDialogFragment(R.layout.dialog_book_role_edit) {
         toolBar.setNavigationOnClickListener { dismissAllowingStateLoss() }
         tvCancel.setOnClickListener { dismissAllowingStateLoss() }
         tvOk.setOnClickListener { saveRole() }
+        tvSelectVoice.setOnClickListener { showVoiceSelector() }
+        tvClearVoice.setOnClickListener { clearCustomVoice() }
     }
 
-    private fun initData() = binding.run {
-        val roleJson = arguments?.getString(ARG_ROLE)
-        role = if (roleJson != null) {
-            GSON.fromJsonObject<BookReadAloudRole>(roleJson).getOrNull()
-        } else null
-        ttsEngine = arguments?.getString(ARG_TTS_ENGINE) ?: ReadAloud.ttsEngine
+    private fun initData() {
+        binding.run {
+            val roleJson = arguments?.getString(ARG_ROLE)
+            role = if (roleJson != null) {
+                GSON.fromJsonObject<BookReadAloudRole>(roleJson).getOrNull()
+            } else null
+            ttsEngine = arguments?.getString(ARG_TTS_ENGINE) ?: ReadAloud.ttsEngine
 
-        val existingRole = role ?: run {
-            dismissAllowingStateLoss()
-            return
+            val existingRole = role ?: run {
+                dismissAllowingStateLoss()
+                return
+            }
+            isSystem = existingRole.systemRole
+            selectedCategory = existingRole.roleCategory
+            selectedAttribute = existingRole.roleAttribute
+
+            etRoleName.setText(existingRole.name)
+            etAliases.setText(existingRole.aliases.joinToString(", "))
+            etNote.setText(existingRole.note)
+            switchLocked.isChecked = existingRole.locked
+
+            configuredVoiceBeforeSave = existingRole.voices[ttsEngine]
+            val configuredVoice = configuredVoiceBeforeSave
+
+            when (configuredVoice) {
+                BookReadAloudRole.VOICE_BOOK_NARRATOR -> rbVoiceNarrator.isChecked = true
+                BookReadAloudRole.VOICE_BOOK_DIALOG -> rbVoiceDialog.isChecked = true
+                null, "" -> rbVoiceDefault.isChecked = true
+                else -> {
+                    rbVoiceCustom.isChecked = true
+                    etCustomVoice.setText(configuredVoice)
+                }
+            }
+            if (rgVoice.checkedRadioButtonId == View.NO_ID) {
+                rbVoiceDefault.isChecked = true
+            }
+            refreshVoiceEngineState()
+            updateCustomVoiceState()
+            rgVoice.setOnCheckedChangeListener { _, _ -> updateCustomVoiceState() }
+
+            setupCategoryAndAttribute(existingRole)
         }
-        isSystem = existingRole.systemRole
-        selectedCategory = existingRole.roleCategory
-        selectedAttribute = existingRole.roleAttribute
+    }
 
-        etRoleName.setText(existingRole.name)
-        etAliases.setText(existingRole.aliases.joinToString(", "))
-        etNote.setText(existingRole.note)
-        switchLocked.isChecked = existingRole.locked
-
+    private fun refreshVoiceEngineState() = binding.run {
         val httpTTS = ttsEngine?.toLongOrNull()?.let {
             appDb.httpTTSDao.get(it)
         }
         val supported = httpTTS?.isSupportedRoleVoice() == true
         narratorVoice = ReadBook.book?.getNarratorVoice(ttsEngine)
         dialogVoice = ReadBook.book?.getDialogVoice(ttsEngine)
-        configuredVoiceBeforeSave = existingRole.voices[ttsEngine]
-        val configuredVoice = configuredVoiceBeforeSave
-
         rbVoiceNarrator.text = getString(
             R.string.book_role_voice_narrator_option,
             narratorVoice ?: getString(R.string.book_role_voice_not_configured)
@@ -97,52 +122,63 @@ class BookRoleEditDialog : BaseDialogFragment(R.layout.dialog_book_role_edit) {
         rbVoiceDefault.isEnabled = supported
         rbVoiceCustom.isEnabled = supported
         rgVoice.isEnabled = supported
-        tilCustomVoice.isEnabled = supported
-
-        when (configuredVoice) {
-            BookReadAloudRole.VOICE_BOOK_NARRATOR -> rbVoiceNarrator.isChecked = true
-            BookReadAloudRole.VOICE_BOOK_DIALOG -> rbVoiceDialog.isChecked = true
-            null, "" -> rbVoiceDefault.isChecked = true
-            else -> {
-                rbVoiceCustom.isChecked = true
-                etCustomVoice.setText(configuredVoice)
-            }
-        }
-        if (rgVoice.checkedRadioButtonId == View.NO_ID) {
-            rbVoiceDefault.isChecked = true
-        }
-        updateCustomVoiceState()
-        rgVoice.setOnCheckedChangeListener { _, _ -> updateCustomVoiceState() }
+        tvSelectVoice.isEnabled = supported
+        tvSelectVoice.alpha = if (supported) 1f else 0.4f
+        tvClearVoice.isEnabled = supported
+        tvClearVoice.alpha = if (supported) 1f else 0.4f
         tvVoiceHint.text = if (supported) {
             getString(R.string.book_role_voice_select_hint)
         } else {
-            getString(R.string.book_role_voice_unsupported)
+            getString(R.string.book_role_voice_picker_unsupported)
         }
-
-        setupCategoryAndAttribute(existingRole)
+        updateCustomVoiceState()
     }
 
-    private fun setupCategoryAndAttribute(existingRole: BookReadAloudRole) = binding.run {
-        if (isSystem) {
-            // 龙套：名称/分类/属性只读，隐藏分类属性选择区与锁定区，显示系统只读提示。
-            tvCategoryLabel.visibility = View.GONE
-            flCategory.visibility = View.GONE
-            tvAttrLabel.visibility = View.GONE
-            flAttribute.visibility = View.GONE
-            llLocked.visibility = View.GONE
-            tvLockedHint.visibility = View.GONE
-            etRoleName.isEnabled = false
-            tvSystemInfo.text = getString(
-                R.string.book_role_system_readonly
-            ) + " · " + attributeLabel(existingRole.roleAttribute)
-            tvSystemInfo.visibility = View.VISIBLE
-            return
+    private fun showVoiceSelector() {
+        val existingRole = role ?: return
+        val dialog = BookRoleVoiceSelectDialog.newInstance(existingRole.id, ttsEngine).apply {
+            onVoiceSelected = { engine, preset ->
+                ttsEngine = engine
+                refreshVoiceEngineState()
+                binding.rbVoiceCustom.isChecked = true
+                binding.etCustomVoice.setText(preset.requestValue)
+                binding.tilCustomVoice.error = null
+                updateCustomVoiceState()
+            }
         }
+        showDialogFragment(dialog)
+    }
 
-        tvSystemInfo.visibility = View.GONE
-        buildCategoryChips()
-        buildAttributeChips()
-        refreshAttributeEnabled()
+    private fun clearCustomVoice() = binding.run {
+        rbVoiceDefault.isChecked = true
+        etCustomVoice.setText("")
+        tilCustomVoice.error = null
+        updateCustomVoiceState()
+    }
+
+    private fun setupCategoryAndAttribute(existingRole: BookReadAloudRole) {
+        binding.run {
+            if (isSystem) {
+                // 龙套：名称/分类/属性只读，隐藏分类属性选择区与锁定区，显示系统只读提示。
+                tvCategoryLabel.visibility = View.GONE
+                flCategory.visibility = View.GONE
+                tvAttrLabel.visibility = View.GONE
+                flAttribute.visibility = View.GONE
+                llLocked.visibility = View.GONE
+                tvLockedHint.visibility = View.GONE
+                etRoleName.isEnabled = false
+                tvSystemInfo.text = getString(
+                    R.string.book_role_system_readonly
+                ) + " · " + attributeLabel(existingRole.roleAttribute)
+                tvSystemInfo.visibility = View.VISIBLE
+                return
+            }
+
+            tvSystemInfo.visibility = View.GONE
+            buildCategoryChips()
+            buildAttributeChips()
+            refreshAttributeEnabled()
+        }
     }
 
     private fun buildCategoryChips() = binding.run {

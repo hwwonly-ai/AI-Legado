@@ -689,11 +689,14 @@
     <string name="book_role_voice_dialog_option">书籍对白音色：%1$s</string>
     <string name="book_role_voice_custom_option">自定义音色</string>
     <string name="book_role_voice_custom_hint">Voice / Speaker ID</string>
+    <string name="book_role_voice_select">选择角色音色</string>
+    <string name="book_role_voice_select_action">选择</string>
     <string name="book_role_voice_required">请输入自定义音色 ID</string>
     <string name="book_role_voice_follow_narrator">跟随书籍旁白音色</string>
     <string name="book_role_voice_follow_dialog">强制跟随书籍对白音色</string>
     <string name="book_role_voice_not_configured">未配置</string>
     <string name="book_role_voice_select_hint">默认项使用当前生效的对白音色；书籍音色项固定跟随书籍级配置</string>
+    <string name="book_role_voice_picker_unsupported">当前 TTS 暂不支持音色选择</string>
     <string name="book_role_note">备注</string>
     <string name="book_role_locked">已锁定</string>
     <string name="book_role_locked_hint">锁定后 AI 不会自动修改该角色</string>
