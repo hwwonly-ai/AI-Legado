@@ -477,10 +477,10 @@
         </service>
         <service
             android:name=".service.TTSReadAloudService"
-            android:foregroundServiceType="mediaPlayback" />
+            android:foregroundServiceType="mediaPlayback|dataSync" />
         <service
             android:name=".service.HttpReadAloudService"
-            android:foregroundServiceType="mediaPlayback" />
+            android:foregroundServiceType="mediaPlayback|dataSync" />
         <service
             android:name=".service.AudioPlayService"
             android:foregroundServiceType="mediaPlayback" />

@@ -10,7 +10,7 @@ import io.legado.app.utils.MD5Utils
  */
 object DefaultAiPrompts {
 
-    const val DEFAULT_AI_PROMPT_VERSION = 4
+    const val DEFAULT_AI_PROMPT_VERSION = 5
 
     val DEFAULT_AI_PROMPT: String = """
         你是一个小说对白说话人和情绪标注器。
@@ -28,7 +28,8 @@ object DefaultAiPrompts {
         7. 若 text 是术语、称号、罪名、律法条目、案由等引用，不是人物发言，role 使用 "narrator"，roleName 使用 "旁白"。
         8. 情绪不确定时使用 "neutral"。
         9. 情绪强度范围为 0.0 到 1.0，默认 1.0。
-        10. 只输出 JSON，不输出解释说明。
+        10. roleAttribute 必须从以下 8 个值中选择：boy、young_male、middle_male、elder_male、girl、young_female、middle_female、elder_female。
+        11. 只输出 JSON，不输出解释说明。
 
         判断规则：
         - 前文若出现“甲说道/问道/笑道/拱手问道：”，通常当前对白为甲。
@@ -44,6 +45,7 @@ object DefaultAiPrompts {
         - id：输入对白 id。
         - role："dialog" 或 "narrator"。
         - roleName：具体说话人名称，无法确定时为 "对白"。
+        - roleAttribute：说话人年龄/性别属性，只能是 8 个允许值之一。
         - emotion：情绪，例如 neutral、happy、sad、angry、fear、surprise。
         - emotionIntensity：情绪强度。
 
@@ -54,6 +56,7 @@ object DefaultAiPrompts {
               "id": 1,
               "role": "dialog",
               "roleName": "黑夫",
+              "roleAttribute": "young_male",
               "emotion": "neutral",
               "emotionIntensity": 1.0
             }

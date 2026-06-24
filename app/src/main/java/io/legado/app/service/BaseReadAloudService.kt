@@ -12,6 +12,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.AudioManager
 import android.net.wifi.WifiManager
+import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.support.v4.media.session.MediaSessionCompat
@@ -119,6 +120,8 @@ abstract class BaseReadAloudService : BaseService(),
                 setReferenceCounted(false)
             }
     }
+    private var prepareWakeLockAcquireCount = 0
+    private var prepareWifiLockAcquireCount = 0
     private val mFocusRequest: AudioFocusRequestCompat by lazy {
         MediaHelp.buildAudioFocusRequestCompat(this)
     }
@@ -214,7 +217,7 @@ abstract class BaseReadAloudService : BaseService(),
             wakeLock.safeRelease()
             wifiLock?.safeRelease()
         }
-        releaseReadAloudPrepareWakeLock()
+        releaseReadAloudPrepareWakeLock(force = true)
         isRun = false
         pause = true
         service = null
@@ -378,7 +381,7 @@ abstract class BaseReadAloudService : BaseService(),
             wakeLock.safeRelease()
             wifiLock?.safeRelease()
         }
-        releaseReadAloudPrepareWakeLock()
+        releaseReadAloudPrepareWakeLock(force = true)
         pause = true
         if (abandonFocus) {
             abandonFocus()
@@ -411,29 +414,45 @@ abstract class BaseReadAloudService : BaseService(),
 
     @SuppressLint("WakelockTimeout")
     protected fun acquireReadAloudPrepareWakeLock() {
-        if (!useWakeLock) {
-            AppLog.putDebug(
-                "aiChapterParse wakeLockAcquire beforeHeld=${prepareWakeLock.isHeld} " +
-                    "wifiHeld=${wifiLock?.isHeld}"
-            )
+        val serviceWakeHeld = useWakeLock && wakeLock.isHeld
+        val wifiHeldBefore = wifiLock?.isHeld == true
+        prepareWakeLockAcquireCount++
+        prepareWifiLockAcquireCount++
+        AppLog.putDebug(
+            "aiChapterParse wakeLockAcquire beforeHeld=${prepareWakeLock.isHeld} " +
+                "serviceWakeHeld=$serviceWakeHeld wifiHeld=$wifiHeldBefore " +
+                "prepareCount=$prepareWakeLockAcquireCount wifiCount=$prepareWifiLockAcquireCount"
+        )
+        if (!serviceWakeHeld && !prepareWakeLock.isHeld) {
             prepareWakeLock.safeAcquire()
-            wifiLock?.safeAcquire()
-            AppLog.putDebug(
-                "aiChapterParse wakeLockAcquire afterHeld=${prepareWakeLock.isHeld} " +
-                    "wifiHeld=${wifiLock?.isHeld}"
-            )
-        } else {
-            AppLog.putDebug("aiChapterParse wakeLockSkip reason=serviceWakeLockEnabled")
         }
+        if (!wifiHeldBefore && wifiLock?.isHeld != true) {
+            wifiLock?.safeAcquire()
+        }
+        AppLog.putDebug(
+            "aiChapterParse wakeLockAcquire afterHeld=${prepareWakeLock.isHeld} " +
+                "prepareCount=$prepareWakeLockAcquireCount wifiHeld=${wifiLock?.isHeld} " +
+                "wifiCount=$prepareWifiLockAcquireCount"
+        )
     }
 
-    protected fun releaseReadAloudPrepareWakeLock() {
-        if (!useWakeLock) {
-            AppLog.putDebug(
-                "aiChapterParse wakeLockRelease held=${prepareWakeLock.isHeld} " +
-                    "wifiHeld=${wifiLock?.isHeld}"
-            )
+    protected fun releaseReadAloudPrepareWakeLock(force: Boolean = false) {
+        if (force) {
+            prepareWakeLockAcquireCount = 0
+            prepareWifiLockAcquireCount = 0
+        } else {
+            prepareWakeLockAcquireCount = (prepareWakeLockAcquireCount - 1).coerceAtLeast(0)
+            prepareWifiLockAcquireCount = (prepareWifiLockAcquireCount - 1).coerceAtLeast(0)
+        }
+        AppLog.putDebug(
+            "aiChapterParse wakeLockRelease held=${prepareWakeLock.isHeld} " +
+                "prepareCount=$prepareWakeLockAcquireCount wifiHeld=${wifiLock?.isHeld} " +
+                "wifiCount=$prepareWifiLockAcquireCount force=$force"
+        )
+        if (prepareWakeLockAcquireCount == 0) {
             prepareWakeLock.safeRelease()
+        }
+        if (prepareWifiLockAcquireCount == 0) {
             wifiLock?.safeRelease()
         }
     }
@@ -945,7 +964,16 @@ abstract class BaseReadAloudService : BaseService(),
         execute {
             try {
                 val notification = createNotification()
-                startForeground(NotificationId.ReadAloudService, notification.build())
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(
+                        NotificationId.ReadAloudService,
+                        notification.build(),
+                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK or
+                            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                    )
+                } else {
+                    startForeground(NotificationId.ReadAloudService, notification.build())
+                }
             } catch (e: Exception) {
                 AppLog.put("创建朗读通知出错,${e.localizedMessage}", e, true)
                 //创建通知出错不结束服务就会崩溃,服务必须绑定通知

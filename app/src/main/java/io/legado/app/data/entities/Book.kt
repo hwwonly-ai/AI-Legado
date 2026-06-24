@@ -45,6 +45,22 @@ private val SYSTEM_EXTRA_ROLE_DEFS: List<Pair<String, String>> = listOf(
     "龙套·老年女性" to BookReadAloudRole.RoleAttribute.ELDER_FEMALE
 )
 
+enum class RoleMentionStatWindow {
+    ALL_BOOK,
+    RECENT_20_CHAPTERS
+}
+
+@Parcelize
+data class BookRoleMentionStat(
+    val roleKey: String,
+    var displayName: String,
+    var roleAttribute: String,
+    var totalDialogCount: Int,
+    var chapterDialogCounts: MutableMap<Int, Int>,
+    var lastSeenChapter: Int,
+    var roleId: String? = null
+) : Parcelable
+
 @Parcelize
 @TypeConverters(Book.Converters::class)
 @Entity(
@@ -334,6 +350,24 @@ data class Book(
         return when (val voice = getReadAloudRoleById(roleId)?.voices?.get(engineKey)) {
             BookReadAloudRole.VOICE_BOOK_NARRATOR -> getNarratorVoice(engineKey)
             BookReadAloudRole.VOICE_BOOK_DIALOG -> getDialogVoice(engineKey)
+            else -> if (voice?.startsWith(BookReadAloudRole.VOICE_EXTRA_PREFIX) == true) {
+                val attr = voice.removePrefix(BookReadAloudRole.VOICE_EXTRA_PREFIX)
+                getExtraRoleVoiceByAttribute(attr, engineKey)
+            } else {
+                voice?.takeIf { it.isNotBlank() }
+            }
+        }
+    }
+
+    private fun getExtraRoleVoiceByAttribute(roleAttribute: String, engineKey: String): String? {
+        val extraRole = getReadAloudRoles().find {
+            it.roleCategory == BookReadAloudRole.RoleCategory.EXTRA &&
+                it.systemRole &&
+                it.roleAttribute == roleAttribute
+        } ?: return null
+        return when (val voice = extraRole.voices[engineKey]) {
+            BookReadAloudRole.VOICE_BOOK_NARRATOR -> getNarratorVoice(engineKey)
+            BookReadAloudRole.VOICE_BOOK_DIALOG -> getDialogVoice(engineKey)
             else -> voice?.takeIf { it.isNotBlank() }
         }
     }
@@ -377,6 +411,27 @@ data class Book(
 
     fun normalizeAliases(aliases: List<String>): MutableList<String> {
         return aliases.map { it.trim() }.filter { it.isNotBlank() }.distinctBy { it.lowercase() }.toMutableList()
+    }
+
+    fun getRoleMentionStats(): MutableList<BookRoleMentionStat> {
+        if (config.roleMentionStats == null) config.roleMentionStats = mutableListOf()
+        return config.roleMentionStats!!
+    }
+
+    fun getRoleMentionStatWindow(): RoleMentionStatWindow {
+        return config.roleMentionStatWindow ?: RoleMentionStatWindow.ALL_BOOK
+    }
+
+    fun setRoleMentionStatWindow(window: RoleMentionStatWindow) {
+        config.roleMentionStatWindow = window
+    }
+
+    fun findSystemExtraRoleByAttribute(roleAttribute: String): BookReadAloudRole? {
+        return getReadAloudRoles().find {
+            it.roleCategory == BookReadAloudRole.RoleCategory.EXTRA &&
+                it.systemRole &&
+                it.roleAttribute == roleAttribute
+        }
     }
 
     /**
@@ -580,6 +635,8 @@ data class Book(
         var splitLongChapter: Boolean = true,
         var readSimulating: Boolean = false,
         var readAloudRoles: MutableList<BookReadAloudRole>? = mutableListOf(),
+        var roleMentionStatWindow: RoleMentionStatWindow? = RoleMentionStatWindow.ALL_BOOK,
+        var roleMentionStats: MutableList<BookRoleMentionStat>? = mutableListOf(),
         var startDate: LocalDate? = null,
         var startChapter: Int? = null,     // 用户设置的起始章节
         var dailyChapters: Int = 3    // 用户设置的每日更新章节数

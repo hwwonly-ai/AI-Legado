@@ -259,3 +259,36 @@ Gradle 编译验证：
 - 主角和主要配角不被 AI 创建或修改。
 - 不新增数据库表、不升级数据库版本。
 - 静态检查通过，`./gradlew :app:assembleDebug` 通过。
+
+## 13. 完成记录
+
+状态：已完成，已验证。
+
+完成内容：
+
+- AI 标注解析支持 `roleAttribute`，非法或缺失时回退到 `middle_male` 并记录日志。
+- 默认 AI Prompt 已要求返回合法 `roleAttribute`，Prompt 版本已递增。
+- `Book.ReadConfig` 已保存统计窗口和角色 mention 统计。
+- 已新增自动归档协调器：
+  - 统计 AI 标注成功后的未匹配对白角色。
+  - 按 `全书累计` / `最近 20 章` 计算动态 Top10 次要配角。
+  - 未锁定 Top10 外自动次要配角下放到同属性 `龙套·...` 别名。
+  - 泛称角色直接归入同属性龙套。
+- 角色音色支持 `@extra:{roleAttribute}`，自动次要配角默认跟随同属性龙套音色。
+- 角色管理 UI 已增加统计范围切换。
+- 已增加 AI 标注缓存清理、当前书缓存清理和自动归档重置入口。
+- 已修复 OnePlus 锁屏时 AI 标注请求容易被中断的问题：
+  - 朗读前台服务声明 `mediaPlayback|dataSync`。
+  - AI 请求日志增加电池优化状态。
+  - AI HTTP 请求改为可取消异步调用。
+  - AI 标注阶段单独持有 wake lock / wifi lock，并用引用计数避免嵌套流程提前释放。
+
+验证记录：
+
+- 静态检查已覆盖 `roleAttribute`、统计窗口、mention 统计、自动升降级日志、`@extra:` 和 `龙套·` 相关实现。
+- Gradle 编译已通过：`./gradlew :app:assembleDebug`。
+- 真机验证已覆盖：
+  - AI 标注成功后的 `stat` / `minorPromote` / `minorDemote` 日志。
+  - 龙套默认音色和 `@extra:` 跟随逻辑。
+  - 次要配角超过 10 个后的动态下放。
+  - OnePlus 无线 ADB 锁屏场景日志观察。

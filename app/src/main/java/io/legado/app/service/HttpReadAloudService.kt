@@ -32,13 +32,16 @@ import io.legado.app.R
 import io.legado.app.constant.AppLog
 import io.legado.app.constant.AppPattern
 import io.legado.app.data.appDb
+import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.HttpTTS
+import io.legado.app.data.entities.BookReadAloudRole
 import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.help.exoplayer.InputStreamDataSource
 import io.legado.app.help.http.okHttpClient
 import io.legado.app.model.ReadAloud
+import io.legado.app.model.BookRoleAutoArchiveManager
 import io.legado.app.model.BookReadAloudRoleMatcher
 import io.legado.app.model.ReadAloudProviderSegment
 import io.legado.app.model.ReadAloudRuleSegmenter
@@ -239,15 +242,20 @@ private fun logTtsRequest(
 
 private fun ReadAloudSegment?.debugSummary(providerSegment: ReadAloudProviderSegment? = null): String {
     if (this == null) {
-        return "eventType=- segmentRole=- segmentName=- segmentEmotion=- segmentIntensity=- " +
+        return "eventType=- segmentRole=- segmentName=- segmentAttr=- segmentEmotion=- segmentIntensity=- " +
                 providerSegment.debugSummary()
     }
     return "eventType=${eventType.ifBlank { "-" }} " +
             "segmentRole=${role.ifBlank { "-" }} " +
             "segmentName=${roleName.ifBlank { "-" }} " +
+            "segmentAttr=${safeRoleAttribute()} " +
             "segmentEmotion=${emotion.ifBlank { "-" }} " +
             "segmentIntensity=$emotionIntensity " +
             providerSegment.debugSummary()
+}
+
+private fun ReadAloudSegment.safeRoleAttribute(): String {
+    return (roleAttribute as String?)?.takeIf { it.isNotBlank() } ?: "middle_male"
 }
 
 private fun ReadAloudProviderSegment?.debugSummary(): String {
@@ -389,12 +397,20 @@ private fun HttpTTS.resolveRoleVoiceForDialog(
         )
         return null
     }
-    val voice = book.getRoleVoice(matched.id, id.toString())
+    val engineKey = id.toString()
+    val voice = book.getRoleVoice(matched.id, engineKey)
+        ?: resolveDefaultRoleVoice(book, matched, engineKey)
     if (voice.isNullOrBlank()) {
+        val rawVoice = matched.voices[engineKey].orEmpty()
+        val reason = if (rawVoice.startsWith(BookReadAloudRole.VOICE_EXTRA_PREFIX)) {
+            "noExtraRoleVoice extraAttr=${rawVoice.removePrefix(BookReadAloudRole.VOICE_EXTRA_PREFIX)}"
+        } else {
+            "noRoleVoice"
+        }
         android.util.Log.i(
             "roleMatch",
             "fallbackVoice chapter=$chapterIndex segment=$segmentIndex roleId=${matched.id} " +
-                "category=${matched.roleCategory} attr=${matched.roleAttribute} reason=noRoleVoice " +
+                "category=${matched.roleCategory} attr=${matched.roleAttribute} reason=$reason " +
                 "text=${segment.text.logPreview(40)}"
         )
         return null
@@ -406,6 +422,29 @@ private fun HttpTTS.resolveRoleVoiceForDialog(
             "text=${segment.text.logPreview(40)}"
     )
     return voice
+}
+
+private fun HttpTTS.resolveDefaultRoleVoice(
+    book: Book,
+    role: BookReadAloudRole,
+    engineKey: String
+): String? {
+    val rawVoice = role.voices[engineKey]
+    return when {
+        rawVoice.isNullOrBlank() -> providerDialogVoice()
+        rawVoice == BookReadAloudRole.VOICE_BOOK_DIALOG -> {
+            book.getDialogVoice(engineKey) ?: providerDialogVoice()
+        }
+        rawVoice == BookReadAloudRole.VOICE_BOOK_NARRATOR -> {
+            book.getNarratorVoice(engineKey) ?: providerNarratorVoice()
+        }
+        rawVoice.startsWith(BookReadAloudRole.VOICE_EXTRA_PREFIX) -> {
+            val attr = rawVoice.removePrefix(BookReadAloudRole.VOICE_EXTRA_PREFIX)
+            val extraRole = book.findSystemExtraRoleByAttribute(attr) ?: return null
+            resolveDefaultRoleVoice(book, extraRole, engineKey)
+        }
+        else -> null
+    }
 }
 
 private fun shouldUseExistingSSML(text: String): Boolean {
@@ -1827,6 +1866,15 @@ class HttpReadAloudService : BaseReadAloudService(),
         )
         val chapterSegments = aiSegments ?: cacheResult.segments
         val aiUsed = aiSegments != null
+        if (aiSegments != null && BookRoleAutoArchiveManager.processAiSegments(
+                book = book,
+                chapterIndex = chapter.index,
+                segments = aiSegments,
+                ttsEngine = httpTts.id.toString()
+            )
+        ) {
+            book.save()
+        }
 
         val windowStart = if (readAloudByPage) {
             textChapter?.getReadLength(pageIndex) ?: 0
@@ -1878,6 +1926,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                 AI_DIALOG_LABEL_TAG,
                 "chapter=$chapterIndex mode=$mode segment=$index " +
                     "role=${segment.role} name=${segment.roleName.ifBlank { "对白" }} " +
+                    "attr=${segment.safeRoleAttribute()} " +
                     "emotion=${segment.emotion.ifBlank { "neutral" }} " +
                     "intensity=${segment.emotionIntensity} " +
                     "start=${segment.startPosition} len=${segment.plainLength} " +
@@ -1936,11 +1985,18 @@ class HttpReadAloudService : BaseReadAloudService(),
         }
 
         // 3. 未命中：实时 AI 标注。成功非 fallback 写持久化缓存；fallback 返回 null 走规则回退。
-        val result = io.legado.app.model.ai.AiDialogLabeler.labelRuleSegments(
-            chapterIndex = chapterIndex,
-            segments = ruleSegments,
-            candidates = buildAiDialogCandidates(book, chapterContent)
-        )
+        val result = try {
+            AppLog.putDebug("aiChapterParse wakeLockScope stage=aiLabel acquire chapter=$chapterIndex")
+            acquireReadAloudPrepareWakeLock()
+            io.legado.app.model.ai.AiDialogLabeler.labelRuleSegments(
+                chapterIndex = chapterIndex,
+                segments = ruleSegments,
+                candidates = buildAiDialogCandidates(book, chapterContent)
+            )
+        } finally {
+            AppLog.putDebug("aiChapterParse wakeLockScope stage=aiLabel release chapter=$chapterIndex")
+            releaseReadAloudPrepareWakeLock()
+        }
         if (result.segments.isEmpty()) return null
         logAiCache(
             "aiLabel mode=$mode provider=${result.provider} model=${result.model} " +

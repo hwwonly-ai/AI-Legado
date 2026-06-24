@@ -417,6 +417,7 @@ class AnalyzeUrl(
             bindings["segmentEventType"] = readAloudSegment?.eventType.orEmpty()
             bindings["segmentRole"] = readAloudSegment?.role.orEmpty()
             bindings["segmentRoleName"] = readAloudSegment?.roleName.orEmpty()
+            bindings["segmentRoleAttribute"] = readAloudSegment?.roleAttribute.orEmpty()
             bindings["segmentEmotion"] = readAloudSegment?.emotion.orEmpty()
             bindings["segmentEmotionIntensity"] = readAloudSegment?.emotionIntensity ?: 1.0f
             bindings["providerVoice"] = readAloudProviderSegment?.voice.orEmpty()

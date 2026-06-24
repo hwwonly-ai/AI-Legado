@@ -33,4 +33,26 @@ interface ReadAloudSegmentCacheDao {
 
     @Query("delete from readAloudSegmentCaches where bookUrl = :bookUrl")
     fun deleteBook(bookUrl: String): Int
+
+    @Query(
+        """delete from readAloudSegmentCaches
+        where bookUrl = :bookUrl
+        and chapterUrl = :chapterUrl
+        and producer like :producerPattern"""
+    )
+    fun deleteChapterByProducerPattern(
+        bookUrl: String,
+        chapterUrl: String,
+        producerPattern: String
+    ): Int
+
+    @Query(
+        """delete from readAloudSegmentCaches
+        where bookUrl = :bookUrl
+        and producer like :producerPattern"""
+    )
+    fun deleteBookByProducerPattern(
+        bookUrl: String,
+        producerPattern: String
+    ): Int
 }

@@ -13,11 +13,13 @@ import androidx.recyclerview.widget.RecyclerView
 import io.legado.app.R
 import io.legado.app.base.BaseDialogFragment
 import io.legado.app.data.entities.BookReadAloudRole
+import io.legado.app.data.entities.RoleMentionStatWindow
 import io.legado.app.databinding.DialogBookRoleListBinding
 import io.legado.app.databinding.ItemBookRoleBinding
 import io.legado.app.databinding.ItemBookRoleSectionBinding
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.primaryColor
+import io.legado.app.model.BookRoleAutoArchiveManager
 import io.legado.app.model.ReadAloud
 import io.legado.app.model.ReadBook
 import io.legado.app.utils.setLayout
@@ -55,6 +57,7 @@ class BookRoleListDialog : BaseDialogFragment(R.layout.dialog_book_role_list),
             ReadAloud.ttsEngine
         }
         initCountChips()
+        llStatWindow.setOnClickListener { showStatWindowSelector() }
     }
 
     private fun initMenu() = binding.run {
@@ -86,8 +89,43 @@ class BookRoleListDialog : BaseDialogFragment(R.layout.dialog_book_role_list),
         val roles = ReadBook.book?.getReadAloudRoles() ?: mutableListOf()
         adapter.submit(roles)
         updateCountChips(roles)
+        updateStatWindow()
         binding.tvEmpty.visibility = if (roles.isEmpty()) View.VISIBLE else View.GONE
         binding.recyclerView.visibility = if (roles.isEmpty()) View.GONE else View.VISIBLE
+    }
+
+    private fun updateStatWindow() = binding.run {
+        val window = ReadBook.book?.getRoleMentionStatWindow() ?: RoleMentionStatWindow.ALL_BOOK
+        tvStatWindowValue.text = statWindowLabel(window)
+    }
+
+    private fun showStatWindowSelector() {
+        val book = ReadBook.book ?: return
+        val windows = listOf(RoleMentionStatWindow.ALL_BOOK, RoleMentionStatWindow.RECENT_20_CHAPTERS)
+        alert(titleResource = R.string.book_role_stat_window) {
+            items(windows.map { statWindowLabel(it) }) { _, index ->
+                val selected = windows[index]
+                if (book.getRoleMentionStatWindow() != selected) {
+                    book.setRoleMentionStatWindow(selected)
+                    BookRoleAutoArchiveManager.rebuildDynamicMinorRoles(
+                        book = book,
+                        currentChapter = book.durChapterIndex,
+                        ttsEngine = ttsEngine
+                    )
+                    book.save()
+                }
+                refreshData()
+            }
+        }
+    }
+
+    private fun statWindowLabel(window: RoleMentionStatWindow): String {
+        return getString(
+            when (window) {
+                RoleMentionStatWindow.ALL_BOOK -> R.string.book_role_stat_window_all_book
+                RoleMentionStatWindow.RECENT_20_CHAPTERS -> R.string.book_role_stat_window_recent_20
+            }
+        )
     }
 
     private fun initCountChips() = binding.run {

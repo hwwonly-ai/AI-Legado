@@ -93,6 +93,24 @@
             android:summary="@string/clear_book_segment_cache_summary"
             app:iconSpaceReserved="false" />
 
+        <io.legado.app.lib.prefs.Preference
+            android:key="refreshCurrentChapterAiLabelCache"
+            android:title="@string/refresh_current_chapter_ai_label_cache"
+            android:summary="@string/refresh_current_chapter_ai_label_cache_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="clearBookAiLabelCache"
+            android:title="@string/clear_book_ai_label_cache"
+            android:summary="@string/clear_book_ai_label_cache_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="resetBookRoleAutoArchive"
+            android:title="@string/reset_book_role_auto_archive"
+            android:summary="@string/reset_book_role_auto_archive_summary"
+            app:iconSpaceReserved="false" />
+
     </io.legado.app.lib.prefs.PreferenceCategory>
 
 </androidx.preference.PreferenceScreen>

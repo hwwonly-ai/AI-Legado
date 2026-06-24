@@ -3,16 +3,24 @@ package io.legado.app.model.ai
 import io.legado.app.constant.AppLog
 import io.legado.app.help.http.okHttpClient as defaultOkHttpClient
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
+import splitties.init.appCtx
 import splitties.systemservices.powerManager
+import java.io.IOException
 import java.net.SocketTimeoutException
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
 
 sealed class AiConnectionTestResult {
     data class Success(
@@ -214,7 +222,8 @@ class OpenAiCompatibleClient(
                 "stream=${config.stream} messages=${messages.size} maxTokens=$maxTokens " +
                 "timeoutSeconds=$REQUEST_TIMEOUT_SECONDS " +
                 "callTimeoutMs=${REQUEST_TIMEOUT_SECONDS * 1000} " +
-                "screenInteractive=${powerManager.isInteractive}"
+                "screenInteractive=${powerManager.isInteractive} " +
+                "ignoreBattery=${powerManager.isIgnoringBatteryOptimizations(appCtx.packageName)}"
         )
 
         val client = okHttpClient.newBuilder()
@@ -232,19 +241,21 @@ class OpenAiCompatibleClient(
             .build()
 
         try {
-            client.newCall(request).execute().use { response ->
+            val response = client.newCall(request).await()
+            response.use {
                 val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
-                val body = response.body?.string().orEmpty()
-                val code = response.code
+                val body = it.body?.string().orEmpty()
+                val code = it.code
 
                 if (code in 200..299) {
                     val parsed = parseSuccess(body, config.model)
                     if (parsed != null) {
-                    AppLog.putDebug(
-                        "aiChapterParse responseSuccess model=${config.model} " +
-                            "elapsedMs=$elapsedMs rawLength=${body.length} " +
-                            "screenInteractive=${powerManager.isInteractive}"
-                    )
+                        AppLog.putDebug(
+                            "aiChapterParse responseSuccess model=${config.model} " +
+                                "elapsedMs=$elapsedMs rawLength=${body.length} " +
+                                "screenInteractive=${powerManager.isInteractive} " +
+                                "ignoreBattery=${powerManager.isIgnoringBatteryOptimizations(appCtx.packageName)}"
+                        )
                         return@withContext AiChatResult.Success(
                             content = parsed,
                             elapsedMs = elapsedMs
@@ -263,9 +274,10 @@ class OpenAiCompatibleClient(
 
                 val (errorType, msg) = classifyHttpError(code, body)
                 AppLog.putDebug(
-                    "aiChapterParse responseFailed type=$errorType code=$code elapsedMs=$elapsedMs " +
+                        "aiChapterParse responseFailed type=$errorType code=$code elapsedMs=$elapsedMs " +
                         "message=${msg.logSafe()} body=${body.logSafe()} " +
-                        "screenInteractive=${powerManager.isInteractive}"
+                        "screenInteractive=${powerManager.isInteractive} " +
+                        "ignoreBattery=${powerManager.isIgnoringBatteryOptimizations(appCtx.packageName)}"
                 )
                 return@withContext AiChatResult.Failure(
                     type = errorType,
@@ -279,7 +291,8 @@ class OpenAiCompatibleClient(
             AppLog.putDebug(
                 "aiChapterParse responseFailed type=Timeout code=null elapsedMs=$elapsedMs " +
                     "exception=${e.javaClass.simpleName} message=${e.message.orEmpty().logSafe()} " +
-                    "screenInteractive=${powerManager.isInteractive}"
+                    "screenInteractive=${powerManager.isInteractive} " +
+                    "ignoreBattery=${powerManager.isIgnoringBatteryOptimizations(appCtx.packageName)}"
             )
             return@withContext AiChatResult.Failure(
                 type = AiConnectionError.Timeout,
@@ -291,7 +304,8 @@ class OpenAiCompatibleClient(
             AppLog.putDebug(
                 "aiChapterParse responseFailed type=NetworkError code=null elapsedMs=$elapsedMs " +
                     "exception=${e.javaClass.simpleName} message=${e.message.orEmpty().logSafe()} " +
-                    "screenInteractive=${powerManager.isInteractive}"
+                    "screenInteractive=${powerManager.isInteractive} " +
+                    "ignoreBattery=${powerManager.isIgnoringBatteryOptimizations(appCtx.packageName)}"
             )
             return@withContext AiChatResult.Failure(
                 type = AiConnectionError.NetworkError,
@@ -299,6 +313,25 @@ class OpenAiCompatibleClient(
                 elapsedMs = elapsedMs
             )
         }
+    }
+
+    private suspend fun Call.await(): Response = suspendCancellableCoroutine { continuation ->
+        continuation.invokeOnCancellation { cancel() }
+        enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                if (continuation.isActive) {
+                    continuation.resumeWith(Result.failure(e))
+                }
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (continuation.isActive) {
+                    continuation.resume(response)
+                } else {
+                    response.close()
+                }
+            }
+        })
     }
 
     private fun formatTemperature(value: Float): Double {

@@ -1,12 +1,14 @@
 package io.legado.app.model.ai
 
 import io.legado.app.model.ReadAloudRole
+import io.legado.app.data.entities.BookReadAloudRole
 import org.json.JSONObject
 
 data class AiDialogLabel(
     val id: Int,
     val role: String,
     val roleName: String,
+    val roleAttribute: String,
     val emotion: String,
     val emotionIntensity: Float
 ) {
@@ -48,6 +50,7 @@ data class AiDialogLabel(
                         id = id,
                         role = normalizeRole(item.optString("role")),
                         roleName = item.optString("roleName").ifBlank { "对白" },
+                        roleAttribute = normalizeRoleAttribute(item.optString("roleAttribute"), item.optString("roleName")),
                         emotion = item.optString("emotion").ifBlank { "neutral" },
                         emotionIntensity = normalizeIntensity(item.opt("emotionIntensity"))
                     )
@@ -64,6 +67,15 @@ data class AiDialogLabel(
             ReadAloudRole.NARRATOR -> ReadAloudRole.NARRATOR
             ReadAloudRole.DIALOG, "" -> ReadAloudRole.DIALOG
             else -> ReadAloudRole.DIALOG
+        }
+
+        private fun normalizeRoleAttribute(raw: String, roleName: String): String {
+            if (raw in BookReadAloudRole.RoleAttribute.ALL) return raw
+            android.util.Log.i(
+                "roleMatch",
+                "autoSkip roleName=${roleName.ifBlank { "对白" }} reason=invalidRoleAttribute attr=${raw.ifBlank { "-" }}"
+            )
+            return BookReadAloudRole.RoleAttribute.MIDDLE_MALE
         }
 
         private fun normalizeIntensity(raw: Any?): Float {

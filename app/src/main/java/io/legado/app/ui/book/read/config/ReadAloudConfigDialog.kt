@@ -22,6 +22,7 @@ import io.legado.app.lib.prefs.fragment.PreferenceFragment
 import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.model.ReadAloud
+import io.legado.app.model.BookRoleAutoArchiveManager
 import io.legado.app.model.ReadAloudSegmentCacheManager
 import io.legado.app.model.ReadBook
 import io.legado.app.service.BaseReadAloudService
@@ -79,6 +80,9 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
         companion object {
             private const val KEY_REFRESH_CHAPTER = "refreshCurrentChapterSegmentCache"
             private const val KEY_CLEAR_BOOK = "clearBookSegmentCache"
+            private const val KEY_REFRESH_CHAPTER_AI = "refreshCurrentChapterAiLabelCache"
+            private const val KEY_CLEAR_BOOK_AI = "clearBookAiLabelCache"
+            private const val KEY_RESET_ROLE_AUTO_ARCHIVE = "resetBookRoleAutoArchive"
         }
 
         private val cacheManager by lazy {
@@ -105,8 +109,7 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
                 it.isEnabled = AppConfig.ignoreAudioFocus
             }
             val hasBook = ReadBook.book != null
-            findPreference<Preference>(KEY_REFRESH_CHAPTER)?.isEnabled = hasBook
-            findPreference<Preference>(KEY_CLEAR_BOOK)?.isEnabled = hasBook
+            setCachePreferencesEnabled(hasBook)
         }
 
         override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -131,6 +134,9 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
                 "aiServiceConfig" -> showDialogFragment(AiServiceConfigDialog())
                 KEY_REFRESH_CHAPTER -> handleRefreshChapter()
                 KEY_CLEAR_BOOK -> handleClearBook()
+                KEY_REFRESH_CHAPTER_AI -> handleRefreshChapterAi()
+                KEY_CLEAR_BOOK_AI -> handleClearBookAi()
+                KEY_RESET_ROLE_AUTO_ARCHIVE -> handleResetRoleAutoArchive()
             }
             return super.onPreferenceTreeClick(preference)
         }
@@ -196,6 +202,28 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
             }
         }
 
+        private fun handleRefreshChapterAi() {
+            val book = ReadBook.book
+            if (book == null) {
+                context?.toastOnUi(R.string.no_book_available)
+                return
+            }
+            val progress = BaseReadAloudService.service?.currentProgress()
+            val chapterIndex = progress?.chapterIndex ?: ReadBook.durChapterIndex
+            val chapter = appDb.bookChapterDao.getChapter(book.bookUrl, chapterIndex)
+            if (chapter == null) {
+                context?.toastOnUi(R.string.no_book_available)
+                return
+            }
+            val chapterTitle = chapter.title
+            alert(getString(R.string.draw), getString(R.string.confirm_refresh_ai_label_cache, chapterTitle)) {
+                positiveButton(R.string.dialog_confirm) {
+                    performRefreshChapterAi(book, chapter, progress)
+                }
+                cancelButton()
+            }
+        }
+
         private fun handleClearBook() {
             val book = ReadBook.book
             if (book == null) {
@@ -210,50 +238,55 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
             }
         }
 
+        private fun handleClearBookAi() {
+            val book = ReadBook.book
+            if (book == null) {
+                context?.toastOnUi(R.string.no_book_available)
+                return
+            }
+            alert(getString(R.string.draw), getString(R.string.confirm_clear_book_ai_label_cache)) {
+                positiveButton(R.string.dialog_confirm) {
+                    performClearBookAi(book)
+                }
+                cancelButton()
+            }
+        }
+
+        private fun handleResetRoleAutoArchive() {
+            val book = ReadBook.book
+            if (book == null) {
+                context?.toastOnUi(R.string.no_book_available)
+                return
+            }
+            alert(getString(R.string.draw), getString(R.string.confirm_reset_book_role_auto_archive)) {
+                positiveButton(R.string.dialog_confirm) {
+                    val result = BookRoleAutoArchiveManager.resetAutoArchive(book)
+                    book.save()
+                    context?.toastOnUi(
+                        getString(
+                            R.string.reset_book_role_auto_archive_success,
+                            result.statCount,
+                            result.autoMinorCount
+                        )
+                    )
+                }
+                cancelButton()
+            }
+        }
+
         private fun performRefreshChapter(
             book: io.legado.app.data.entities.Book,
             chapter: io.legado.app.data.entities.BookChapter,
             savedProgress: io.legado.app.model.ReadAloudProgress?
         ) {
-            val refreshPref = findPreference<Preference>(KEY_REFRESH_CHAPTER)
-            val clearPref = findPreference<Preference>(KEY_CLEAR_BOOK)
-            refreshPref?.isEnabled = false
-            clearPref?.isEnabled = false
+            setCachePreferencesEnabled(false)
             cacheJob?.cancel()
             cacheJob = lifecycleScope.launch {
                 try {
                     val deleted = withContext(Dispatchers.IO) {
                         cacheManager.refreshChapter(book, chapter)
                     }
-                    val wasPlaying = BaseReadAloudService.isRun && !BaseReadAloudService.pause
-                    val wasPaused = BaseReadAloudService.isRun && BaseReadAloudService.pause
-
-                    if (wasPlaying || wasPaused) {
-                        val chapterIdx = savedProgress?.chapterIndex ?: ReadBook.durChapterIndex
-                        val pageIdx = savedProgress?.pageIndex ?: ReadBook.durPageIndex
-                        val chapterPos = savedProgress?.chapterPos ?: 0
-
-                        val textChapter = ReadBook.curTextChapter
-                        val startPos = if (textChapter != null) {
-                            val pageStart = textChapter.getReadLength(pageIdx)
-                            (chapterPos - pageStart).coerceAtLeast(0)
-                        } else 0
-
-                        ReadAloud.stop(requireContext())
-                        // Brief delay to allow old service to stop
-                        delay(300)
-                        ReadAloud.play(
-                            requireContext(),
-                            play = wasPlaying,
-                            chapterIndex = chapterIdx,
-                            pageIndex = pageIdx,
-                            startPos = startPos
-                        )
-                        android.util.Log.i(
-                            "segmentCache",
-                            "manualRefresh restart chapterIndex=$chapterIdx pageIndex=$pageIdx chapterPos=$chapterPos"
-                        )
-                    }
+                    restartReadAloudIfNeeded(savedProgress, "manualRefresh")
 
                     withContext(Dispatchers.Main) {
                         if (deleted > 0) {
@@ -268,18 +301,47 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
                     }
                 } finally {
                     withContext(Dispatchers.Main) {
-                        refreshPref?.isEnabled = true
-                        clearPref?.isEnabled = ReadBook.book != null
+                        setCachePreferencesEnabled(ReadBook.book != null)
+                    }
+                }
+            }
+        }
+
+        private fun performRefreshChapterAi(
+            book: io.legado.app.data.entities.Book,
+            chapter: io.legado.app.data.entities.BookChapter,
+            savedProgress: io.legado.app.model.ReadAloudProgress?
+        ) {
+            setCachePreferencesEnabled(false)
+            cacheJob?.cancel()
+            cacheJob = lifecycleScope.launch {
+                try {
+                    val deleted = withContext(Dispatchers.IO) {
+                        cacheManager.refreshChapterAiLabels(book, chapter)
+                    }
+                    restartReadAloudIfNeeded(savedProgress, "manualRefreshAi")
+
+                    withContext(Dispatchers.Main) {
+                        if (deleted > 0) {
+                            context?.toastOnUi(getString(R.string.refresh_ai_label_cache_success, deleted))
+                        } else {
+                            context?.toastOnUi(getString(R.string.refresh_ai_label_cache_no_entry))
+                        }
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        context?.toastOnUi(R.string.segment_cache_operation_failed)
+                    }
+                } finally {
+                    withContext(Dispatchers.Main) {
+                        setCachePreferencesEnabled(ReadBook.book != null)
                     }
                 }
             }
         }
 
         private fun performClearBook(book: io.legado.app.data.entities.Book) {
-            val refreshPref = findPreference<Preference>(KEY_REFRESH_CHAPTER)
-            val clearPref = findPreference<Preference>(KEY_CLEAR_BOOK)
-            refreshPref?.isEnabled = false
-            clearPref?.isEnabled = false
+            setCachePreferencesEnabled(false)
             cacheJob?.cancel()
             cacheJob = lifecycleScope.launch {
                 try {
@@ -295,10 +357,77 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
                     }
                 } finally {
                     withContext(Dispatchers.Main) {
-                        refreshPref?.isEnabled = ReadBook.book != null
-                        clearPref?.isEnabled = ReadBook.book != null
+                        setCachePreferencesEnabled(ReadBook.book != null)
                     }
                 }
+            }
+        }
+
+        private fun performClearBookAi(book: io.legado.app.data.entities.Book) {
+            setCachePreferencesEnabled(false)
+            cacheJob?.cancel()
+            cacheJob = lifecycleScope.launch {
+                try {
+                    val deleted = withContext(Dispatchers.IO) {
+                        cacheManager.clearBookAiLabels(book)
+                    }
+                    withContext(Dispatchers.Main) {
+                        context?.toastOnUi(getString(R.string.clear_book_ai_label_cache_success, deleted))
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        context?.toastOnUi(R.string.segment_cache_operation_failed)
+                    }
+                } finally {
+                    withContext(Dispatchers.Main) {
+                        setCachePreferencesEnabled(ReadBook.book != null)
+                    }
+                }
+            }
+        }
+
+        private suspend fun restartReadAloudIfNeeded(
+            savedProgress: io.legado.app.model.ReadAloudProgress?,
+            logAction: String
+        ) {
+            val wasPlaying = BaseReadAloudService.isRun && !BaseReadAloudService.pause
+            val wasPaused = BaseReadAloudService.isRun && BaseReadAloudService.pause
+            if (!wasPlaying && !wasPaused) return
+
+            val chapterIdx = savedProgress?.chapterIndex ?: ReadBook.durChapterIndex
+            val pageIdx = savedProgress?.pageIndex ?: ReadBook.durPageIndex
+            val chapterPos = savedProgress?.chapterPos ?: 0
+
+            val textChapter = ReadBook.curTextChapter
+            val startPos = if (textChapter != null) {
+                val pageStart = textChapter.getReadLength(pageIdx)
+                (chapterPos - pageStart).coerceAtLeast(0)
+            } else 0
+
+            ReadAloud.stop(requireContext())
+            delay(300)
+            ReadAloud.play(
+                requireContext(),
+                play = wasPlaying,
+                chapterIndex = chapterIdx,
+                pageIndex = pageIdx,
+                startPos = startPos
+            )
+            android.util.Log.i(
+                "segmentCache",
+                "$logAction restart chapterIndex=$chapterIdx pageIndex=$pageIdx chapterPos=$chapterPos"
+            )
+        }
+
+        private fun setCachePreferencesEnabled(enabled: Boolean) {
+            listOf(
+                KEY_REFRESH_CHAPTER,
+                KEY_CLEAR_BOOK,
+                KEY_REFRESH_CHAPTER_AI,
+                KEY_CLEAR_BOOK_AI,
+                KEY_RESET_ROLE_AUTO_ARCHIVE
+            ).forEach { key ->
+                findPreference<Preference>(key)?.isEnabled = enabled
             }
         }
     }

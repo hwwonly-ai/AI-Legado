@@ -20,6 +20,7 @@ data class BookReadAloudRole(
     companion object {
         const val VOICE_BOOK_NARRATOR = "@book:narrator"
         const val VOICE_BOOK_DIALOG = "@book:dialog"
+        const val VOICE_EXTRA_PREFIX = "@extra:"
     }
 
     /**
@@ -70,4 +71,3 @@ data class BookReadAloudRole(
             GIRL, YOUNG_FEMALE, MIDDLE_FEMALE, ELDER_FEMALE)
     }
 }
-

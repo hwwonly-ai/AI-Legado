@@ -123,12 +123,14 @@ object AiDialogLabeler {
                 segment.copy(
                     role = ReadAloudRole.NARRATOR,
                     roleName = "旁白",
+                    roleAttribute = label.roleAttribute,
                     emotion = "neutral",
                     emotionIntensity = 1.0f
                 )
             } else {
                 segment.copy(
                     roleName = label.roleName.ifBlank { "对白" },
+                    roleAttribute = label.roleAttribute,
                     emotion = label.emotion.ifBlank { "neutral" },
                     emotionIntensity = label.emotionIntensity
                 )

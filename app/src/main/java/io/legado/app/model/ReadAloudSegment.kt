@@ -7,6 +7,7 @@ data class ReadAloudSegment(
     val eventType: String = ReadAloudEventType.TEXT,
     val role: String = ReadAloudRole.NARRATOR,
     val roleName: String = "",
+    val roleAttribute: String = "middle_male",
     val emotion: String = "neutral",
     val emotionIntensity: Float = 1.0f
 ) {
