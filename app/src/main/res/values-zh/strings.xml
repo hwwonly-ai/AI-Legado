@@ -1405,6 +1405,19 @@
     <string name="reset_book_role_auto_archive_summary">清空 mention 统计并移除未锁定的 AI 自动次要配角；保留龙套别名</string>
     <string name="confirm_reset_book_role_auto_archive">确认清空角色 mention 统计并移除未锁定的 AI 自动次要配角？龙套别名会保留。</string>
     <string name="reset_book_role_auto_archive_success">已重置角色自动归档：清空 %1$d 条统计，移除 %2$d 个自动次要配角</string>
+    <string name="book_script_export_current_chapter">导出当前章剧本</string>
+    <string name="book_script_export_current_chapter_summary">导出当前章节 AI 剧本 JSON，不包含 API Key 或小说正文</string>
+    <string name="book_script_import_current_chapter">导入当前章剧本</string>
+    <string name="book_script_import_current_chapter_summary">校验章节 hash 后导入当前章节 AI 剧本 JSON</string>
+    <string name="book_script_export_no_cache">当前章节没有可导出的 AI 剧本缓存</string>
+    <string name="book_script_import_success">剧本已导入，重新朗读后生效</string>
+    <string name="book_script_import_failed">剧本导入失败：书籍、章节或正文 hash 不匹配</string>
+    <string name="book_role_profile_export">导出书籍角色档案</string>
+    <string name="book_role_profile_export_summary">导出角色、别名、角色音色和书籍级音色</string>
+    <string name="book_role_profile_import">导入书籍角色档案</string>
+    <string name="book_role_profile_import_summary">从 JSON 替换当前书的角色与音色档案</string>
+    <string name="book_role_profile_import_success">角色档案已导入</string>
+    <string name="book_role_profile_import_failed">角色档案导入失败</string>
     <string name="segment_cache_operation_failed">Segment 缓存操作失败</string>
     <string name="no_book_available">暂无可用书籍</string>
 </resources>

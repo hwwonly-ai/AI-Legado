@@ -21,15 +21,19 @@ import io.legado.app.lib.dialogs.SelectItem
 import io.legado.app.lib.prefs.fragment.PreferenceFragment
 import io.legado.app.lib.theme.backgroundColor
 import io.legado.app.lib.theme.primaryColor
+import io.legado.app.model.BookReadAloudExportManager
 import io.legado.app.model.ReadAloud
+import io.legado.app.model.ReadAloudAudioCache
 import io.legado.app.model.BookRoleAutoArchiveManager
 import io.legado.app.model.ReadAloudSegmentCacheManager
 import io.legado.app.model.ReadBook
 import io.legado.app.service.BaseReadAloudService
+import io.legado.app.ui.file.HandleFileContract
 import io.legado.app.utils.GSON
 import io.legado.app.utils.StringUtils
 import io.legado.app.utils.fromJsonObject
 import io.legado.app.utils.postEvent
+import io.legado.app.utils.readText
 import io.legado.app.utils.setEdgeEffectColor
 import io.legado.app.utils.setLayout
 import io.legado.app.utils.showDialogFragment
@@ -83,12 +87,29 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
             private const val KEY_REFRESH_CHAPTER_AI = "refreshCurrentChapterAiLabelCache"
             private const val KEY_CLEAR_BOOK_AI = "clearBookAiLabelCache"
             private const val KEY_RESET_ROLE_AUTO_ARCHIVE = "resetBookRoleAutoArchive"
+            private const val KEY_EXPORT_CHAPTER_SCRIPT = "exportCurrentChapterScript"
+            private const val KEY_IMPORT_CHAPTER_SCRIPT = "importCurrentChapterScript"
+            private const val KEY_EXPORT_ROLE_PROFILE = "exportBookRoleProfile"
+            private const val KEY_IMPORT_ROLE_PROFILE = "importBookRoleProfile"
         }
 
         private val cacheManager by lazy {
             ReadAloudSegmentCacheManager(appDb.readAloudSegmentCacheDao)
         }
+        private val exportManager by lazy { BookReadAloudExportManager() }
         private var cacheJob: Job? = null
+        private val exportScriptResult = registerForActivityResult(HandleFileContract()) {
+            if (it.uri != null) context?.toastOnUi(R.string.export_success)
+        }
+        private val exportRoleProfileResult = registerForActivityResult(HandleFileContract()) {
+            if (it.uri != null) context?.toastOnUi(R.string.export_success)
+        }
+        private val importScriptResult = registerForActivityResult(HandleFileContract()) {
+            it.uri?.let { uri -> importCurrentChapterScript(uri.readText(requireContext())) }
+        }
+        private val importRoleProfileResult = registerForActivityResult(HandleFileContract()) {
+            it.uri?.let { uri -> importBookRoleProfile(uri.readText(requireContext())) }
+        }
 
         private val speakEngineSummary: String
             get() {
@@ -137,6 +158,16 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
                 KEY_REFRESH_CHAPTER_AI -> handleRefreshChapterAi()
                 KEY_CLEAR_BOOK_AI -> handleClearBookAi()
                 KEY_RESET_ROLE_AUTO_ARCHIVE -> handleResetRoleAutoArchive()
+                KEY_EXPORT_CHAPTER_SCRIPT -> exportCurrentChapterScript()
+                KEY_IMPORT_CHAPTER_SCRIPT -> importScriptResult.launch {
+                    mode = HandleFileContract.FILE
+                    allowExtensions = arrayOf("json")
+                }
+                KEY_EXPORT_ROLE_PROFILE -> exportBookRoleProfile()
+                KEY_IMPORT_ROLE_PROFILE -> importRoleProfileResult.launch {
+                    mode = HandleFileContract.FILE
+                    allowExtensions = arrayOf("json")
+                }
             }
             return super.onPreferenceTreeClick(preference)
         }
@@ -272,6 +303,120 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
                 }
                 cancelButton()
             }
+        }
+
+        private fun exportCurrentChapterScript() {
+            val (book, chapter) = currentBookAndChapter() ?: return
+            cacheJob?.cancel()
+            cacheJob = lifecycleScope.launch {
+                try {
+                    val export = withContext(Dispatchers.IO) {
+                        exportManager.exportCurrentChapterScript(book, chapter)
+                    }
+                    val fileName = safeExportFileName(
+                        "${book.name}_${chapter.index + 1}_${chapter.title}_script.json"
+                    )
+                    exportScriptResult.launch {
+                        mode = HandleFileContract.EXPORT
+                        fileData = HandleFileContract.FileData(
+                            fileName,
+                            exportManager.toJson(export),
+                            "application/json"
+                        )
+                    }
+                } catch (e: Exception) {
+                    context?.toastOnUi(R.string.book_script_export_no_cache)
+                }
+            }
+        }
+
+        private fun importCurrentChapterScript(json: String) {
+            val (book, chapter) = currentBookAndChapter() ?: return
+            cacheJob?.cancel()
+            cacheJob = lifecycleScope.launch {
+                try {
+                    val mode = if (AppConfig.streamReadAloudAudio) "stream" else "file"
+                    withContext(Dispatchers.IO) {
+                        val script = exportManager.parseScript(json)
+                        exportManager.importCurrentChapterScript(book, chapter, script, mode)
+                        clearCurrentChapterAudioCache()
+                    }
+                    context?.toastOnUi(R.string.book_script_import_success)
+                } catch (e: Exception) {
+                    context?.toastOnUi(R.string.book_script_import_failed)
+                }
+            }
+        }
+
+        private fun exportBookRoleProfile() {
+            val book = ReadBook.book ?: run {
+                context?.toastOnUi(R.string.no_book_available)
+                return
+            }
+            cacheJob?.cancel()
+            cacheJob = lifecycleScope.launch {
+                val export = withContext(Dispatchers.IO) {
+                    exportManager.exportRoleProfile(book)
+                }
+                val fileName = safeExportFileName("${book.name}_role_profile.json")
+                exportRoleProfileResult.launch {
+                    mode = HandleFileContract.EXPORT
+                    fileData = HandleFileContract.FileData(
+                        fileName,
+                        exportManager.toJson(export),
+                        "application/json"
+                    )
+                }
+            }
+        }
+
+        private fun importBookRoleProfile(json: String) {
+            val book = ReadBook.book ?: run {
+                context?.toastOnUi(R.string.no_book_available)
+                return
+            }
+            cacheJob?.cancel()
+            cacheJob = lifecycleScope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        val profile = exportManager.parseRoleProfile(json)
+                        exportManager.importRoleProfile(book, profile)
+                        clearCurrentChapterAudioCache()
+                    }
+                    context?.toastOnUi(R.string.book_role_profile_import_success)
+                } catch (e: Exception) {
+                    context?.toastOnUi(R.string.book_role_profile_import_failed)
+                }
+            }
+        }
+
+        private fun currentBookAndChapter():
+            Pair<io.legado.app.data.entities.Book, io.legado.app.data.entities.BookChapter>? {
+            val book = ReadBook.book ?: run {
+                context?.toastOnUi(R.string.no_book_available)
+                return null
+            }
+            val progress = BaseReadAloudService.service?.currentProgress()
+            val chapterIndex = progress?.chapterIndex ?: ReadBook.durChapterIndex
+            val chapter = appDb.bookChapterDao.getChapter(book.bookUrl, chapterIndex) ?: run {
+                context?.toastOnUi(R.string.no_book_available)
+                return null
+            }
+            return book to chapter
+        }
+
+        private fun clearCurrentChapterAudioCache() {
+            ReadAloudAudioCache.clearChapterAudioCache(
+                requireContext().cacheDir,
+                ReadBook.curTextChapter?.title
+            )
+        }
+
+        private fun safeExportFileName(name: String): String {
+            val clean = name.replace(Regex("""[\\/:*?"<>|]+"""), "_")
+                .replace(Regex("\\s+"), "_")
+                .trim('_')
+            return clean.ifBlank { "legado_export.json" }
         }
 
         private fun performRefreshChapter(
@@ -425,7 +570,11 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
                 KEY_CLEAR_BOOK,
                 KEY_REFRESH_CHAPTER_AI,
                 KEY_CLEAR_BOOK_AI,
-                KEY_RESET_ROLE_AUTO_ARCHIVE
+                KEY_RESET_ROLE_AUTO_ARCHIVE,
+                KEY_EXPORT_CHAPTER_SCRIPT,
+                KEY_IMPORT_CHAPTER_SCRIPT,
+                KEY_EXPORT_ROLE_PROFILE,
+                KEY_IMPORT_ROLE_PROFILE
             ).forEach { key ->
                 findPreference<Preference>(key)?.isEnabled = enabled
             }

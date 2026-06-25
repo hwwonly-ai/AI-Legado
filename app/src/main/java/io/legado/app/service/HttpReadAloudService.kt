@@ -40,6 +40,7 @@ import io.legado.app.help.config.AppConfig
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.help.exoplayer.InputStreamDataSource
 import io.legado.app.help.http.okHttpClient
+import io.legado.app.model.AiDialogLabelProducerKey
 import io.legado.app.model.ReadAloud
 import io.legado.app.model.BookRoleAutoArchiveManager
 import io.legado.app.model.BookReadAloudRoleMatcher
@@ -2022,18 +2023,7 @@ class HttpReadAloudService : BaseReadAloudService(),
         config: io.legado.app.model.ai.AiServiceConfig,
         mode: String
     ): String {
-        val promptConfig = io.legado.app.model.ai.AiPromptStore.load()
-        return ReadAloudSegmentCacheKey.aiDialogLabelProducer(
-            promptVersion = promptConfig.version,
-            promptHash = promptConfig.contentHash,
-            provider = config.provider.name,
-            selectedInstanceId = config.selectedInstanceId,
-            endpointHash = io.legado.app.model.ai.AiServiceConfig.endpointHash(config.normalizedEndpoint),
-            model = config.model,
-            mode = mode,
-            thinkingEnabled = config.thinkingEnabled,
-            reasoningEffort = config.reasoningEffort
-        )
+        return AiDialogLabelProducerKey.current(config, mode)
     }
 
 

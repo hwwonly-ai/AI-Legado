@@ -22,6 +22,20 @@ interface ReadAloudSegmentCacheDao {
         producer: String
     ): ReadAloudSegmentCache?
 
+    @Query(
+        """select * from readAloudSegmentCaches
+        where bookUrl = :bookUrl
+        and chapterUrl = :chapterUrl
+        and producer like :producerPattern
+        order by updatedAt desc
+        limit 1"""
+    )
+    fun getLatestByProducerPattern(
+        bookUrl: String,
+        chapterUrl: String,
+        producerPattern: String
+    ): ReadAloudSegmentCache?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insert(cache: ReadAloudSegmentCache)
 

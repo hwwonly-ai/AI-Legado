@@ -111,6 +111,30 @@
             android:summary="@string/reset_book_role_auto_archive_summary"
             app:iconSpaceReserved="false" />
 
+        <io.legado.app.lib.prefs.Preference
+            android:key="exportCurrentChapterScript"
+            android:title="@string/book_script_export_current_chapter"
+            android:summary="@string/book_script_export_current_chapter_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="importCurrentChapterScript"
+            android:title="@string/book_script_import_current_chapter"
+            android:summary="@string/book_script_import_current_chapter_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="exportBookRoleProfile"
+            android:title="@string/book_role_profile_export"
+            android:summary="@string/book_role_profile_export_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="importBookRoleProfile"
+            android:title="@string/book_role_profile_import"
+            android:summary="@string/book_role_profile_import_summary"
+            app:iconSpaceReserved="false" />
+
     </io.legado.app.lib.prefs.PreferenceCategory>
 
 </androidx.preference.PreferenceScreen>

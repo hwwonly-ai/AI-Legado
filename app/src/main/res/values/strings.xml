@@ -1410,6 +1410,19 @@
     <string name="reset_book_role_auto_archive_summary">Clear mention statistics and remove unlocked AI-created minor roles; extra aliases are kept</string>
     <string name="confirm_reset_book_role_auto_archive">Clear role mention statistics and remove unlocked AI-created minor roles? Extra aliases will be kept.</string>
     <string name="reset_book_role_auto_archive_success">Reset role auto archive: cleared %1$d stats, removed %2$d auto minor roles</string>
+    <string name="book_script_export_current_chapter">Export current chapter script</string>
+    <string name="book_script_export_current_chapter_summary">Export current chapter AI script JSON without API keys or novel text</string>
+    <string name="book_script_import_current_chapter">Import current chapter script</string>
+    <string name="book_script_import_current_chapter_summary">Import AI script JSON for the current chapter after validating chapter hash</string>
+    <string name="book_script_export_no_cache">No AI script cache for current chapter</string>
+    <string name="book_script_import_success">Script imported. Restart reading aloud to use it.</string>
+    <string name="book_script_import_failed">Script import failed: book, chapter, or content hash mismatch</string>
+    <string name="book_role_profile_export">Export book role profile</string>
+    <string name="book_role_profile_export_summary">Export roles, aliases, role voices, and book-level voices</string>
+    <string name="book_role_profile_import">Import book role profile</string>
+    <string name="book_role_profile_import_summary">Replace roles and role voice profile for this book from JSON</string>
+    <string name="book_role_profile_import_success">Role profile imported</string>
+    <string name="book_role_profile_import_failed">Role profile import failed</string>
     <string name="segment_cache_operation_failed">Segment cache operation failed</string>
     <string name="no_book_available">No book available</string>
 </resources>
