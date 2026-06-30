@@ -28,8 +28,8 @@
 ### 测试环境
 ```
 Endpoint: https://openspeech.bytedance.com/api/v3/tts/unidirectional
-App ID: 3375438334
-Access Token: PFx-n_ffssXh0bE-...
+App ID: your_app_id
+Access Token: your_access_token
 Resource ID: seed-tts-2.0
 ```
 

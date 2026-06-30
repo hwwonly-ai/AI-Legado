@@ -53,11 +53,11 @@ show_usage() {
     echo ""
     echo "示例:"
     echo "  # 使用参数"
-    echo "  $0 3375438334 PFx-n_ffssXh0bE- zh_female_vv_uranus_bigtts"
+    echo "  $0 your_app_id your_access_token zh_female_vv_uranus_bigtts"
     echo ""
     echo "  # 使用环境变量"
-    echo "  export DOUBAO_TTS_APP_ID=3375438334"
-    echo "  export DOUBAO_TTS_ACCESS_TOKEN=PFx-n_ffssXh0bE-"
+    echo "  export DOUBAO_TTS_APP_ID=your_app_id"
+    echo "  export DOUBAO_TTS_ACCESS_TOKEN=your_access_token"
     echo "  $0"
 }
 
