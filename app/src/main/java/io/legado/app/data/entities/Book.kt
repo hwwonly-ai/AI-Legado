@@ -29,6 +29,38 @@ import java.nio.charset.Charset
 import java.time.LocalDate
 import kotlin.math.max
 
+/**
+ * 8 个固定龙套角色定义：(角色名, 角色属性)。
+ * 龙套为系统角色，不可删除、不可改名、不可改分类和属性。
+ * 放在文件顶层避免被 Room 识别为 Book 实体的列。
+ */
+private val SYSTEM_EXTRA_ROLE_DEFS: List<Pair<String, String>> = listOf(
+    "龙套·男童" to BookReadAloudRole.RoleAttribute.BOY,
+    "龙套·少年男性" to BookReadAloudRole.RoleAttribute.YOUNG_MALE,
+    "龙套·中年男性" to BookReadAloudRole.RoleAttribute.MIDDLE_MALE,
+    "龙套·老年男性" to BookReadAloudRole.RoleAttribute.ELDER_MALE,
+    "龙套·女童" to BookReadAloudRole.RoleAttribute.GIRL,
+    "龙套·少年女性" to BookReadAloudRole.RoleAttribute.YOUNG_FEMALE,
+    "龙套·中年女性" to BookReadAloudRole.RoleAttribute.MIDDLE_FEMALE,
+    "龙套·老年女性" to BookReadAloudRole.RoleAttribute.ELDER_FEMALE
+)
+
+enum class RoleMentionStatWindow {
+    ALL_BOOK,
+    RECENT_20_CHAPTERS
+}
+
+@Parcelize
+data class BookRoleMentionStat(
+    val roleKey: String,
+    var displayName: String,
+    var roleAttribute: String,
+    var totalDialogCount: Int,
+    var chapterDialogCounts: MutableMap<Int, Int>,
+    var lastSeenChapter: Int,
+    var roleId: String? = null
+) : Parcelable
+
 @Parcelize
 @TypeConverters(Book.Converters::class)
 @Entity(
@@ -246,6 +278,202 @@ data class Book(
         return config.ttsEngine
     }
 
+    fun setTtsVoices(ttsEngine: String?, narratorVoice: String?, dialogVoice: String?) {
+        val engineKey = ttsEngine?.takeIf { it.isNotBlank() } ?: return
+        migrateLegacyTtsVoices()
+        config.narratorVoices?.updateVoice(engineKey, narratorVoice)
+        config.dialogVoices?.updateVoice(engineKey, dialogVoice)
+    }
+
+    fun getNarratorVoice(ttsEngine: String?): String? {
+        val engineKey = ttsEngine?.takeIf { it.isNotBlank() } ?: return null
+        migrateLegacyTtsVoices()
+        return config.narratorVoices?.get(engineKey)?.takeIf { it.isNotBlank() }
+    }
+
+    fun getDialogVoice(ttsEngine: String?): String? {
+        val engineKey = ttsEngine?.takeIf { it.isNotBlank() } ?: return null
+        migrateLegacyTtsVoices()
+        return config.dialogVoices?.get(engineKey)?.takeIf { it.isNotBlank() }
+    }
+
+    private fun migrateLegacyTtsVoices() {
+        if (config.narratorVoices == null) config.narratorVoices = hashMapOf()
+        if (config.dialogVoices == null) config.dialogVoices = hashMapOf()
+        val engineKey = config.voiceTtsEngine?.takeIf { it.isNotBlank() }
+        if (engineKey != null) {
+            config.narratorVoice?.takeIf { it.isNotBlank() }?.let {
+                config.narratorVoices?.putIfAbsent(engineKey, it)
+            }
+            config.dialogVoice?.takeIf { it.isNotBlank() }?.let {
+                config.dialogVoices?.putIfAbsent(engineKey, it)
+            }
+        }
+        config.voiceTtsEngine = null
+        config.narratorVoice = null
+        config.dialogVoice = null
+    }
+
+    private fun HashMap<String, String>.updateVoice(engineKey: String, voice: String?) {
+        voice?.takeIf { it.isNotBlank() }?.let {
+            this[engineKey] = it
+        } ?: remove(engineKey)
+    }
+
+    // region 角色管理
+
+    fun getReadAloudRoles(): MutableList<BookReadAloudRole> {
+        if (config.readAloudRoles == null) config.readAloudRoles = mutableListOf()
+        return config.readAloudRoles!!
+    }
+
+    fun getReadAloudRoleById(id: String): BookReadAloudRole? {
+        return getReadAloudRoles().find { it.id == id }
+    }
+
+    fun addOrUpdateReadAloudRole(role: BookReadAloudRole) {
+        val roles = getReadAloudRoles()
+        val idx = roles.indexOfFirst { it.id == role.id }
+        if (idx >= 0) {
+            roles[idx] = role
+        } else {
+            roles.add(role)
+        }
+    }
+
+    fun deleteReadAloudRole(id: String) {
+        getReadAloudRoles().removeAll { it.id == id }
+    }
+
+    fun getRoleVoice(roleId: String, ttsEngine: String?): String? {
+        val engineKey = ttsEngine?.takeIf { it.isNotBlank() } ?: return null
+        return when (val voice = getReadAloudRoleById(roleId)?.voices?.get(engineKey)) {
+            BookReadAloudRole.VOICE_BOOK_NARRATOR -> getNarratorVoice(engineKey)
+            BookReadAloudRole.VOICE_BOOK_DIALOG -> getDialogVoice(engineKey)
+            else -> if (voice?.startsWith(BookReadAloudRole.VOICE_EXTRA_PREFIX) == true) {
+                val attr = voice.removePrefix(BookReadAloudRole.VOICE_EXTRA_PREFIX)
+                getExtraRoleVoiceByAttribute(attr, engineKey)
+            } else {
+                voice?.takeIf { it.isNotBlank() }
+            }
+        }
+    }
+
+    private fun getExtraRoleVoiceByAttribute(roleAttribute: String, engineKey: String): String? {
+        val extraRole = getReadAloudRoles().find {
+            it.roleCategory == BookReadAloudRole.RoleCategory.EXTRA &&
+                it.systemRole &&
+                it.roleAttribute == roleAttribute
+        } ?: return null
+        return when (val voice = extraRole.voices[engineKey]) {
+            BookReadAloudRole.VOICE_BOOK_NARRATOR -> getNarratorVoice(engineKey)
+            BookReadAloudRole.VOICE_BOOK_DIALOG -> getDialogVoice(engineKey)
+            else -> voice?.takeIf { it.isNotBlank() }
+        }
+    }
+
+    fun setRoleVoice(roleId: String, ttsEngine: String?, voice: String?) {
+        val engineKey = ttsEngine?.takeIf { it.isNotBlank() } ?: return
+        val role = getReadAloudRoleById(roleId) ?: return
+        voice?.takeIf { it.isNotBlank() }?.let {
+            role.voices[engineKey] = it
+        } ?: role.voices.remove(engineKey)
+    }
+
+    fun validateRoleName(name: String, excludeId: String? = null): String? {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) return "Name cannot be empty"
+        val roles = getReadAloudRoles()
+        val conflict = roles.any { it.id != excludeId && it.name.trim().equals(trimmed, ignoreCase = true) }
+        if (conflict) return "Name already exists"
+        val aliasConflict = roles.any { it.id != excludeId && it.aliases.any { a -> a.trim().equals(trimmed, ignoreCase = true) } }
+        if (aliasConflict) return "Name conflicts with an existing alias"
+        return null
+    }
+
+    fun validateRoleAlias(
+        alias: String,
+        excludeId: String? = null,
+        currentRoleName: String? = null
+    ): String? {
+        val trimmed = alias.trim()
+        if (trimmed.isBlank()) return null
+        if (currentRoleName?.trim()?.equals(trimmed, ignoreCase = true) == true) {
+            return "Alias conflicts with the role name"
+        }
+        val roles = getReadAloudRoles()
+        val nameConflict = roles.any { it.id != excludeId && it.name.trim().equals(trimmed, ignoreCase = true) }
+        if (nameConflict) return "Alias conflicts with an existing name"
+        val aliasConflict = roles.any { it.id != excludeId && it.aliases.any { a -> a.trim().equals(trimmed, ignoreCase = true) } }
+        if (aliasConflict) return "Alias already used by another role"
+        return null
+    }
+
+    fun normalizeAliases(aliases: List<String>): MutableList<String> {
+        return aliases.map { it.trim() }.filter { it.isNotBlank() }.distinctBy { it.lowercase() }.toMutableList()
+    }
+
+    fun getRoleMentionStats(): MutableList<BookRoleMentionStat> {
+        if (config.roleMentionStats == null) config.roleMentionStats = mutableListOf()
+        return config.roleMentionStats!!
+    }
+
+    fun getRoleMentionStatWindow(): RoleMentionStatWindow {
+        return config.roleMentionStatWindow ?: RoleMentionStatWindow.ALL_BOOK
+    }
+
+    fun setRoleMentionStatWindow(window: RoleMentionStatWindow) {
+        config.roleMentionStatWindow = window
+    }
+
+    fun findSystemExtraRoleByAttribute(roleAttribute: String): BookReadAloudRole? {
+        return getReadAloudRoles().find {
+            it.roleCategory == BookReadAloudRole.RoleCategory.EXTRA &&
+                it.systemRole &&
+                it.roleAttribute == roleAttribute
+        }
+    }
+
+    /**
+     * 确保当前书存在 8 个固定龙套。幂等：按 name 去重，已存在则跳过，
+     * 不覆盖用户已配置的别名/音色。返回 true 表示新增了角色（调用方需 save）。
+     */
+    fun ensureSystemExtraRoles(): Boolean {
+        val roles = getReadAloudRoles()
+        val existingNames = roles.map { it.name.trim() }.toHashSet()
+        var changed = false
+        for ((name, attr) in SYSTEM_EXTRA_ROLE_DEFS) {
+            if (existingNames.contains(name)) continue
+            roles.add(
+                BookReadAloudRole(
+                    id = java.util.UUID.randomUUID().toString(),
+                    name = name,
+                    roleCategory = BookReadAloudRole.RoleCategory.EXTRA,
+                    roleAttribute = attr,
+                    autoManaged = true,
+                    systemRole = true,
+                    locked = false
+                )
+            )
+            changed = true
+        }
+        return changed
+    }
+
+    /**
+     * 校验将某角色归入 targetCategory 是否超出上限。excludeId 为正在编辑的角色 id。
+     * 返回非 null 表示超限，调用方应拒绝保存。
+     */
+    fun validateRoleCategoryCap(targetCategory: String, excludeId: String? = null): String? {
+        val max = BookReadAloudRole.RoleCategory.MAX_COUNT[targetCategory] ?: return null
+        if (max == Int.MAX_VALUE) return null
+        val count = getReadAloudRoles()
+            .count { it.id != excludeId && it.roleCategory == targetCategory }
+        return if (count >= max) "category_cap_exceeded" else null
+    }
+
+    // endregion
+
     fun setSplitLongChapter(limitLongContent: Boolean) {
         config.splitLongChapter = limitLongContent
     }
@@ -398,8 +626,17 @@ data class Book(
         var useReplaceRule: Boolean? = null,// 正文使用净化替换规则
         var delTag: Long = 0L,//去除标签
         var ttsEngine: String? = null,
+        var narratorVoices: HashMap<String, String>? = hashMapOf(),
+        var dialogVoices: HashMap<String, String>? = hashMapOf(),
+        // 兼容旧版单引擎音色配置，读取后迁移到上面的映射。
+        var voiceTtsEngine: String? = null,
+        var narratorVoice: String? = null,
+        var dialogVoice: String? = null,
         var splitLongChapter: Boolean = true,
         var readSimulating: Boolean = false,
+        var readAloudRoles: MutableList<BookReadAloudRole>? = mutableListOf(),
+        var roleMentionStatWindow: RoleMentionStatWindow? = RoleMentionStatWindow.ALL_BOOK,
+        var roleMentionStats: MutableList<BookRoleMentionStat>? = mutableListOf(),
         var startDate: LocalDate? = null,
         var startChapter: Int? = null,     // 用户设置的起始章节
         var dailyChapters: Int = 3    // 用户设置的每日更新章节数

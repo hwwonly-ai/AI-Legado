@@ -97,7 +97,7 @@ abstract class BaseService : LifecycleService() {
                 }
             }
             .request()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             PermissionsCompat.Builder()
                 .addPermissions(Permissions.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
                 .rationale(R.string.ignore_battery_permission_rationale)

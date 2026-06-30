@@ -1,317 +1,35 @@
-2026-05-16 23:41:02.654 15365-16327 SSML_DEBUG_STREAM       io.legado.app.debug                  E  ========== 开始流模式下载并播放音频 ==========
-2026-05-16 23:41:02.654 15365-16327 SSML_DEBUG_STREAM       io.legado.app.debug                  E  当前章节: 第1章(2)
-2026-05-16 23:41:02.654 15365-16327 SSML_DEBUG_STREAM       io.legado.app.debug                  E  当前页面索引: 3
-2026-05-16 23:41:02.654 15365-16327 SSML_DEBUG_STREAM       io.legado.app.debug                  E  当前阅读位置: 704
-2026-05-16 23:41:02.654 15365-16327 SSML_DEBUG_STREAM       io.legado.app.debug                  E  当前段落索引(nowSpeak): 0
-2026-05-16 23:41:02.654 15365-16327 SSML_DEBUG_STREAM       io.legado.app.debug                  E  段落起始位置: 0
-2026-05-16 23:41:02.655 15365-16327 SSML_DEBUG_STREAM       io.legado.app.debug                  E  启用SSML标签解析: true
-2026-05-16 23:41:02.655 15365-16327 SSML_DEBUG_STREAM       io.legado.app.debug                  E  contentList大小: 26
-2026-05-16 23:41:02.655 15365-16327 SSML_MERGE              io.legado.app.debug                  E  原始段落数: 26
-2026-05-16 23:41:02.661 15365-16327 SSML_PARSE              io.legado.app.debug                  E  解析出 38 个完整的speak块
-2026-05-16 23:41:02.662 15365-16327 SSML_PARSE              io.legado.app.debug                  E  第一个speak块: [<speak>
-                                                                                                    <voice name="zhifeng_emo">
-                                                                                                    <emotion category="neutral" intensity="1.0">“天时坠兮威灵怒，严杀尽兮弃原野。”</e...]
-2026-05-16 23:41:02.663 15365-16327 SSML_DEBUG_STREAM       io.legado.app.debug                  E  SSML合并后列表大小: 38
-2026-05-16 23:41:02.663 15365-16327 SSML_FIND               io.legado.app.debug                  E  当前阅读位置: 704
-2026-05-16 23:41:02.663 15365-16327 SSML_FIND               io.legado.app.debug                  E  找到匹配的SSML块索引: 12
-2026-05-16 23:41:02.663 15365-16327 SSML_DEBUG_STREAM       io.legado.app.debug                  E  计算后的起始段落索引: 12, 启用SSML: true
-2026-05-16 23:41:02.664 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">秦军的精锐，使周文震惊，秦军的...]
-2026-05-16 23:41:02.664 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.669 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">更让周文不寒而栗的是，他发现，...]
-2026-05-16 23:41:02.669 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.669 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">“究竟孰真，孰假？”</emo...]
-2026-05-16 23:41:02.669 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.669 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">周文隐隐意识到，先前的一切，似...]
-2026-05-16 23:41:02.669 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.670 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">然而，开弓没有回头箭，前方军队...]
-2026-05-16 23:41:02.670 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.670 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">面对如浪潮般涌来的楚军，这些秦...]
-2026-05-16 23:41:02.670 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.671 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">不知是谁带头，与对面的楚歌相对...]
-2026-05-16 23:41:02.671 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.671 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">“岂曰无衣？与子同裳。王于兴师...]
-2026-05-16 23:41:02.671 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.671 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">秦风高亢，与对面悲壮的楚歌相比...]
-2026-05-16 23:41:02.671 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.672 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">这是字正腔圆的秦音，是正儿八经...]
-2026-05-16 23:41:02.672 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.672 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">周文明白了，这些人，才是从内史...]
-2026-05-16 23:41:02.672 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.672 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">自商鞅变法后，他们已经经过六七...]
-2026-05-16 23:41:02.673 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.673 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">世代军功积累百年后，五万人中，...]
-2026-05-16 23:41:02.673 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.673 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">这五万人皆为青壮，从小就被父辈...]
-2026-05-16 23:41:02.673 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.674 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">他们为自己的身份骄傲，他们为自...]
-2026-05-16 23:41:02.674 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.674 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">“岂曰无衣？与子同袍。王于兴师...]
-2026-05-16 23:41:02.674 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.675 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">跪射弩兵万箭齐发，杀伤了大量楚...]
-2026-05-16 23:41:02.675 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.675 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">以此精锐守缓坡，王翦帅旗半步不...]
-2026-05-16 23:41:02.675 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.676 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">“这果然是诱敌！”</emot...]
-2026-05-16 23:41:02.676 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.676 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">周文感到有些绝望，项燕将军长达...]
-2026-05-16 23:41:02.676 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.676 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">但更让人惊骇的是，在周文的侧方...]
-2026-05-16 23:41:02.676 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.677 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">整个战事里，都消失不见的秦军三...]
-2026-05-16 23:41:02.677 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.677 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">项燕已经放出了最后的预备队，寄...]
-2026-05-16 23:41:02.677 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.677 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">好在，已经经过一场厮杀的右广重...]
-2026-05-16 23:41:02.678 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.678 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">五六千匹战马，两三万条马腿，在...]
-2026-05-16 23:41:02.678 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.678 15365-16366 SSML_URL                io.legado.app.debug                  E  TTS URL: {{
-                                                                                                    var text = speakText.trim().replace(/\r\n|\r|\n/g, '');
-                                                                                                    var hasSSMLTag = text.indexOf('<speak') >= 0 || text.indexOf('<emotion') >= 0 || text.indexOf('<break') >= 0 || text.indexOf('<prosody') >= 0;
-                                                                                                    var payload = {appkey: 'pE3O7UT1W1mHCqHq', text: text, format: 'mp3', volume: 100, speech_rate: speakSpeed * 20 - 400, voice_name: 'zhifeng_emo', ssml: hasSSMLTag};
-                                                                                                    var payloadStr = JSON.stringify(payload);
-                                                                                                    'https://nls-gateway.cn-shanghai.aliyuncs.com/stream/v1/tts,{"method": "POST","body": ' + payloadStr + '}';
-                                                                                                    }}
-2026-05-16 23:41:02.678 15365-16366 SSML_TEXT               io.legado.app.debug                  E  speakText length: 160, content: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">秦军的精锐，使周文震惊，秦军的布阵，使周文缭乱，他意识到眼前的秦军非同一般，当是精锐中的精锐！</emotion>\n</voice></speak>]
-2026-05-16 23:41:02.678 15365-16327 SSML_FINAL              io.legado.app.debug                  E  speakText: [<speak><voice name=\"zhifeng_emo\">\n<emotion category=\"neutral\" intensity=\"1.0\">周文有些愕然，他的视线离开了车...]
-2026-05-16 23:41:02.678 15365-16327 SSML_FINAL              io.legado.app.debug                  E  hasSSML: true
-2026-05-16 23:41:02.880  4586-16197 OplusLog_S...ationSync_ com.android.systemui                 D  [DataBusManager] publish success topic: RealTopic(name=Oplus_HeySynergy_PcConnect_SyncNotification_Publisher, tag=0), message: "{\"key\":\"HeySynergy_Notification_Add\",\"value\":\"{\\\"contractedChild\\\":{\\\"contractedContent\\\":\\\"第1章(2)\\\",\\\"contractedTitle\\\":\\\"正在朗读: chapter_0275_ssml\\\",\\\"largeIconByteStr\\\":\\\"\\\",\\\"progress\\\":{\\\"indeterminate\\\":false,\\\"max\\\":0,\\\"value\\\":0}},\\\"expandedChild\\\":{\\\"bigPictureStyleState\\\":{\\\"bigLargeIconByteStr\\\":\\\"\\\",\\\"bigPictureByteStr\\\":\\\"\\\",\\\"expandedSummaryText\\\":\\\"\\\",\\\"expandedTitle\\\":\\\"\\\"},\\\"bigTextStyleState\\\":{\\\"bitText\\\":\\\"\\\",\\\"expandedSummaryText\\\":\\\"\\\",\\\"expandedTitle\\\":\\\"\\\"},\\\"icdfActions\\\":[{\\\"actionId\\\":0,\\\"iconByteStr\\\":\\\"\\\",\\\"label\\\":\\\"上一章\\\",\\\"notificationKey\\\":\\\"0|io.legado.app.debug|101|null|10319\\\",\\\"smartReply\\\":false},{\\\"actionId\\\":1,\\\"iconByteStr\\\":\\\"\\\",\\\"label\\\":\\\"暂停\\\",\\\"notificationKey\\\":\\\"0|io.legado.app.debug|101|null|10319\\\",\\\"smartReply\\\":false},{\\\"actionId\\\":2,\\\"iconByteStr\\\":\\\"\\\",\\\"label\\\":\\\"停止\\\",\\\"notificationKey\\\":\\\"0|io.legado.app.debug|101|null|10319\\\",\\\"smartReply\\\":false},{\\\"actionId\\\":3,\\\"iconByteStr\\\":\\\"\\\",\\\"label\\\":\\\"下一章\\\",\\\"notificationKey\\\":\\\"0|io.legado.app.debug|101|null|10319\\\",\\\"smartReply\\\":false},{\\\"actionId\\\":4,\\\"iconByteStr\\\":\\\"\\\",\\\"label\\\":\\\"定时\\\",\\\"notificationKey\\\":\\\"0|io.legado.app.debug|101|null|10319\\\",\\\"smartReply\\\":false}],\\\"inboxStyleState\\\":{\\\"expandedSummaryText\\\":\\\"\\\",\\\"expandedTitle\\\":\\\"\\\",\\\"inboxLines\\\":[]},\\\"messagingStyleState\\\":{\\\"conversationTitle\\\":\\\"\\\",\\\"historicMessages\\\":[],\\\"messages\\\":[],\\\"person\\\":{\\\"iconByteStr\\\":\\\"\\\",\\\"name\\\":\\\"\\\"}},\\\"notificationStyle\\\":\\\"MEDIA_STYLE\\\",\\\"replyContent\\\":[]},\\\"groupState\\\":{\\\"childrenInGroup\\\":false,\\\"groupLine\\\":{\\\"text\\\":\\\"\\\",\\\"title\\\":\\\"\\\"},\\\"groupName\\\":\\\"\\\",\\\"groupSummary\\\":false},\\\"headerView\\\":{\\\"headerText\\\":\\\"第1章(2)\\\",\\\"headerTextSecondary\\\":\\\"\\\",\\\"label\\\":\\\"阅读·D\\\",\\\"showWhen\\\":true,\\\"smallIconByteStr\\\":\\\"iVBORw0KGgoAAAANSUhEUgAAAL0AAAC9CAYAAADm13wwAAAAAXNSR0IArs4c6QAAAARzQklUCAgI\\\\nCHwIZIgAACAASURBVHic7Z15fFNV+v8/52bplibdN9pCi0DBgkA7slUsWhAhRVGcn4MzIFRRh2Ec\\\\n/YKDsqigM7jgiA6jiAuiZVRA2VHGoQWLFh1lV1qEAi1LW4q0xbbZ7vn9kSZkuze5yc3W5v169ZU+\\\\n9577nJPkyXOeswMhQoQIESJEiBAhQoQIESJEiBAhAhfi7wK4Q15eniw5OTmNYZg0AD0A9CCEpALI\\\\nAJACIBpAZOdfROdrFACJn4ocDLTZ/lFK2wBcYhjmHMuydZTSCwDOATin0WjOf/nll81+LK/bBLzR\\\\n33nnnTE6nW4gwzADKaUDCSEDKaW5hBCVv8vWzdFTSk8QQo5QSo8QQo6wLHtk+/btNQCovwvHRyAa\\\\nPVGr1b8hhEwEoKaUDiGEBGI5QzimAcAOSul2g8Gwa+fOnS3+LpAtAWNMxcXFN1NKp3Uae7K/yxNC\\\\nFDQA9gD4lBCybsuWLa3+LhDgZ6OfOHFiLCFkGiHkEQD9/FmWEF6nFcA6QsiqLVu2HPBnQfxi9Lfd\\\\ndlucTCabSwj5E4yNzhDdCErpF4SQRVu3bv3OH/n71Ohvv/12pUQieQzA44QQpS/zDhFwUADbKKXP\\\\nbNu27QdfZuwro2eKi4v/DGAhgHgf5RkiCKCUUgCfGgyGv+zcubPOF3l63ehvv/323jKZ7D1K6U3e\\\\nzitEUPMLy7J/3L59+0fezsirRq9Wqx8ghPwDgMKb+YToUmxsa2t76L///W+TtzLwitHn5eXJ0tLS\\\\nVgOY7g39Ibo8p1mWnbB9+/afvKFcdKMvKipSRURErAcwVmzdIboVVwDcuXXr1j1iKxZ1Lopare4h\\\\nlUr/SwgZIabeEN2ScAC/y8nJOV1VVXVYTMWiGf2kSZOSKaUVhJAcsXSG6PZIKaWT+/Xrd6K6uvqI\\\\nWEpFCW8mTZoUTSndDSBfDH0hQtig64zxvxRDGeOpgnvuuUdOKd2IkMGH8B4yhmE2Tpw4MU8MZR4b\\\\nvUajWY1QozWE91EyDLNdrVZneqrII6NXq9X/j1I6zdNChAjhIsmEkPfgYVjudkNWrVZngpCtxLgy\\\\nKUQIX5GVk5PzS1VV1X53Fbjr6Qkh5D0CxLmbcYgQ7kIp/fukSZMGufu8W0avVqtnA7jF3UxDhPCQ\\\\nCJZl34eb9is4vOmcHvwpjIutA46MjAy0tgbEAp2AIy0tDVlZWbh06RKMkxuDF0JISr9+/U5WV1cL\\\\nHrgSbPT9+/d/CsDtQp/zFampqXj22WfR3NyM2jqfzFQVDYZhvGqMAwcOxKLFizFp0iT07t0bERER\\\\nqK+vh06n81qeXmaIVCp9o7Gx0SDkIUFGP27cuCSJRPIxIUQurGy+o6mpCYMHD8a9996L4cOHo6mp\\\\nCefPn/dpGaKiotwypDvuuAPZ2dmoqakBy7KilysjIwM3FRRAJpMhMzMTw4YNQ21tLU6fPi16Xj4i\\\\nJi4urrG6uvpbIQ8JionCwsIWEkKihJXL93zwwQdgWRZZWVlYtGgRXnrpJQwe
-2026-05-16 23:41:03.045 15365-16366 Legado                  io.legado.app.debug                  I  AppLog js错误 (Fix with AI)
-                                                                                                    SSML Error: {"task_id":"767f0a51dd1b46129e9dff33b7f170a4","result":"","status":41020001,"message":"TTS:TtsClientError:Request json illegal,failed to parse request."} in <Unknown source> at line number 11
-                                                                                                    com.script.ScriptException: SSML Error: {"task_id":"767f0a51dd1b46129e9dff33b7f170a4","result":"","status":41020001,"message":"TTS:TtsClientError:Request json illegal,failed to parse request."} in <Unknown source> at line number 11
-                                                                                                    	at com.script.rhino.RhinoScriptEngine.eval(RhinoScriptEngine.kt:113)
-                                                                                                    	at com.script.AbstractScriptEngine.eval(AbstractScriptEngine.kt:75)
-                                                                                                    	at io.legado.app.model.analyzeRule.AnalyzeUrl.evalJS(AnalyzeUrl.kt:370)
-                                                                                                    	at io.legado.app.service.HttpReadAloudService.getSpeakStream(HttpReadAloudService.kt:597)
-                                                                                                    	at io.legado.app.service.HttpReadAloudService.access$getSpeakStream(HttpReadAloudService.kt:128)
-                                                                                                    	at io.legado.app.service.HttpReadAloudService$getSpeakStream$1.invokeSuspend(Unknown Source:15)
-                                                                                                    	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
-                                                                                                    	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
-                                                                                                    	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:263)
-                                                                                                    	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:94)
-                                                                                                    	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking(Builders.kt:70)
-                                                                                                    	at kotlinx.coroutines.BuildersKt.runBlocking(Unknown Source:1)
-                                                                                                    	at io.legado.app.service.HttpReadAloudService.createDataSourceFactory$lambda$0$0(HttpReadAloudService.kt:540)
-                                                                                                    	at io.legado.app.service.HttpReadAloudService.$r8$lambda$9K105lOjW81NAzOdx3Ikl2SJVxM(Unknown Source:0)
-                                                                                                    	at io.legado.app.service.HttpReadAloudService$$ExternalSyntheticLambda2.invoke(D8$$SyntheticClass:0)
-                                                                                                    	at io.legado.app.help.exoplayer.InputStreamDataSource.inputStream_delegate$lambda$0(InputStreamDataSource.kt:20)
-                                                                                                    	at io.legado.app.help.exoplayer.InputStreamDataSource.$r8$lambda$BOGUTjv_rjq58I7BzNAI7VTKN98(Unknown Source:0)
-                                                                                                    	at io.legado.app.help.exoplayer.InputStreamDataSource$$ExternalSyntheticLambda0.invoke(D8$$SyntheticClass:0)
-                                                                                                    	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:86)
-                                                                                                    	at io.legado.app.help.exoplayer.InputStreamDataSource.getInputStream(InputStreamDataSource.kt:19)
-                                                                                                    	at io.legado.app.help.exoplayer.InputStreamDataSource.open(InputStreamDataSource.kt:28)
-                                                                                                    	at androidx.media3.datasource.TeeDataSource.open(TeeDataSource.java:54)
-                                                                                                    	at androidx.media3.datasource.cache.CacheDataSource.openNextSource(CacheDataSource.java:802)
-                                                                                                    	at androidx.media3.datasource.cache.CacheDataSource.open(CacheDataSource.java:615)
-                                                                                                    	at androidx.media3.datasource.StatsDataSource.open(StatsDataSource.java:88)
-                                                                                                    	at androidx.media3.exoplayer.source.ProgressiveMediaPeriod$ExtractingLoadable.load(ProgressiveMediaPeriod.java:1109)
-                                                                                                    	at androidx.media3.exoplayer.upstream.Loader$LoadTask.run(Loader.java:453)
-                                                                                                    	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1156)
-                                                                                                    	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:651)
-                                                                                                    	at java.lang.Thread.run(Thread.java:1119)
-                                                                                                    Caused by: org.mozilla.javascript.JavaScriptException: SSML Error: {"task_id":"767f0a51dd1b46129e9dff33b7f170a4","result":"","status":41020001,"message":"TTS:TtsClientError:Request json illegal,failed to parse request."} (<Unknown source>#11)
-                                                                                                    	at org.mozilla.javascript.Interpreter.interpretLoop(Interpreter.java:1432)
-                                                                                                    	at org.mozilla.javascript.Interpreter.interpret(Interpreter.java:1158)
-                                                                                                    	at org.mozilla.javascript.InterpretedFunction.call(InterpretedFunction.java:87)
-                                                                                                    	at org.mozilla.javascript.ContextFactory.doTopCall(ContextFactory.java:383)
-                                                                                                    	at com.script.rhino.RhinoScriptEngine$1.superDoTopCall(RhinoScriptEngine.kt:386)
-                                                                                                    	at com.script.rhino.RhinoScriptEngine$1.doTopCall(RhinoScriptEngine.kt:363)
-                                                                                                    	at org.mozilla.javascript.ScriptRuntime.doTopCall(ScriptRuntime.java:4449)
-                                                                                                    	at org.mozilla.javascript.InterpretedFunction.exec(InterpretedFunction.java:100)
-                                                                                                    	at org.mozilla.javascript.Context.evaluateReader(Context.java:1263)
-2026-05-16 23:41:03.046 15365-16366 io.legado....oudService io.legado.app.debug                  E  js错误 (Fix with AI)
-                                                                                                    SSML Error: {"task_id":"767f0a51dd1b46129e9dff33b7f170a4","result":"","status":41020001,"message":"TTS:TtsClientError:Request json illegal,failed to parse request."} in <Unknown source> at line number 11
-                                                                                                    com.script.ScriptException: SSML Error: {"task_id":"767f0a51dd1b46129e9dff33b7f170a4","result":"","status":41020001,"message":"TTS:TtsClientError:Request json illegal,failed to parse request."} in <Unknown source> at line number 11
-                                                                                                    	at com.script.rhino.RhinoScriptEngine.eval(RhinoScriptEngine.kt:113)
-                                                                                                    	at com.script.AbstractScriptEngine.eval(AbstractScriptEngine.kt:75)
-                                                                                                    	at io.legado.app.model.analyzeRule.AnalyzeUrl.evalJS(AnalyzeUrl.kt:370)
-                                                                                                    	at io.legado.app.service.HttpReadAloudService.getSpeakStream(HttpReadAloudService.kt:597)
-                                                                                                    	at io.legado.app.service.HttpReadAloudService.access$getSpeakStream(HttpReadAloudService.kt:128)
-                                                                                                    	at io.legado.app.service.HttpReadAloudService$getSpeakStream$1.invokeSuspend(Unknown Source:15)
-                                                                                                    	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
-                                                                                                    	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
-                                                                                                    	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:263)
-                                                                                                    	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:94)
-                                                                                                    	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking(Builders.kt:70)
-                                                                                                    	at kotlinx.coroutines.BuildersKt.runBlocking(Unknown Source:1)
-                                                                                                    	at io.legado.app.service.HttpReadAloudService.createDataSourceFactory$lambda$0$0(HttpReadAloudService.kt:540)
-                                                                                                    	at io.legado.app.service.HttpReadAloudService.$r8$lambda$9K105lOjW81NAzOdx3Ikl2SJVxM(Unknown Source:0)
-                                                                                                    	at io.legado.app.service.HttpReadAloudService$$ExternalSyntheticLambda2.invoke(D8$$SyntheticClass:0)
-                                                                                                    	at io.legado.app.help.exoplayer.InputStreamDataSource.inputStream_delegate$lambda$0(InputStreamDataSource.kt:20)
-                                                                                                    	at io.legado.app.help.exoplayer.InputStreamDataSource.$r8$lambda$BOGUTjv_rjq58I7BzNAI7VTKN98(Unknown Source:0)
-                                                                                                    	at io.legado.app.help.exoplayer.InputStreamDataSource$$ExternalSyntheticLambda0.invoke(D8$$SyntheticClass:0)
-                                                                                                    	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:86)
-                                                                                                    	at io.legado.app.help.exoplayer.InputStreamDataSource.getInputStream(InputStreamDataSource.kt:19)
-                                                                                                    	at io.legado.app.help.exoplayer.InputStreamDataSource.open(InputStreamDataSource.kt:28)
-                                                                                                    	at androidx.media3.datasource.TeeDataSource.open(TeeDataSource.java:54)
-                                                                                                    	at androidx.media3.datasource.cache.CacheDataSource.openNextSource(CacheDataSource.java:802)
-                                                                                                    	at androidx.media3.datasource.cache.CacheDataSource.open(CacheDataSource.java:615)
-                                                                                                    	at androidx.media3.datasource.StatsDataSource.open(StatsDataSource.java:88)
-                                                                                                    	at androidx.media3.exoplayer.source.ProgressiveMediaPeriod$ExtractingLoadable.load(ProgressiveMediaPeriod.java:1109)
-                                                                                                    	at androidx.media3.exoplayer.upstream.Loader$LoadTask.run(Loader.java:453)
-                                                                                                    	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1156)
-                                                                                                    	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:651)
-                                                                                                    	at java.lang.Thread.run(Thread.java:1119)
-                                                                                                    Caused by: org.mozilla.javascript.JavaScriptException: SSML Error: {"task_id":"767f0a51dd1b46129e9dff33b7f170a4","result":"","status":41020001,"message":"TTS:TtsClientError:Request json illegal,failed to parse request."} (<Unknown source>#11)
-                                                                                                    	at org.mozilla.javascript.Interpreter.interpretLoop(Interpreter.java:1432)
-                                                                                                    	at org.mozilla.javascript.Interpreter.interpret(Interpreter.java:1158)
-                                                                                                    	at org.mozilla.javascript.InterpretedFunction.call(InterpretedFunction.java:87)
-                                                                                                    	at org.mozilla.javascript.ContextFactory.doTopCall(ContextFactory.java:383)
-                                                                                                    	at com.script.rhino.RhinoScriptEngine$1.superDoTopCall(RhinoScriptEngine.kt:386)
-                                                                                                    	at com.script.rhino.RhinoScriptEngine$1.doTopCall(RhinoScriptEngine.kt:363)
-                                                                                                    	at org.mozilla.javascript.ScriptRuntime.doTopCall(ScriptRuntime.java:4449)
-                                                                                                    	at org.mozilla.javascript.InterpretedFunction.exec(InterpretedFunction.java:100)
-                                                                                                    	at org.mozilla.javascript.Context.evaluateReader(Context.java:1263)
-2026-05-16 23:41:03.046 15365-16366 System.err              io.legado.app.debug                  W  com.script.ScriptException: SSML Error: {"task_id":"767f0a51dd1b46129e9dff33b7f170a4","result":"","status":41020001,"message":"TTS:TtsClientError:Request json illegal,failed to parse request."} in <Unknown source> at line number 11
-2026-05-16 23:41:03.046 15365-16366 System.err              io.legado.app.debug                  W  Caused by: org.mozilla.javascript.JavaScriptException: SSML Error: {"task_id":"767f0a51dd1b46129e9dff33b7f170a4","result":"","status":41020001,"message":"TTS:TtsClientError:Request json illegal,failed to parse request."} (<Unknown source>#11)
-2026-05-16 23:41:03.051 15365-16366 LoadTask                io.legado.app.debug                  E  Unexpected exception loading stream (Fix with AI)
-                                                                                                      com.script.ScriptException: SSML Error: {"task_id":"767f0a51dd1b46129e9dff33b7f170a4","result":"","status":41020001,"message":"TTS:TtsClientError:Request json illegal,failed to parse request."} in <Unknown source> at line number 11
-                                                                                                          at com.script.rhino.RhinoScriptEngine.eval(RhinoScriptEngine.kt:113)
-                                                                                                          at com.script.AbstractScriptEngine.eval(AbstractScriptEngine.kt:75)
-                                                                                                          at io.legado.app.model.analyzeRule.AnalyzeUrl.evalJS(AnalyzeUrl.kt:370)
-                                                                                                          at io.legado.app.service.HttpReadAloudService.getSpeakStream(HttpReadAloudService.kt:597)
-                                                                                                          at io.legado.app.service.HttpReadAloudService.access$getSpeakStream(HttpReadAloudService.kt:128)
-                                                                                                          at io.legado.app.service.HttpReadAloudService$getSpeakStream$1.invokeSuspend(Unknown Source:15)
-                                                                                                          at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
-                                                                                                          at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
-                                                                                                          at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:263)
-                                                                                                          at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:94)
-                                                                                                          at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking(Builders.kt:70)
-                                                                                                          at kotlinx.coroutines.BuildersKt.runBlocking(Unknown Source:1)
-                                                                                                          at io.legado.app.service.HttpReadAloudService.createDataSourceFactory$lambda$0$0(HttpReadAloudService.kt:540)
-                                                                                                          at io.legado.app.service.HttpReadAloudService.$r8$lambda$9K105lOjW81NAzOdx3Ikl2SJVxM(Unknown Source:0)
-                                                                                                          at io.legado.app.service.HttpReadAloudService$$ExternalSyntheticLambda2.invoke(D8$$SyntheticClass:0)
-                                                                                                          at io.legado.app.help.exoplayer.InputStreamDataSource.inputStream_delegate$lambda$0(InputStreamDataSource.kt:20)
-                                                                                                          at io.legado.app.help.exoplayer.InputStreamDataSource.$r8$lambda$BOGUTjv_rjq58I7BzNAI7VTKN98(Unknown Source:0)
-                                                                                                          at io.legado.app.help.exoplayer.InputStreamDataSource$$ExternalSyntheticLambda0.invoke(D8$$SyntheticClass:0)
-                                                                                                          at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:86)
-                                                                                                          at io.legado.app.help.exoplayer.InputStreamDataSource.getInputStream(InputStreamDataSource.kt:19)
-                                                                                                          at io.legado.app.help.exoplayer.InputStreamDataSource.open(InputStreamDataSource.kt:28)
-                                                                                                          at androidx.media3.datasource.TeeDataSource.open(TeeDataSource.java:54)
-                                                                                                          at androidx.media3.datasource.cache.CacheDataSource.openNextSource(CacheDataSource.java:802)
-                                                                                                          at androidx.media3.datasource.cache.CacheDataSource.open(CacheDataSource.java:615)
-                                                                                                          at androidx.media3.datasource.StatsDataSource.open(StatsDataSource.java:88)
-                                                                                                          at androidx.media3.exoplayer.source.ProgressiveMediaPeriod$ExtractingLoadable.load(ProgressiveMediaPeriod.java:1109)
-                                                                                                          at androidx.media3.exoplayer.upstream.Loader$LoadTask.run(Loader.java:453)
-                                                                                                          at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1156)
-                                                                                                          at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:651)
-                                                                                                          at java.lang.Thread.run(Thread.java:1119)
-                                                                                                      Caused by: org.mozilla.javascript.JavaScriptException: SSML Error: {"task_id":"767f0a51dd1b46129e9dff33b7f170a4","result":"","status":41020001,"message":"TTS:TtsClientError:Request json illegal,failed to parse request."} (<Unknown source>#11)
-                                                                                                          at org.mozilla.javascript.Interpreter.interpretLoop(Interpreter.java:1432)
-                                                                                                          at org.mozilla.javascript.Interpreter.interpret(Interpreter.java:1158)
-                                                                                                          at org.mozilla.javascript.InterpretedFunction.call(InterpretedFunction.java:87)
-                                                                                                          at org.mozilla.javascript.ContextFactory.doTopCall(ContextFactory.java:383)
-                                                                                                          at com.script.rhino.RhinoScriptEngine$1.superDoTopCall(RhinoScriptEngine.kt:386)
-                                                                                                          at com.script.rhino.RhinoScriptEngine$1.doTopCall(RhinoScriptEngine.kt:363)
-                                                                                                          at org.mozilla.javascript.ScriptRuntime.doTopCall(ScriptRuntime.java:4449)
-                                                                                                          at org.mozilla.javascript.InterpretedFunction.exec(InterpretedFunction.java:100)
-                                                                                                          at org.mozilla.javascript.Context.evaluateReader(Context.java:1263)
-2026-05-16 23:41:03.068 15365-16364 ExoPlayerImplInternal   io.legado.app.debug                  E  Playback error (Fix with AI)
-                                                                                                      androidx.media3.exoplayer.ExoPlaybackException: Source error
-                                                                                                          at androidx.media3.exoplayer.ExoPlayerImplInternal.handleIoException(ExoPlayerImplInternal.java:927)
-                                                                                                          at androidx.media3.exoplayer.ExoPlayerImplInternal.handleMessage(ExoPlayerImplInternal.java:903)
-                                                                                                          at android.os.Handler.dispatchMessage(Handler.java:111)
-                                                                                                          at android.os.Looper.loopOnce(Looper.java:298)
-                                                                                                          at android.os.Looper.loop(Looper.java:408)
-                                                                                                          at android.os.HandlerThread.run(HandlerThread.java:85)
-                                                                                                      Caused by: androidx.media3.exoplayer.upstream.Loader$UnexpectedLoaderException: Unexpected ScriptException: SSML Error: {"task_id":"767f0a51dd1b46129e9dff33b7f170a4","result":"","status":41020001,"message":"TTS:TtsClientError:Request json illegal,failed to parse request."} in <Unknown source> at line number 11
-                                                                                                          at androidx.media3.exoplayer.upstream.Loader$LoadTask.run(Loader.java:474)
-                                                                                                          at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1156)
-                                                                                                          at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:651)
-                                                                                                          at java.lang.Thread.run(Thread.java:1119)
-                                                                                                      Caused by: com.script.ScriptException: SSML Error: {"task_id":"767f0a51dd1b46129e9dff33b7f170a4","result":"","status":41020001,"message":"TTS:TtsClientError:Request json illegal,failed to parse request."} in <Unknown source> at line number 11
-                                                                                                          at com.script.rhino.RhinoScriptEngine.eval(RhinoScriptEngine.kt:113)
-                                                                                                          at com.script.AbstractScriptEngine.eval(AbstractScriptEngine.kt:75)
-                                                                                                          at io.legado.app.model.analyzeRule.AnalyzeUrl.evalJS(AnalyzeUrl.kt:370)
-                                                                                                          at io.legado.app.service.HttpReadAloudService.getSpeakStream(HttpReadAloudService.kt:597)
-                                                                                                          at io.legado.app.service.HttpReadAloudService.access$getSpeakStream(HttpReadAloudService.kt:128)
-                                                                                                          at io.legado.app.service.HttpReadAloudService$getSpeakStream$1.invokeSuspend(Unknown Source:15)
-                                                                                                          at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
-                                                                                                          at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
-                                                                                                          at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:263)
-                                                                                                          at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:94)
-                                                                                                          at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking(Builders.kt:70)
-                                                                                                          at kotlinx.coroutines.BuildersKt.runBlocking(Unknown Source:1)
-                                                                                                          at io.legado.app.service.HttpReadAloudService.createDataSourceFactory$lambda$0$0(HttpReadAloudService.kt:540)
-                                                                                                          at io.legado.app.service.HttpReadAloudService.$r8$lambda$9K105lOjW81NAzOdx3Ikl2SJVxM(Unknown Source:0)
-                                                                                                          at io.legado.app.service.HttpReadAloudService$$ExternalSyntheticLambda2.invoke(D8$$SyntheticClass:0)
-                                                                                                          at io.legado.app.help.exoplayer.InputStreamDataSource.inputStream_delegate$lambda$0(InputStreamDataSource.kt:20)
-                                                                                                          at io.legado.app.help.exoplayer.InputStreamDataSource.$r8$lambda$BOGUTjv_rjq58I7BzNAI7VTKN98(Unknown Source:0)
-                                                                                                          at io.legado.app.help.exoplayer.InputStreamDataSource$$ExternalSyntheticLambda0.invoke(D8$$SyntheticClass:0)
-                                                                                                          at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:86)
-                                                                                                          at io.legado.app.help.exoplayer.InputStreamDataSource.getInputStream(InputStreamDataSource.kt:19)
-                                                                                                          at io.legado.app.help.exoplayer.InputStreamDataSource.open(InputStreamDataSource.kt:28)
-                                                                                                          at androidx.media3.datasource.TeeDataSource.open(TeeDataSource.java:54)
-                                                                                                          at androidx.media3.datasource.cache.CacheDataSource.openNextSource(CacheDataSource.java:802)
-                                                                                                          at androidx.media3.datasource.cache.CacheDataSource.open(CacheDataSource.java:615)
-                                                                                                          at androidx.media3.datasource.StatsDataSource.open(StatsDataSource.java:88)
-                                                                                                          at androidx.media3.exoplayer.source.ProgressiveMediaPeriod$ExtractingLoadable.load(ProgressiveMediaPeriod.java:1109)
-                                                                                                          at androidx.media3.exoplayer.upstream.Loader$LoadTask.run(Loader.java:453)
-                                                                                                          ... 3 more
-2026-05-16 23:41:03.068 15365-16364 ExoPlayerImplInternal   io.legado.app.debug                  E    Caused by: org.mozilla.javascript.JavaScriptException: SSML Error: {"task_id":"767f0a51dd1b46129e9dff33b7f170a4","result":"","status":41020001,"message":"TTS:TtsClientError:Request json illegal,failed to parse request."} (<Unknown source>#11) (Fix with AI)
-                                                                                                          at org.mozilla.javascript.Interpreter.interpretLoop(Interpreter.java:1432)
-                                                                                                          at org.mozilla.javascript.Interpreter.interpret(Interpreter.java:1158)
-                                                                                                          at org.mozilla.javascript.InterpretedFunction.call(InterpretedFunction.java:87)
-                                                                                                          at org.mozilla.javascript.ContextFactory.doTopCall(ContextFactory.java:383)
-                                                                                                          at com.script.rhino.RhinoScriptEngine$1.superDoTopCall(RhinoScriptEngine.kt:386)
-                                                                                                          at com.script.rhino.RhinoScriptEngine$1.doTopCall(RhinoScriptEngine.kt:363)
-                                                                                                          at org.mozilla.javascript.ScriptRuntime.doTopCall(ScriptRuntime.java:4449)
-                                                                                                          at org.mozilla.javascript.InterpretedFunction.exec(InterpretedFunction.java:100)
-                                                                                                          at org.mozilla.javascript.Context.evaluateReader(Context.java:1263)
-                                                                                                          at com.script.rhino.RhinoScriptEngine.eval(RhinoScriptEngine.kt:105)
-                                                                                                          ... 29 more
-2026-05-16 23:41:03.098 15365-15365 Legado                  io.legado.app.debug                  I  AppLog 朗读错误 (Fix with AI)
-                                                                                                    　　更让周文不寒而栗的是，他发现，这支秦军打着的，正是本应该被吸引到北部战线，那数万“关中兵”的旗帜！
-                                                                                                    androidx.media3.exoplayer.ExoPlaybackException: Source error
-                                                                                                    	at androidx.media3.exoplayer.ExoPlayerImplInternal.handleIoException(ExoPlayerImplInternal.java:927)
-                                                                                                    	at androidx.media3.exoplayer.ExoPlayerImplInternal.handleMessage(ExoPlayerImplInternal.java:903)
-                                                                                                    	at android.os.Handler.dispatchMessage(Handler.java:111)
-                                                                                                    	at android.os.Looper.loopOnce(Looper.java:298)
-                                                                                                    	at android.os.Looper.loop(Looper.java:408)
-                                                                                                    	at android.os.HandlerThread.run(HandlerThread.java:85)
-                                                                                                    Caused by: androidx.media3.exoplayer.upstream.Loader$UnexpectedLoaderException: Unexpected ScriptException: SSML Error: {"task_id":"767f0a51dd1b46129e9dff33b7f170a4","result":"","status":41020001,"message":"TTS:TtsClientError:Request json illegal,failed to parse request."} in <Unknown source> at line number 11
-                                                                                                    	at androidx.media3.exoplayer.upstream.Loader$LoadTask.run(Loader.java:474)
-                                                                                                    	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1156)
-                                                                                                    	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:651)
-                                                                                                    	at java.lang.Thread.run(Thread.java:1119)
-                                                                                                    Caused by: com.script.ScriptException: SSML Error: {"task_id":"767f0a51dd1b46129e9dff33b7f170a4","result":"","status":41020001,"message":"TTS:TtsClientError:Request json illegal,failed to parse request."} in <Unknown source> at line number 11
-                                                                                                    	at com.script.rhino.RhinoScriptEngine.eval(RhinoScriptEngine.kt:113)
-                                                                                                    	at com.script.AbstractScriptEngine.eval(AbstractScriptEngine.kt:75)
-                                                                                                    	at io.legado.app.model.analyzeRule.AnalyzeUrl.evalJS(AnalyzeUrl.kt:370)
-                                                                                                    	at io.legado.app.service.HttpReadAloudService.getSpeakStream(HttpReadAloudService.kt:597)
-                                                                                                    	at io.legado.app.service.HttpReadAloudService.access$getSpeakStream(HttpReadAloudService.kt:128)
-                                                                                                    	at io.legado.app.service.HttpReadAloudService$getSpeakStream$1.invokeSuspend(Unknown Source:15)
-                                                                                                    	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
-                                                                                                    	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
-                                                                                                    	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:263)
-                                                                                                    	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:94)
-                                                                                                    	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking(Builders.kt:70)
-                                                                                                    	at kotlinx.coroutines.BuildersKt.runBlocking(Unknown Source:1)
-                                                                                                    	at io.legado.app.service.HttpReadAloudService.createDataSourceFactory$lambda$0$0(HttpReadAloudService.kt:540)
-                                                                                                    	at io.legado.app.service.HttpReadAloudService.$r8$lambda$9K105lOjW81NAzOdx3Ikl2SJVxM(Unknown Source:0)
-                                                                                                    	at io.legado.app.service.HttpReadAloudService$$ExternalSyntheticLambda2.invoke(D8$$SyntheticClass:0)
-                                                                                                    	at io.legado.app.help.exoplayer.InputStreamDataSource.inputStream_delegate$lambda$0(InputStreamDataSource.kt:20)
-                                                                                                    	at io.legado.app.help.exoplayer.InputStreamDataSource.$r8$lambda$BOGUTjv_rjq58I7BzNAI7VTKN98(Unknown Source:0)
-                                                                                                    	at io.legado.app.help.exoplayer.InputStreamDataSource$$ExternalSyntheticLambda0.invoke(D8$$SyntheticClass:0)
-                                                                                                    	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:86)
-                                                                                                    	at io.legado.app.help.exoplayer.InputStreamDataSource.getInputStream(InputStreamDataSource.kt:19)
-                                                                                                    	at io.legado.app.help.exoplayer.InputStreamDataSource.open(InputStreamDataSource.kt:28)
-                                                                                                    	at androidx.media3.datasource.TeeDataSource.open(TeeDataSource.java:54)
-                                                                                                    	at androidx.media3.datasource.cache.CacheDataSource.openNextSource(CacheDataSource.java:802)
-                                                                                                    	at androidx.media3.datasource.cache.CacheDataSource.open(CacheDataSource.java:615)
-                                                                                                    	at androidx.media3.datasource.StatsDataSource.open(StatsDataSource.java:88)
-                                                                                                    	at androidx.media3.exoplayer.source.ProgressiveMediaPeriod$ExtractingLoadable.load(ProgressiveMediaPeriod.java:1109)
-                                                                                                    	at androidx.media3.exoplayer.upstream.Loader$LoadTask.run(Loader.java:453)
-                                                                                                    	... 3 more
-2026-05-16 23:41:03.098 15365-15365 Legado                  io.legado.app.debug                  I  Caused by: org.mozilla.javascript.JavaScriptException: SSML Error: {"task_id":"767f0a51dd1b46129e9dff33b7f170a4","result":"","status":41020001,"message":"TTS:TtsClientError:Request json illegal,failed to parse request."} (<Unknown source>#11) (Fix with AI)
-                                                                                                    	at org.mozilla.javascript.Interpreter.interpretLoop(Interpreter.java:1432)
-                                                                                                    	at org.mozilla.javascript.Interpreter.interpret(Interpreter.java:1158)
-                                                                                                    	at org.mozilla.javascript.InterpretedFunction.call(InterpretedFunction.java:87)
-                                                                                                    	at org.mozilla.javascript.ContextFactory.doTopCall(ContextFactory.java:383)
-                                                                                                    	at com.script.rhino.RhinoScriptEngine$1.superDoTopCall(RhinoScriptEngine.kt:386)
-                                                                                                    	at com.script.rhino.RhinoScriptEngine$1.doTopCall(RhinoScriptEngine.kt:363)
-                                                                                                    	at org.mozilla.javascript.ScriptRuntime.doTopCall(ScriptRuntime.java:4449)
-                                                                                                    	at org.mozilla.javascript.InterpretedFunction.exec(InterpretedFunction.java:100)
-                                                                                                    	at org.mozilla.javascript.Context.evaluateReader(Context.java:1263)
-                                                                                                    	at com.script.rhino.RhinoScriptEngine.eval(RhinoScriptEngine.kt:105)
-                                                                                                    	... 29 more
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="happy" intensity="1.0">太好了！我终于完成了这个任务。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhimi_emo">
+    <emotion category="angry" intensity="0.8">你怎么能这样做？这太过分了！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="sad" intensity="1.0">他默默地说："我已经尽力了..."</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">今天下午三点有一个重要的会议。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhimi_emo">
+    <emotion category="fear" intensity="0.8">"这太可怕了！"她害怕地说道。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="surprise" intensity="1.0">什么？你居然赢了比赛！</emotion>
+  </voice>
+</speak>

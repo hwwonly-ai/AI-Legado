@@ -127,7 +127,7 @@ interface BaseSource : JsExtensions {
         }
         if (hasLoginHeader) {
             getLoginHeaderMap()?.let {
-                putAll(it)
+                putAll(it.filterKeys { key -> !key.startsWith("__") })
             }
         }
     }

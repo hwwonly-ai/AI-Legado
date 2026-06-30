@@ -1729,7 +1729,11 @@ class ReadBookActivity : BaseReadBookActivity(),
             }
             return
         }
-        if (!isFollowingReadAloud && targetPageIndex != ReadBook.durPageIndex) return
+        if (!isFollowingReadAloud) {
+            if (targetPageIndex != ReadBook.durPageIndex) return
+            isFollowingReadAloud = true
+            lastAloudPageIndex = -1
+        }
 
         if (isFollowingReadAloud) {
             ReadBook.durChapterPos = progress.chapterPos

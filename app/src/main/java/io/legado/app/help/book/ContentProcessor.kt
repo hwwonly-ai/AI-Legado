@@ -51,6 +51,13 @@ class ContentProcessor private constructor(
 
     }
 
+    private fun hasSSMLTags(content: String): Boolean {
+        return Regex(
+            "</?(speak|voice|emotion|break|prosody|p|s|sub|phoneme|say-as)\\b",
+            RegexOption.IGNORE_CASE
+        ).containsMatchIn(content)
+    }
+
     private val titleReplaceRules = CopyOnWriteArrayList<ReplaceRule>()
     private val contentReplaceRules = CopyOnWriteArrayList<ReplaceRule>()
     val removeSameTitleCache = hashSetOf<String>()
@@ -181,8 +188,9 @@ class ContentProcessor private constructor(
             }
         }
         
-        // 当开启阿里云标签解析时，保存原始内容用于朗读
-        if (AppConfig.ssmlTagParse) {
+        // 自动识别章节中的 SSML 标签，保存带标签朗读内容。
+        val useExistingSSML = hasSSMLTags(mContent)
+        if (useExistingSSML) {
             readAloudText = mContent
         }
         
@@ -193,7 +201,7 @@ class ContentProcessor private constructor(
                 useReplace = useReplace && book.getUseReplaceRule()
             ) + "\n" + mContent
             // 朗读内容也需要添加标题
-            if (AppConfig.ssmlTagParse && readAloudText.isNotEmpty()) {
+            if (useExistingSSML && readAloudText.isNotEmpty()) {
                 readAloudText = chapter.getDisplayTitle(
                     getTitleReplaceRules(),
                     useReplace = useReplace && book.getUseReplaceRule()
@@ -203,13 +211,13 @@ class ContentProcessor private constructor(
         
         if (isAndroid8) {
             mContent = mContent.replace('\u00A0', ' ')
-            if (AppConfig.ssmlTagParse) {
+            if (useExistingSSML) {
                 readAloudText = readAloudText.replace('\u00A0', ' ')
             }
         }
         
-        // 当开启阿里云标签解析时，过滤显示文本中的所有标签
-        val displayContent = if (AppConfig.ssmlTagParse) {
+        // 只有已有 SSML 标签时才过滤显示文本，普通文本不受开关影响。
+        val displayContent = if (useExistingSSML) {
             mContent.replace(htmlTagRegex, "")
         } else {
             mContent

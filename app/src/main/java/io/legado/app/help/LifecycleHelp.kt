@@ -23,6 +23,12 @@ object LifecycleHelp : Application.ActivityLifecycleCallbacks {
         return activities.size
     }
 
+    fun currentActivity(): Activity? {
+        return activities.asReversed()
+            .firstOrNull { it.get()?.isFinishing == false && it.get()?.isDestroyed == false }
+            ?.get()
+    }
+
     /**
      * 判断指定Activity是否存在
      */

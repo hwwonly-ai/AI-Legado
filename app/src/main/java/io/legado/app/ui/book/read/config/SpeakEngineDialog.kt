@@ -2,6 +2,7 @@ package io.legado.app.ui.book.read.config
 
 import android.content.Context
 import android.os.Bundle
+import android.text.InputType
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
@@ -19,6 +20,8 @@ import io.legado.app.data.appDb
 import io.legado.app.data.entities.HttpTTS
 import io.legado.app.databinding.DialogEditTextBinding
 import io.legado.app.databinding.DialogRecyclerViewBinding
+import io.legado.app.databinding.ItemBookRoleEntryBinding
+import io.legado.app.databinding.ItemBookVoiceEntryBinding
 import io.legado.app.databinding.ItemHttpTtsBinding
 import io.legado.app.help.DirectLinkUpload
 import io.legado.app.help.config.AppConfig
@@ -50,6 +53,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * tts引擎管理
@@ -104,6 +108,24 @@ class SpeakEngineDialog() : BaseDialogFragment(R.layout.dialog_recycler_view),
         recyclerView.setEdgeEffectColor(primaryColor)
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         recyclerView.adapter = adapter
+        adapter.addHeaderView {
+            ItemBookVoiceEntryBinding.inflate(layoutInflater, recyclerView, false).apply {
+                root.isEnabled = ReadBook.book != null
+                root.alpha = if (root.isEnabled) 1f else 0.5f
+                root.setOnClickListener {
+                    showDialogFragment(BookVoiceConfigDialog.newInstance(ttsEngine))
+                }
+            }
+        }
+        adapter.addHeaderView {
+            ItemBookRoleEntryBinding.inflate(layoutInflater, recyclerView, false).apply {
+                root.isEnabled = ReadBook.book != null
+                root.alpha = if (root.isEnabled) 1f else 0.5f
+                root.setOnClickListener {
+                    showDialogFragment(BookRoleListDialog.newInstance(ttsEngine))
+                }
+            }
+        }
         adapter.addHeaderView {
             ItemHttpTtsBinding.inflate(layoutInflater, recyclerView, false).apply {
                 sysTtsViews.add(cbName)
@@ -190,7 +212,8 @@ class SpeakEngineDialog() : BaseDialogFragment(R.layout.dialog_recycler_view),
                 mode = HandleFileContract.EXPORT
                 fileData = HandleFileContract.FileData(
                     "httpTts.json",
-                    GSON.toJson(adapter.getItems()).toByteArray(),
+                    GSON.toJson(adapter.getItems())
+                        .toByteArray(),
                     "application/json"
                 )
             }
@@ -251,6 +274,7 @@ class SpeakEngineDialog() : BaseDialogFragment(R.layout.dialog_recycler_view),
             binding.apply {
                 cbName.text = item.name
                 cbName.isChecked = item.id.toString() == ttsEngine
+                ivMenuDelete.visible()
             }
         }
 
@@ -271,8 +295,9 @@ class SpeakEngineDialog() : BaseDialogFragment(R.layout.dialog_recycler_view),
                     }
                 }
                 ivEdit.setOnClickListener {
-                    val id = getItemByLayoutPosition(holder.layoutPosition)!!.id
-                    showDialogFragment(HttpTtsEditDialog(id))
+                    getItemByLayoutPosition(holder.layoutPosition)?.let { httpTTS ->
+                        showDialogFragment(HttpTtsEditDialog(httpTTS.id))
+                    }
                 }
                 ivMenuDelete.setOnClickListener {
                     getItemByLayoutPosition(holder.layoutPosition)?.let { httpTTS ->
@@ -286,6 +311,13 @@ class SpeakEngineDialog() : BaseDialogFragment(R.layout.dialog_recycler_view),
 
     interface CallBack {
         fun upSpeakEngineSummary()
+    }
+
+    companion object {
+        private const val DECIMAL_INPUT_TYPE =
+            InputType.TYPE_CLASS_NUMBER or
+                    InputType.TYPE_NUMBER_FLAG_DECIMAL or
+                    InputType.TYPE_NUMBER_FLAG_SIGNED
     }
 
 }

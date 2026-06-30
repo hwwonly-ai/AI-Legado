@@ -12,6 +12,8 @@ import io.legado.app.data.entities.HttpTTS
 import io.legado.app.databinding.DialogHttpTtsEditBinding
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.primaryColor
+import io.legado.app.model.ReadAloud
+import io.legado.app.model.ReadAloudCacheInvalidator
 import io.legado.app.ui.about.AppLogDialog
 import io.legado.app.ui.login.SourceLoginActivity
 import io.legado.app.ui.widget.code.addJsPattern
@@ -91,6 +93,8 @@ class HttpTtsEditDialog() : BaseDialogFragment(R.layout.dialog_http_tts_edit, tr
     override fun onMenuItemClick(item: MenuItem?): Boolean {
         when (item?.itemId) {
             R.id.menu_save -> viewModel.save(dataFromView()) {
+                ReadAloud.upReadAloudClass()
+                ReadAloudCacheInvalidator.clearCurrentChapterAudio("httpTtsConfigSaved")
                 toastOnUi("保存成功")
             }
             R.id.menu_login -> dataFromView().let { httpTts ->

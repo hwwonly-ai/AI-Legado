@@ -2,6 +2,7 @@ package io.legado.app.model.analyzeRule
 
 import android.annotation.SuppressLint
 import android.util.Base64
+import android.util.Log
 import androidx.annotation.Keep
 import androidx.media3.common.MediaItem
 import cn.hutool.core.codec.PercentCodec
@@ -40,6 +41,8 @@ import io.legado.app.help.http.postJson
 import io.legado.app.help.http.postMultipart
 import io.legado.app.help.source.getShareScope
 import io.legado.app.model.Debug
+import io.legado.app.model.ReadAloudSegment
+import io.legado.app.model.ReadAloudProviderSegment
 import io.legado.app.utils.EncoderUtils
 import io.legado.app.utils.GSON
 import io.legado.app.utils.GSONStrict
@@ -67,6 +70,18 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.math.max
 
+private fun String.analyzeUrlLogPreview(limit: Int): String {
+    return replace(Regex("(?i)(ApiKey['\"\\s:=]+)[^'\"&,}]+"), "${'$'}1***")
+        .replace(Regex("(?i)(X-Api-Key['\"\\s:=]+)[^'\"&,}]+"), "${'$'}1***")
+        .replace(Regex("\\s+"), " ")
+        .trim()
+        .let { text -> text.take(limit) + if (text.length > limit) "..." else "" }
+}
+
+private fun Map<String, String>.analyzeUrlHeaderKeys(): String {
+    return keys.joinToString("|")
+}
+
 /**
  * Created by GKF on 2018/1/24.
  * 搜索URL规则解析
@@ -80,6 +95,8 @@ class AnalyzeUrl(
     private val page: Int? = null,
     private val speakText: String? = null,
     private val speakSpeed: Int? = null,
+    private val readAloudSegment: ReadAloudSegment? = null,
+    private val readAloudProviderSegment: ReadAloudProviderSegment? = null,
     private var baseUrl: String = "",
     private val source: BaseSource? = null,
     private val ruleData: RuleDataInterface? = null,
@@ -184,14 +201,44 @@ class AnalyzeUrl(
             val analyze = RuleAnalyzer(ruleUrl) //创建解析
             //替换所有内嵌{{js}}
             val url = analyze.innerRule("{{", "}}") {
-                val jsEval = evalJS(it) ?: ""
+                Log.i(
+                    "AnalyzeUrl",
+                    "innerJS beforeEval source=${source?.getTag().orEmpty()} " +
+                            "length=${it.length} hash=${it.hashCode()} " +
+                            "preview=${it.analyzeUrlLogPreview(500)}"
+                )
+                val jsEval = try {
+                    evalJS(it) ?: ""
+                } catch (e: Exception) {
+                    Log.e(
+                        "AnalyzeUrl",
+                        "innerJS evalError source=${source?.getTag().orEmpty()} " +
+                                "length=${it.length} hash=${it.hashCode()} " +
+                                "preview=${it.analyzeUrlLogPreview(1000)}",
+                        e
+                    )
+                    throw e
+                }
+                Log.i(
+                    "AnalyzeUrl",
+                    "innerJS afterEval source=${source?.getTag().orEmpty()} " +
+                            "resultType=${jsEval::class.java.simpleName} " +
+                            "resultPreview=${jsEval.toString().analyzeUrlLogPreview(500)}"
+                )
                 when {
                     jsEval is String -> jsEval
                     jsEval is Double && jsEval % 1.0 == 0.0 -> String.format("%.0f", jsEval)
                     else -> jsEval.toString()
                 }
             }
-            if (url.isNotEmpty()) ruleUrl = url
+            if (url.isNotEmpty()) {
+                Log.i(
+                    "AnalyzeUrl",
+                    "innerJS replaced source=${source?.getTag().orEmpty()} " +
+                            "ruleUrlPreview=${url.analyzeUrlLogPreview(500)}"
+                )
+                ruleUrl = url
+            }
         }
         //page
         page?.let {
@@ -231,6 +278,9 @@ class AnalyzeUrl(
             urlOption?.let { option ->
                 option.getMethod()?.let {
                     if (it.equals("POST", true)) method = RequestMethod.POST
+                    log("URL method from option: $it, resolved to: $method")
+                } ?: run {
+                    log("No method in URL option, using default: $method")
                 }
                 option.getHeaderMap()?.forEach { entry ->
                     headerMap[entry.key.toString()] = entry.value.toString()
@@ -268,6 +318,13 @@ class AnalyzeUrl(
                 }
             }
         }
+        Log.i(
+            "AnalyzeUrl",
+            "parsed source=${source?.getTag().orEmpty()} method=$method " +
+                    "url=${url.analyzeUrlLogPreview(260)} headers=${headerMap.analyzeUrlHeaderKeys()} " +
+                    "contentType=${headerMap["Content-Type"].orEmpty()} " +
+                    "bodyLength=${body.orEmpty().length} bodyPreview=${body.orEmpty().analyzeUrlLogPreview(500)}"
+        )
     }
 
     /**
@@ -355,6 +412,17 @@ class AnalyzeUrl(
             bindings["key"] = key
             bindings["speakText"] = speakText
             bindings["speakSpeed"] = speakSpeed
+            bindings["readAloudSegment"] = readAloudSegment
+            bindings["readAloudProviderSegment"] = readAloudProviderSegment
+            bindings["segmentEventType"] = readAloudSegment?.eventType.orEmpty()
+            bindings["segmentRole"] = readAloudSegment?.role.orEmpty()
+            bindings["segmentRoleName"] = readAloudSegment?.roleName.orEmpty()
+            bindings["segmentRoleAttribute"] = readAloudSegment?.roleAttribute.orEmpty()
+            bindings["segmentEmotion"] = readAloudSegment?.emotion.orEmpty()
+            bindings["segmentEmotionIntensity"] = readAloudSegment?.emotionIntensity ?: 1.0f
+            bindings["providerVoice"] = readAloudProviderSegment?.voice.orEmpty()
+            bindings["providerStyleTag"] = readAloudProviderSegment?.styleTag.orEmpty()
+            bindings["providerExtra"] = readAloudProviderSegment?.extra.orEmpty()
             bindings["book"] = ruleData as? Book
             bindings["source"] = source
             bindings["result"] = result

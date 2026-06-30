@@ -12,6 +12,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.AudioManager
 import android.net.wifi.WifiManager
+import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.support.v4.media.session.MediaSessionCompat
@@ -41,6 +42,7 @@ import io.legado.app.lib.permission.Permissions
 import io.legado.app.lib.permission.PermissionsCompat
 import io.legado.app.model.ReadAloud
 import io.legado.app.model.ReadAloudProgress
+import io.legado.app.model.ReadAloudSegment
 import io.legado.app.model.ReadBook
 import io.legado.app.receiver.MediaButtonReceiver
 import io.legado.app.ui.book.read.ReadBookActivity
@@ -105,6 +107,12 @@ abstract class BaseReadAloudService : BaseService(),
                 this.setReferenceCounted(false)
             }
     }
+    private val prepareWakeLock by lazy {
+        powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "legado:ReadAloudPrepare")
+            .apply {
+                this.setReferenceCounted(false)
+            }
+    }
     private val wifiLock by lazy {
         @Suppress("DEPRECATION")
         wifiManager?.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "legado:AudioPlayService")
@@ -112,6 +120,8 @@ abstract class BaseReadAloudService : BaseService(),
                 setReferenceCounted(false)
             }
     }
+    private var prepareWakeLockAcquireCount = 0
+    private var prepareWifiLockAcquireCount = 0
     private val mFocusRequest: AudioFocusRequestCompat by lazy {
         MediaHelp.buildAudioFocusRequestCompat(this)
     }
@@ -122,6 +132,7 @@ abstract class BaseReadAloudService : BaseService(),
         ReadAloudPhoneStateListener()
     }
     internal var contentList = emptyList<String>()
+    internal var readAloudSegments = emptyList<ReadAloudSegment>()
     internal var contentStartPositions = emptyList<Int>()
     internal var contentPlainLengths = emptyList<Int>()
     internal var nowSpeak: Int = 0
@@ -203,9 +214,10 @@ abstract class BaseReadAloudService : BaseService(),
     override fun onDestroy() {
         super.onDestroy()
         if (useWakeLock) {
-            wakeLock.release()
-            wifiLock?.release()
+            wakeLock.safeRelease()
+            wifiLock?.safeRelease()
         }
+        releaseReadAloudPrepareWakeLock(force = true)
         isRun = false
         pause = true
         service = null
@@ -262,7 +274,8 @@ abstract class BaseReadAloudService : BaseService(),
             }
             val actualPageIndex = if (pageIndex < 0) textChapter.lastIndex else pageIndex
             this@BaseReadAloudService.pageIndex = actualPageIndex
-            readAloudNumber = textChapter.getReadLength(actualPageIndex) + startPos
+            var actualStartPos = startPos
+            readAloudNumber = textChapter.getReadLength(actualPageIndex) + actualStartPos
             lastProgress = ReadAloudProgress(
                 chapterIndex,
                 readAloudNumber + 1,
@@ -270,10 +283,35 @@ abstract class BaseReadAloudService : BaseService(),
             )
             readAloudByPage = getPrefBoolean(PreferKey.readAloudByPage)
             // 从当前页面开始获取内容，确保索引匹配
-            contentList = textChapter.getNeedReadAloud(actualPageIndex, readAloudByPage, startPos)
-                .split("\n")
+            var readAloudText = textChapter.getNeedReadAloud(
+                actualPageIndex,
+                readAloudByPage,
+                actualStartPos
+            )
+            if (readAloudText.isBlank() && actualStartPos > 0) {
+                AppLog.putDebug(
+                    "朗读起始位置超出当前页内容，回退到页首重试: " +
+                            "chapter=$chapterIndex page=$actualPageIndex startPos=$actualStartPos"
+                )
+                actualStartPos = 0
+                readAloudNumber = textChapter.getReadLength(actualPageIndex)
+                lastProgress = ReadAloudProgress(
+                    chapterIndex,
+                    readAloudNumber + 1,
+                    actualPageIndex
+                )
+                readAloudText = textChapter.getNeedReadAloud(actualPageIndex, readAloudByPage, 0)
+            }
+            if (readAloudText.isBlank() && textChapter.readAloudContent.isNotBlank()) {
+                readAloudText = textChapter.getContent()
+                AppLog.putDebug(
+                    "朗读当前页文本为空，使用章节纯文本辅助 SSML 定位: " +
+                            "chapter=$chapterIndex page=$actualPageIndex"
+                )
+            }
+            contentList = readAloudText.split("\n")
                 .filter { it.isNotEmpty() }
-            var pos = startPos
+            var pos = actualStartPos
             val page = textChapter.getPage(actualPageIndex)!!
             if (pos > 0) {
                 for (paragraph in page.paragraphs) {
@@ -293,7 +331,7 @@ abstract class BaseReadAloudService : BaseService(),
             val chapterParagraphNum = textChapter.getParagraphNum(readAloudNumber + 1, readAloudByPage) - 1
             nowSpeak = (chapterParagraphNum - pageStartParagraphNum).coerceAtLeast(0)
 
-            if (!readAloudByPage && startPos == 0 && !toLast) {
+            if (!readAloudByPage && actualStartPos == 0 && !toLast) {
                 // 使用相对于页面的段落索引
                 val relativeParagraphNum = nowSpeak + pageStartParagraphNum
                 pos = page.chapterPosition -
@@ -323,8 +361,8 @@ abstract class BaseReadAloudService : BaseService(),
     @SuppressLint("WakelockTimeout")
     open fun play() {
         if (useWakeLock) {
-            wakeLock.acquire()
-            wifiLock?.acquire()
+            wakeLock.safeAcquire()
+            wifiLock?.safeAcquire()
         }
         isRun = true
         pause = false
@@ -340,9 +378,10 @@ abstract class BaseReadAloudService : BaseService(),
     @CallSuper
     open fun pauseReadAloud(abandonFocus: Boolean = true) {
         if (useWakeLock) {
-            wakeLock.release()
-            wifiLock?.release()
+            wakeLock.safeRelease()
+            wifiLock?.safeRelease()
         }
+        releaseReadAloudPrepareWakeLock(force = true)
         pause = true
         if (abandonFocus) {
             abandonFocus()
@@ -361,12 +400,90 @@ abstract class BaseReadAloudService : BaseService(),
     }
 
     private fun resumeReadAloudInternal() {
+        if (useWakeLock) {
+            wakeLock.safeAcquire()
+            wifiLock?.safeAcquire()
+        }
         pause = false
         needResumeOnAudioFocusGain = false
         needResumeOnCallStateIdle = false
         upReadAloudNotification()
         upMediaSessionPlaybackState(PlaybackStateCompat.STATE_PLAYING)
         postEvent(EventBus.ALOUD_STATE, Status.PLAY)
+    }
+
+    @SuppressLint("WakelockTimeout")
+    protected fun acquireReadAloudPrepareWakeLock() {
+        val serviceWakeHeld = useWakeLock && wakeLock.isHeld
+        val wifiHeldBefore = wifiLock?.isHeld == true
+        prepareWakeLockAcquireCount++
+        prepareWifiLockAcquireCount++
+        AppLog.putDebug(
+            "aiChapterParse wakeLockAcquire beforeHeld=${prepareWakeLock.isHeld} " +
+                "serviceWakeHeld=$serviceWakeHeld wifiHeld=$wifiHeldBefore " +
+                "prepareCount=$prepareWakeLockAcquireCount wifiCount=$prepareWifiLockAcquireCount"
+        )
+        if (!serviceWakeHeld && !prepareWakeLock.isHeld) {
+            prepareWakeLock.safeAcquire()
+        }
+        if (!wifiHeldBefore && wifiLock?.isHeld != true) {
+            wifiLock?.safeAcquire()
+        }
+        AppLog.putDebug(
+            "aiChapterParse wakeLockAcquire afterHeld=${prepareWakeLock.isHeld} " +
+                "prepareCount=$prepareWakeLockAcquireCount wifiHeld=${wifiLock?.isHeld} " +
+                "wifiCount=$prepareWifiLockAcquireCount"
+        )
+    }
+
+    protected fun releaseReadAloudPrepareWakeLock(force: Boolean = false) {
+        if (force) {
+            prepareWakeLockAcquireCount = 0
+            prepareWifiLockAcquireCount = 0
+        } else {
+            prepareWakeLockAcquireCount = (prepareWakeLockAcquireCount - 1).coerceAtLeast(0)
+            prepareWifiLockAcquireCount = (prepareWifiLockAcquireCount - 1).coerceAtLeast(0)
+        }
+        AppLog.putDebug(
+            "aiChapterParse wakeLockRelease held=${prepareWakeLock.isHeld} " +
+                "prepareCount=$prepareWakeLockAcquireCount wifiHeld=${wifiLock?.isHeld} " +
+                "wifiCount=$prepareWifiLockAcquireCount force=$force"
+        )
+        if (prepareWakeLockAcquireCount == 0) {
+            prepareWakeLock.safeRelease()
+        }
+        if (prepareWifiLockAcquireCount == 0) {
+            wifiLock?.safeRelease()
+        }
+    }
+
+    @SuppressLint("WakelockTimeout")
+    private fun PowerManager.WakeLock.safeAcquire(timeoutMillis: Long? = null) {
+        if (!isHeld) {
+            if (timeoutMillis != null) {
+                acquire(timeoutMillis)
+            } else {
+                acquire()
+            }
+        }
+    }
+
+    private fun PowerManager.WakeLock.safeRelease() {
+        if (isHeld) {
+            release()
+        }
+    }
+
+    private fun WifiManager.WifiLock.safeAcquire() {
+        if (!isHeld) {
+            acquire()
+        }
+    }
+
+    private fun WifiManager.WifiLock.safeRelease() {
+        if (isHeld) {
+            release()
+        }
     }
 
     abstract fun upSpeechRate(reset: Boolean = false)
@@ -423,25 +540,30 @@ abstract class BaseReadAloudService : BaseService(),
     }
 
     internal fun contentPlainLength(index: Int): Int {
-        return contentPlainLengths.getOrNull(index)
+        return readAloudSegments.getOrNull(index)?.plainLength
+            ?: contentPlainLengths.getOrNull(index)
             ?: stripReadAloudTags(contentList.getOrNull(index).orEmpty()).length
     }
 
     internal fun contentStartPosition(index: Int): Int? {
-        return contentStartPositions.getOrNull(index)
+        return readAloudSegments.getOrNull(index)?.startPosition
+            ?: contentStartPositions.getOrNull(index)
     }
 
     internal fun rebuildContentPositionMap() {
         val chapter = textChapter ?: run {
+            readAloudSegments = emptyList()
             contentStartPositions = emptyList()
             contentPlainLengths = emptyList()
             return
         }
-        val paragraphs = chapter.getParagraphs(readAloudByPage && !getPrefBoolean(PreferKey.ssmlTagParse))
-        var runningPos = readAloudNumber
-        var searchFrom = readAloudNumber.coerceAtLeast(0)
+        val paragraphs = chapter.getParagraphs(readAloudByPage && chapter.readAloudContent.isBlank())
+        val mapFromChapterStart = chapter.readAloudContent.isNotBlank() &&
+                contentList.any { it.contains('<') }
+        var runningPos = if (mapFromChapterStart) 0 else readAloudNumber
+        var searchFrom = if (mapFromChapterStart) 0 else readAloudNumber.coerceAtLeast(0)
         val chapterContent = chapter.getContent()
-        contentStartPositions = contentList.mapIndexed { index, content ->
+        readAloudSegments = contentList.mapIndexed { index, content ->
             val paragraphIndex = contentParagraphOffset + index
             val plainText = stripReadAloudTags(content)
             val foundIndex = if (plainText.isNotBlank()) {
@@ -458,9 +580,28 @@ abstract class BaseReadAloudService : BaseService(),
             val plainLength = plainText.length
             runningPos = start + plainLength + 1
             searchFrom = (start + plainLength).coerceAtLeast(searchFrom)
-            start
+            ReadAloudSegment(
+                text = plainText,
+                startPosition = start,
+                plainLength = plainLength,
+                emotion = readAloudTagAttribute(content, "emotion", "category")
+                    .ifBlank { "neutral" },
+                emotionIntensity = readAloudTagAttribute(content, "emotion", "intensity")
+                    .toFloatOrNull()
+                    ?: 1.0f
+            )
         }
-        contentPlainLengths = contentList.map { stripReadAloudTags(it).length }
+        contentStartPositions = readAloudSegments.map { it.startPosition }
+        contentPlainLengths = readAloudSegments.map { it.plainLength }
+    }
+
+    private fun readAloudTagAttribute(content: String, tagName: String, attrName: String): String {
+        val tagRegex = Regex("<\\s*$tagName\\b[^>]*>", RegexOption.IGNORE_CASE)
+        val attrRegex = Regex("""\b$attrName\s*=\s*(['"])(.*?)\1""", RegexOption.IGNORE_CASE)
+        return tagRegex.find(content)
+            ?.value
+            ?.let { attrRegex.find(it)?.groupValues?.getOrNull(2) }
+            .orEmpty()
     }
 
     private fun prevP() {
@@ -823,7 +964,16 @@ abstract class BaseReadAloudService : BaseService(),
         execute {
             try {
                 val notification = createNotification()
-                startForeground(NotificationId.ReadAloudService, notification.build())
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(
+                        NotificationId.ReadAloudService,
+                        notification.build(),
+                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK or
+                            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                    )
+                } else {
+                    startForeground(NotificationId.ReadAloudService, notification.build())
+                }
             } catch (e: Exception) {
                 AppLog.put("创建朗读通知出错,${e.localizedMessage}", e, true)
                 //创建通知出错不结束服务就会崩溃,服务必须绑定通知

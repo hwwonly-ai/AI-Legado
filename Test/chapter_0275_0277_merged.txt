@@ -1,0 +1,1911 @@
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">第0275章 楚歌与秦风</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫的距离瞧不清战场细节,楚军的"视日"周文,却看得真切!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">所谓视日,职责有二,其一是观察日影,推算时辰吉凶,属于"兵阴阳家"行列,另一方面,他们也要利用自己的好眼力,观察敌军动向,向将军进行汇报。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">所以周文有幸,目睹了王翦、项燕,这两位当世名将的较量。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">项燕军在东,共有九万人,大致有"王之右广"一万人,项氏族兵一万,屈氏、昭氏族兵各一万,此外还有三万淮北、淮南、江东县兵,两万各地小封君组成的杂牌部队。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">而秦军在西,约有十多万人,周文并不太清楚他们的构成,只知道被王翦最列于最前方的,是三个万人兵团,打着秦军关中部队的旗号,左右有千乘战车护翼。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">战斗刚开始,项燕先令执行力最强的昭华,率昭氏族兵向秦军发动进攻,由战车打头,步兵跟随,试探冲击秦军前锋三军团结合部。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">秦军首先由弩兵直立跪射轮番射击,万箭齐发后,弩兵闪开撤至两翼,陈门开启,步兵跟进,突入楚军军阵。就在双步兵格斗时,集结起来的秦军车兵也迅速由两翼扑出,从侧面进攻楚军......</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">昭氏族兵作败退而归状,秦军前锋三兵团亦开始进行追击,与昭氏族兵缠斗在一起,他们交战的位置是偏北的。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"将军计成了!"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">看着这一幕,周文却不忧反喜。按照项燕的计划,因为己方兵力略少,所以要充分调动敌军,战斗开始以后,就是要昭华诈败,以利诱敌,把秦军主力牵制到北段,而楚军的主力,则要向着王翦中军进发,给以决定性的一击!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">但是,战斗进程出乎楚军的意料,秦人三个兵团进攻猛烈,以致很快就真的击溃了昭氏族兵,甚至威胁到了北侧全局。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">为了制止秦军向南段楚军的侧后实行迂回,稳定防御阵势,同时也吸引更多的秦军投入这个方向,项燕旌旗摇动,他命令,配置在北段第二线的一万淮北县卒,一万封君部队,迅速投入战斗,从东北方向突击敌人的左侧后方。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">由于楚军的新锐力量突然实施猛烈的反击,那三支秦军兵团一时难以突破,于是乎,秦军又从中央调集了一万步卒投入进来,战局似乎在北线僵住了......</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">进攻、防守、反击、诈败、真败、阵战、僵持,增兵,再拉锯,王翦和项燕像是两位谨慎的棋手,光是这一系列见招拆招,已经持续了整整一个时辰,数千人已倒毙在野!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">其结果就是,秦军四万人的兵团,被三万多楚人拖在了北线,而与此同时,南面,也有一万楚国屈氏之师上前,至少缠住了两万秦人。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">王翦打的是两翼包抄的路数,将关中精锐放在左右,眼下都渐渐占了上风。但如此一来,南北投入兵力过多,使得秦军中央露出了一丝破绽!挡在楚军面前的,只是阵列不整的数万人,举着河东、三川兵的旗帜。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">这便是项燕等待了整整一个时辰的战机!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">周文大喜,通报此情形后,项燕中军大旗处,忽然间鼓点大作!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">楚军中军五万人,除了一万衣着有些杂乱的封君部队外,其余分别是项氏族兵、右广、江东、淮南之卒,皆绛裳、赤髦、赤甲、赤羽之,望之若火。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">得到命令后,以车兵为主的楚王右广为前锋,项氏之兵为核心,江东、淮南之卒列其左右,开始迈开步伐,如同一道铺天盖地的赤色浪潮,向前开进!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">王翦也察觉了楚军的意图,旗帜挥动,千乘戎车从秦阵中开出,朝楚军发动了反击!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"与楚军拼车战?"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">周文感到可笑,并立刻将自己察觉到的情况让人向将军通报。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">楚国虽然地处南方,好马较少,但战车却不弱,春秋争霸那些年,千乘楚车纵横中原!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"操吴戈兮被犀甲,车错毂兮短兵接!"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">伴随着一阵嘹亮的楚歌作为开头,楚国大阵里,承载了四百年辉煌的楚王右广,上千乘戎车开动起来,身上披着虎皮或牛皮甲的马匹嘶鸣着,向前与飞速驶来的秦人战车交错而过。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">战车时代,两车相遇,并不正面对抗,而是必须错开,在侧面交战,距离长用弓箭,距离短用戈、殳、矛、戟等"车之五兵",贴身肉搏则用刀剑。此所谓"错毂"而战也。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">要论车战,楚人才是行家里手,他们还特地在自家战车上装备了长刃车毂,战车开动,长刃车毂也飞速滚动。当两车交错时,不仅可以将侧面经过的战马腿脚完全绞断,使得战场上残肢乱飞,还可以通过御者高超的技艺,撞击敌人车轮,将其车轴和幅条也破坏殆尽。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">一番交手下来,楚车不过毁坏十余,却有上百辆秦车轰然倒地,御者、车左、车右即便侥幸未死,很快就被楚卒补刀。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">眼看战车占了上风,楚军士气更振,步卒们的步伐也加快了起来!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"旌蔽日兮敌若云,矢交坠兮士争先!"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">在右广之后,项氏族兵也唱起了《国殇》,纵然对面的秦军数量与己方突击部队相差无几,即便他们旗帜遮天蔽日敌众如云,即便那飞箭如雨点般交坠而下,但楚人哀兵,却依然奋勇争先,不断向前迈进!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">由项燕言传身教的项氏族兵,时常被他以这百年来楚人所蒙受的国耻激励:从垂沙、蓝田惨败,从楚怀王被秦羁押不返,到鄢郢之战数十万楚人死于非命,再到顷襄王屈辱东迁,最后是屈子满怀悲愤地投江。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">过去一百年,对秦国而言,是斗志昂扬的崛起之路,可对楚国而言,却是一次次沉沦失败的坠落之路,楚人贵族大多深以为耻......</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"百年国耻,一战雪之!替本将夺下王翦的大旗!"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">项燕的命令传到了所有人的耳中,在贵族将领的带领下,对"国耻"虽有些懵懂,但也认定秦人是入侵家园,欲夺自己妻儿田地的楚卒们,跟着发出了更嘹亮的楚歌!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"天时坠兮威灵怒,严杀尽兮弃原野。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"出不入兮往不反,平原忽兮路超远。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">数万人奔跑践踏,使得战场上尘土飞扬,与车骑以及南北两处战场扬起的风尘汇拢一处,遮住了才刚刚放晴不久的天空。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">这注定是天翻地覆的一战,或许此役之后,全军将士捐躯茫茫原野,但纵然一去不返,他们也不曾后悔!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">带着这种气势,项氏族兵、淮南、江东之兵呐喊着,向前冲锋,重重地撞到了薄弱的秦军阵列!并一举击破了这支秦军!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">然而,当眼前这支秦军飞速往两侧"溃退",当后方遮蔽战场的烟雾幕云完全消散后,纵马靠近观察战场的周文,不由倒吸了一口凉气!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">......</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">王翦大旗龙旗羽葆,清晰可见,然而挡在他与楚军之间的,竟还有一支数万人的方阵,借着前方军队的遮蔽,他们已经布阵完毕!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">这支秦军,约有四万人,分为四部,排列成前、后两阵,前锋三军,右军依托小山布阵,左军旁靠溪水布阵,左右军中间,中军横列展开。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">方阵最前端是散列弩兵横队,每列数百人,共数千人,军士不穿铠甲,手持弓弩类远程武器,静静地单膝跪在地上。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">之后则是步卒,依据长兵在前、短兵在后的阵法,攻守兼顾,滴水不漏。此外在阵列的左右方,还各有数列弩兵横队,分别外向排列,防止敌军从两翼的袭击。阵型复杂,大阵套小阵,组合在一起,变换自如。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">前锋三军之后,后卫一军集结在前锋三军的结合部,作支援依托,也是王翦军幕指挥所之所在。其仪仗鲜明,敬卫森严,传令骑士进进出出,金鼓旗帜变换有序,宛若灯影戏中幕后牵线的手,指挥各军团各军阵移动,如影随形。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">秦军的精锐,使周文震惊,秦军的布阵,使周文缭乱,他意识到眼前的秦军非同一般,当是精锐中的精锐!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">更让周文不寒而栗的是,他发现,这支秦军打着的,正是本应该被吸引到北部战线,那数万"关中兵"的旗帜!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"究竟孰真,孰假?"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">周文隐隐意识到,先前的一切,似乎都是一个圈套,便立刻让人去告知上柱国!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">然而,开弓没有回头箭,前方军队的步伐并未停止,楚人们虽微微愣神,但还是在将尉的勒令下,继续向前进发,想要像刚才一样,击破这支秦军,擒杀敌方主将!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">面对如浪潮般涌来的楚军,这些秦人没有畏惧,他们肩并肩,甲挨甲地站在一起,宛若一体!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">不知是谁带头,与对面的楚歌相对,一曲秦风从这数万人的秦军处唱响。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"岂曰无衣?与子同裳。王于兴师,修我甲兵,与子偕行!"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">秦风高亢,与对面悲壮的楚歌相比,也丝毫不落下风!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">这是字正腔圆的秦音,是正儿八经的关中话。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">周文明白了,这些人,才是从内史、陇西征召的关中子弟,也就是所谓的"老秦人"!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">自商鞅变法后,他们已经经过六七代人的军爵传承、战争洗礼。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">世代军功积累百年后,五万人中,无不是有爵者,最低的也是公士。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">这五万人皆为青壮,从小就被父辈灌输,私斗为耻,公战为荣,自己的一生,唯有耕、战两事而已!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">他们为自己的身份骄傲,他们为自己的功爵自豪,他们是秦国军队最核心的力量,意志极其坚定,面对楚军狂风骇浪般的进攻,岿然不动!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"岂曰无衣？与子同袍。王于兴师，修我戈矛，与子同仇！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">跪射弩兵万箭齐发,杀伤了大量楚人后向两翼散开,而后方的戈矛手有条不紊地上前,怒喝一声后,将戈矛横放,阻止一切试图靠近的脚步,而秦人布置在阵中的弓手,亦在不断发矢。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">以此精锐守缓坡,王翦帅旗半步不移,反倒是楚军如同浪潮般的进攻,像是打在岿然不动的黑色礁石之上,没有任何效果......</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"这果然是诱敌！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">周文感到有些绝望,项燕将军长达一个时辰的慢慢牵扯布局,将士们付出了无数牺牲,带着巨大的勇气才创造的机会,他们心中燃起的熊熊烈火,几乎被这支王翦的最后杀手锏一脚踩灭!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">但更让人惊骇的是,在周文的侧方,响起了隆隆的马蹄声......</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">整个战事里,都消失不见的秦军三千骑兵,绕了一大圈,出现在侧方!那些方才诈败四散的秦军数百乘战车,也与他们合流,齐齐朝楚国中军方向杀来!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">项燕已经放出了最后的预备队,寄希望于一举突破秦中军,眼下他身边,只有一万封君武装,那些是楚国的杂牌军,无法寄予厚望,若被车骑近身,定然土崩瓦解。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">好在,已经经过一场厮杀的右广重新集结到了项燕中军处,都顾不上休息更换受伤马匹,便只能再度从阵中杀出。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">五六千匹战马,两三万条马腿,在原野上奔腾,如同滚雷,令步卒们脚下感到震动!这些车骑速度极快,很快敌我两方就冲到了一块儿,车仰马翻、陷入混战。楚国的长刃战车对付秦国战车有奇效,但灵活的骑兵却不吃这一套,反倒可以利用自己的身形灵活,数骑围攻一车,一时间,双方打得难解难分。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">周文有些愕然,他的视线离开了车骑,看看南、北两线,渐渐占据优势的秦军,再看看中部,吃力试图突破关中秦军防线的楚卒。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">眼下的情况再度僵持住了,若秦军车骑、左右翼先击破楚军,完成了王翦将计就计的合围,则秦胜;若楚军主力先破秦关中精锐,则楚胜。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"周君，看那边！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">然战场局势,瞬息万变,意外再次发生,在手下兵卒的呼喊下,周文回过头,看向了战场的东南方向,顿时面露惊骇!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">项燕将阻挡秦国援军的希望,都寄托在两万景氏族兵身上了,在东南边只布置了百余人的警哨小部队,眼下却已被击溃四散。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">一支千余人的秦军,已经站在那里,并将一面虎熊之旗,稳稳插在了视野的最高点!并且还在整队列阵,似乎随时可能会冲杀而下!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">发现这一幕的楚人,都不由心里咯噔一下。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">甚至连上柱国项燕，也不由发出了一声长叹："景氏兄弟误我，秦军的援兵，竟没被拦住？"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">......</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">战场东南方,跑了十多公里后满脚泥浆,也累的够呛的率长黑夫,终于缓过一口气,在小坡上挺起了胸膛。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">他站在鏖战的沙场之畔,听着耳边喧闹的楚歌秦风,目光则盯向短短两里外,仅剩一万封君部队护翼的楚国中军大营!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫的目光渐渐热切起来,似乎是在为第一次如此接近时代中心而激动。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">他高高举起了手,似乎不顾自己三十里趋利,不顾手下只有区区一千人,就要下达全军突击的命令!做那一将功成千骨枯之事了!</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">但回过头后,黑夫却只是对累得半死,气喘吁吁连腰都直不起的安陆子弟兵们笑道:</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"二三子，将汝等的旗帜全部插在坡顶，让敌我双方都能一眼瞧见，然后原地休息，等待友军！"</emotion>
+  </voice>
+</speak>
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">第0276章 当我们的旗帜插满山岗！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫并不纯粹的休息，而是从随身的褡裢里拿出f（hóu），也就是炒小米，塞进嘴里，和着水嚼食。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">一边吃，黑夫还一边命令利咸、东门豹道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"抓紧时间，让众人都吃一点！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫知道，兵卒们一路急行军下来感觉很累，许多人只感觉腿迈不开，半步都走不动，这在后世叫做</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">撞墙时间</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">。甚至有人出现了眩晕、冒冷汗的症状，这是因为，他们体内的糖原被大量消耗了。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">营养条件极佳的现代人，一个半马跑下来，糖原也消耗不少，别提古代这些士卒了。虽然能走山路，善吃苦，但急行军是真的不如后世部队，无他，营养太差。看他们那瘦巴巴的样，别说多少糖原了，连脂肪都少得可怜，这也是古代军队掉队严重，一天只敢走三十里的原因。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">所以黑夫不由佩服王老将军，不知是有意还是无意，王翦花了一个冬天让士卒休息善食，不仅能积蓄士气，也可以养膘啊！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">除了平日里让精兵、壮士营养充足，锻炼体力，在战时充当突击部队外，还有一个办法，那就是在休息时迅速磕点干粮，补充糖分。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">巧克力什么的自然没有，只有淀粉，就是炒米喽……</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">几口炒米就着水下肚，众人头晕目眩的感觉总算是消失，可以站直腰板，奉黑夫之命，将旗帜沿着这道不高的小岗插成一排——一路上黑夫连自己的车马都扔了，却唯独把所有旗帜都留着。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">至于以寡击众，用一千疲敝之卒去冲击项燕身边的一万大军？黑夫一点想法都没有。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"率长忘了封侯之志了么？"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">五百主利咸轻声道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"若能擒杀项燕，率长便能立下不世之功，距离彻侯之位，便又近了许多！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"那样的话，这一千安陆子弟，又会死多少？说不定，连你的性命也会搭进去。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫也看着利咸的眼睛，低声反问。利咸这个人有能力，可要论带兵的效果，却远不如小陶，甚至不如东门豹，因为他心较狠，不把底下人性命当回事，士卒能畏惧他，却并不爱戴他。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">基层军吏若不能做出爱卒的姿态来，是很难得士卒效死追随的。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">而且，区区一千人，在二十万人的大战役里能起到的作用是微乎其微的，这时候冲下去，可能会遭遇三倍甚至五倍的敌人，到时候别提功劳了，不全军覆没已是幸运。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">这场战争既不像上次一样，关乎他们的生死存亡，也不像楚国人一样，关乎国、家存亡，甚至是一场在历史上就注定胜利的仗。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫这个打工仔已完成了对李由的承诺，先期抵达此处，战后可在南郡兵团里优先论功，权衡利弊，他没必要让自己和手下人冒险。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">再说了，与其急吼吼杀出去，暴露自己的数量，还不如就停在这，遍插旌旗，做出一副秦军已占领这座山头，随时可能猛虎下山的架势！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"有时候未发之箭，比已发之矢威慑更大。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫这么一说，使弓弩的小陶就懂了，利咸、季婴等不管懂没懂，也纷纷点头称是。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">唯独东门豹呆呆地看着远方战场中，秦楚两军惊天动地的厮杀鏖战，听着隐约传来的楚歌、秦风，这莽汉子激动得热血沸腾，捏紧了手戟，脱口而出道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"率长，纵然不下去，吾等也喊点什么罢！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"好啊。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫大笑道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"喊六六六就行。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"啊？"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">包括东门豹在内，众军吏都没有听懂这个笑话。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">还是季婴一拍脑袋，自作聪明地说道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"真是愚笨，六，就是六万。率长的意思是，让汝等高喊，‘蒙武将军六万大军已至’！以此威吓敌军！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"哦！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">众人这才发出了恍然大悟的唏嘘，东门豹立刻就让他那五百人里，长得最壮实的几个，手插着腰，站在山岗上大声喊了起来！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"蒙将军，六万大军已至！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">然而，这一点声音，很快就淹没在战场上绵延不息的鼓点金铁之音，人喊马嘶中了……</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">纵然他们的呼喊没有激起半点波澜，但战局依然因这一千人的到来，发生了一点变化：三千楚卒从项燕大军里分出来，在山岗下布阵，而更远处的南线战场，那一万多屈氏族兵，在抵挡秦军进攻的同时，也有人不断回头，生怕黑夫他们突然杀过去！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">在黑夫他们休息一刻后，他远远瞧见，自己派去中军的斥候信使，已经与王翦那边派来的斥候在战场外围接上了头，一起朝王翦那安如磐石的大营驰去。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">就在此时，又一支南郡兵也抵达了战场！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">虽然，才五百人。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"率长！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">比起去年，唇上多了一点软须的共敖喘着粗气小跑过来：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"鄢县五百人也到了！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">这意思很明显，另外那五百人，已经在半路掉队了……</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫点了点头，问道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"汝等的五百主何在？"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">虽然共敖这个鄢县百将一副把他当上司的模样，在过去半年里，也没事就带着兵卒过来和安陆兵玩耍、训练，但毕竟是其他人的下属。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">共敖面露得意：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"我就是！那五百主不巧坠马了！无法领兵，鄢县率长便让我做了假五百主，带着脚程快的众人先至！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">这小子运气还真是不错，黑夫啧啧称奇，让共敖让手下人迅速吃点东西，补充体力，并将携带的旗帜也遍插山岗，甚至还砍伐附近的草木，插在人群中，将寥寥千五百人，做出了五千人的架势来！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">共敖休息了半刻，又过来急促地问道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"吾等已歇息足够，可要进攻了？"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"李都尉让吾等进攻了么？"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫反问：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"只是让吾等先行抵达战场，占据阵地而已。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">共敖有些焦急：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"李都尉恐怕才走了一半路程，离此还远着呢！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫却朝战场另一端一指：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"我也派人去向王老将军都尉请示，若将军让吾等出击，这千五百兵士，便将如猛虎下山！直扑项燕帅旗！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">……</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">战场另一端，王翦帅旗处，面对数万楚卒潮水般连绵不息的进攻，王老将军却安之若素，因为他很清楚，有数万关中精锐秦人御敌，楚人是不可能近他到一箭之内的。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">观敌之外以知其内，察其进以知其止，料敌如此，可定胜负。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">在开战半个时辰内，王翦已经算到了项燕的一切举动，便来了一出将计就计，眼下秦楚看似僵局，但胜利的天平正在一点点偏向秦军。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">更何况，东南方向，一个沉重的衡器（砝码）已然入秤！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"来了有多少人？"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">王翦看向自己的传令斥候，言简意赅。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">斥候下马跪拜道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"是南军李由部，率长黑夫的一千人！他说李都尉兵卒正陆续赶来，但只要将军一声令下，这千人亦可进击敌阵，为大庶长斩将夺旗！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">大庶长便是王翦的爵位，他也是吕不韦、绷轿痪侯倒台后，如今秦国最高的爵位拥有者。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫……</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">王翦脑海中，浮现出那个黑乎乎，一口白牙的精壮小伙形象，他对此人印象深刻，黑夫的</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">兵球</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">在军中很流行，其言谈也十分得体，却又不张扬冒失，王翦挺欣赏这个年轻人。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">按照斥候的说法，黑夫在东南方的小山岗上，广布旌旗，甚至砍伐树木四处插着，做出了数千人抵达列阵的架势来，却没有急着匆匆出击。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">八公山上，草木皆兵，这件事虽未发生，但王翦也能看出黑夫这虚张声势的意图来，此举可使敌军狐疑，士气衰退，瞻前顾后，而我军看到援军抵达，将士气高涨，作战再无顾虑。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">这黑夫，果然是个懂用兵的……</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">王翦欣赏地点了点头，却又摇头暗道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">只是，太不老实，有些滑头！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">于是王老将军没好气地下令道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"速速去告诉他，再不出击，这场仗，老夫也不需他立功了！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">王翦这么说，是有道理的。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">他没有管近处依然难分胜负秦、楚主力部队，而是将目光投向了南线战场。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">大敌当前，交战之时，最忌兵卒左顾右盼，更忌兵卒向后看。然而，正在与秦军两万人鏖战的楚军屈氏之兵，却因黑夫鼓捣出来的虚张声势，产生了动摇和混乱。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">一万人力敌两万，已十分吃力，随时可能败退了，如今身后又多了</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">五千</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">敌援，真像是一把剑顶在了背心上！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">一时间，瞻前顾后的屈氏之兵一万人，开始出现溃败之势！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">胜负的天平，在久久僵持一段时间后，飞速朝王翦这边跌落下来！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">……</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">而与此同时，黑夫这边，共敖又来请战了，还老不开心地抱怨道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"我来的路上一直以为，率长会像上次在阳那样，说着‘不入虎穴焉得虎子’，带吾等毅然出击，擒杀项燕，做个英雄呢！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">这个青年既不喜欢秦国律令，也不喜欢楚国贵族，甚至对立功也兴趣寥寥，但却有很深的英雄主义情节。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">他是一起同生共死过的人，也没有一般秦人不敢越矩的古板，黑夫也不必隐藏自己的想法，便笑道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"阿敖，在我看来，此次伐楚与上次不同。上一次，李信将军欲为灭国英雄，结果落得惨淡收场，吾等也被迫在阳苦战，你以为我出城诈降，激励士卒便是英雄？我哪是想做什么英雄，我是被逼无奈，当时为了图存，为了回家，非英雄之行不能激励士卒也……"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">共敖似懂非懂地点了点头。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫又道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"但此番伐楚，从王老将军为将，要了六十万人手时起，这场大战，便胜了三分之一。到吾等高筑壁垒，以国力人数逼压楚国，不与楚军争一时之气开始，此战又已胜了一半。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"而此时此刻，当我们的旗帜插满山岗，此战，已近全胜！这就是所谓的，善战者之胜也，无智名，无勇功，所以秦军就没有，也不需要英雄。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"率长的意思是，吾等光是在这站着，便能不战而屈人之兵？"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">共敖一脸不信。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"不信你看！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">仿佛是预言般，黑夫指着南线距离他们最近的楚军，那原本还奋力抵挡两倍于己秦军的楚人，不知从何时起，已经开始崩溃离散！甚至连正面进攻秦中军的数万楚人，此刻也在不断后退。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">共敖目瞪口呆，他看得出来，这些楚兵并不弱，方才他们不是还打的有声有色么？</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"腹背受敌，士气溃矣，故吾等只站在此处，便以一千五百人的数量，做到了五千人的功效！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫说道。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">二人说话间，南线秦军冲破了那支楚军的阵列，一部剿杀逃跑者顽抗者，另一部则奋力往项燕的本部帅旗杀去！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"不过这场战争，亦是有英雄的，看那！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫又指向了项燕的赤旗，共敖也赫然发现，稳稳在原地保持了许久的项燕帅旗，它在缓缓向前移动！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">北线劣势，车兵乏力，中阵主力却久久无功，这时候，敌军援兵抵达，南线突然崩溃，这场仗胜负已分，但就在此时，项燕也做出了一个选择。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">他没有仓皇撤离，没有呆立不知所措，甚至没有出于本能，去迎击朝他杀来的南线秦军……</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">而是旌旗前指，指向了对面的王翦本部！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"英雄，有时候也属于败者。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">旌旗飘飘，草木皆兵的山冈山，黑夫长吁一口气，不得不佩服项燕做出的最后抉择。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">这位败局已定的上柱国，带着仅剩的一万杂牌军预备队，毅然朝中央与秦军对抗许久，但已现颓态，即将溃退的三万主力开了过去！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">他要加入他们，让自己的熊熊燃烧帅旗，激起最后一道进攻的浪潮。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">不顾后方，不顾左面，不顾右边，只是向前向前向前！在疯狂的进攻中，结束这一切！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">绝境之中，以必死之心，求一丝涅的生机。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">若不能？则宁为玉碎！不为瓦全！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">这就是楚式英雄的风范啊，这个八百年的古老国度充满着悲剧主义的色彩。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">从屈原到项燕，再到历史上的项羽，做爷爷的，和孙儿简直如出一辙！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">这对祖孙，仿佛都在对天咆哮：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"生当作人杰，死亦为鬼雄！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">所以这场战争的英雄，是项燕，是拼尽全力也无法胜利，只能惨烈悲壮收场，亡国亡家亡社稷的楚人。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">边缘观望了许久的黑夫，也被这悲壮的气氛感染，忽然认真了起来。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">当斥候过来传达王翦之命后，黑夫再度高高举起了手，让人敲响了己方仅带的一面战鼓！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">咚咚咚咚咚！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">秦军已呈现四面合围之势，项燕军的后阵，正向黑夫他们敞开。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">是时候，去结束这一切了。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"走罢，二三子，拔起旗帜，全军冲锋，疾击其后。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫看向了共敖，看向了东门豹、利咸、季婴、小陶，还有身畔一千五百名安陆、鄢县兵卒，他们已经休息足够，期待已久。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">他抽出了剑，指向山岗之下的浪涛：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"让吾等，去终结英雄！"</emotion>
+  </voice>
+</speak>
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">第0277章 首身离兮心不惩</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">当南线战局崩溃时，项燕是有机会撤兵脱身的，那样的话，他至少能带着身边这一万封君武装离开战场。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">但项燕做出了一个非生则死的决定，他尽起后阵万余人，一拥向前，作为生力军，冲击已经坚守了整整一个时辰的秦关中四万精卒！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">苦战的项氏、江东、淮南之兵得了生力军的加入，又见主帅大旗直指向前，一时间声势大振，一个个狂呼楚歌，发起了反击。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">而秦关中军久战之下，兵卒多疲，被这股生力军反冲，竟做出了支持不住，节节败退的架势。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">然而，项燕并没有高兴多久，很快他就发现，这又是王翦的计策。王翦让秦军退回了最初的位置，却又再度坚守起来。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">王翦如此做，是想要引诱楚军往前，而北、南、后方三支部队正好过来参与合围……</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">南线是最先崩溃的，新近抵达的黑夫等人在山岗上广布旌旗，起到了关键的作用，他们让南线楚军士气丧尽，眼下，屈氏之兵已经彻底败溃，秦军万余人开始包抄过来。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">北线，本就处于兵力劣势的昭华艰难地与秦将羌争锋，也败下阵来，兵卒四散而走，昭华努力收拢部队试图发动反击，却也无济于事，羌的旗帜，亦指向了中央。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">而他们唯一的后路，也被消灭了楚军战车的秦国车骑部队，连同那千余来援的秦军一起截断，在车骑的掩护下，这千余士气高亢的士卒在猛攻项燕后阵……</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">到此为止，外围楚卒尽数被击穿，唯独中央三四万人，结成了圆阵，围绕在项燕军旗下，承受着秦军的包围进攻。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">纵然大局已定，但项燕依然在眼睛不眨地观察着战场，不时传下军令以调整阵列，或是调动更多的人马投入到出现颓势的地方，以挽回败局。数十名传令兵骑着马飞跑在战场上的每一个角落，忠实地传递着上柱国的命令。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">但颓势难挽，虽然楚军结阵而战，但在秦卒冲击下，小阵接连崩溃，面朝北方的阵地深深地凹陷了一大块，又引发了雪崩式的连锁反应，楚军阵地一处处被攻克，胜利的天平已彻底倒向王翦。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">项燕看到，前方奋战的项氏族兵，被呼啸着从缓坡上冲下的秦军持矛锐卒一排排扎死，却至死都不愿意松开自己的武器。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">他看向了右边，三千蹶张士占据了有利的位置，居高临下，手脚并用地撑弩，齐齐朝密集的楚军阵地里射矢，矢如雨下，每一次攒射，楚军都要栽倒大片，死伤惨重。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">他看向了左边，秦军的车骑部队也倾巢而出，沿着低地朝楚军冲来，一辆辆沉重的战车急驰而过，左右还围绕着数百名骑从，阳光在矛尖上闪耀，左阵的数千兵卒，在其冲击下彻底溃散，有如被铁锤敲打的陶片……</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">而后方也已起火，新加入到战场的一千五百名南郡兵，人数虽不多，但进攻架势却十分凶猛。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">他们似乎把军心大乱的楚人，当成了球场上的对手，将项燕的旗帜，当成了争夺的皮球，东门豹带着五百人如同刀子插入软肉，冲垮了上千楚兵，黑夫左右则有共敖、小陶、利咸的部队环绕，相互配合而战，将后阵的三千楚人杀得节节败退……</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">时间一刻又一刻地流逝，战场上处处是尸体、伤者和挥矛剑血战的兵卒，鲜血浸透了大地。被包围的数万楚人，此刻死的死，溃的溃，仅剩下不到万人，方才交战的地方距项燕足足有一里远，可如今，秦军却已突进到了近在咫尺的数百步外，甚至有几根箭矢落到了他的车乘面前……</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">项燕的旌旗依然不断发出指挥的信号，可外围被数倍敌人攻击的楚卒，已经无法执行，只能凭借本能而战，或者凭借本能逃窜了。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"是我输了。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">一天已到尽头，夕阳西垂时，项燕发现，自己的部队已经越来越少，且再也无法执行自己的任何命令，这位在车上站了一整天，已殚精竭虑的老将军，无力地垂下了手。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">他沮丧极了，因为，这不仅是长达半年的战争失败，也是楚国国运的终结。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">再过片刻，秦军将彻底扫荡顽抗的楚卒，杀到他面前，到那时，一切便结束了。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">一念至此，项燕拔出了自己的佩剑！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"上柱国！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">守卫在他身旁的车右，是族人项声，一个身材灵敏，武艺高强的壮士。他正持盾艰难地阻挡那些越来越近，越来越多的流矢，见此情形不由大惊，下拜道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"上柱国，项声愿护送上柱国突围！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">此时夜幕将至，天就要黑下来了，秦军的合围并不严密，一直有不少楚卒通过空隙向外逃窜，虽然外面依然有千余秦军游骑在追杀他们，但若是项燕以身边的一千护卫，抛下他的大旗，朝着空隙突击，或有一线生机……</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"纵然突围又如何？半年相持，楚国国力已疲，今又大败，十万楚兵或死、或伤、或溃散，大势去矣。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">项燕抚摸着陪同了自己数十年的剑，惨笑道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"老夫少壮之时，以为楚之所以屡败于秦，只是在战场上输了一手，若是没有蓝田、垂沙、鄢郢等大败，或许眼下依然是地方五千里，持戟百万，横成帝秦，纵成楚王。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"于是我苦学兵法，希望能成为一位名将军，在战场上挽回颓势，复兴大楚，报百世之怨……"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"长平之战后那十几年，我侍奉春申君，为其东征西讨，鲸吞鲁国，全取东地，立下了不少战功。之后开发江东，我亦尽力去做，那些年，楚国确实有复兴之态。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"谁料，接下来，楚国又遭命途多舛，先是李园杀春申君篡权，又是公子们兄弟阋墙，互相残杀，各氏族县公也只顾自己的利益，纷争不断。数年前，我与昭、景、屈三家联手杀李园，拥立今王，朝政好不容易稳定下来，可秦国大军已至矣……"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">上一次，项燕拼尽全力，力挫李信，可第二次，他却没能创造奇迹，竟被王翦硬生生用人数和国力给拖垮了。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"到了此时，我才明白，此非战之过也，实国势积重难返也！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">以铢对镒，他输得一点不冤。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">但非战之过，他也输得不甘。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">事到如今，再说什么都没用了，按照楚国的传统，败军之将，纵使楚王不罚，也必须自讨之！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"师出之日，有死之荣，无生之辱，项燕无能，使得三军受累，我岂能苟且偷生，亦或是被王翦俘获，见辱于秦人呢？"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">项燕死意已决，项声和亲卫们都知道自己无法阻止，只能在泥泞的地面单膝下跪，抽泣出声。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">将剑横于脖颈上后，项燕感慨道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"三百年前，吴师伐楚，子常不用左司马沈尹戎之言，被吴军大败于柏举，事后沈尹戎回师，极力阻止吴军入郢，数败之。然其兵力不足，最终受伤落败。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"临死前，他对手下死士道，我少时曾入吴事于阖庐，故耻为擒焉，亦不愿使吴人得我首级……于是死士刭而裹之，藏其身而以其头颅匿之。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"项声。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">他看向族人。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"唯！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">项声八尺男儿，此刻却哭得涕泪满面。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"你素有勇名，乃项氏百里良驹，可托付大事。我死后，定要割了我的头颅，勿让王翦所得，项燕不想见他这个故人！再想办法乘着夜色，离开战场，回到下相，将我之首级交给吾子、吾孙！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"再告诉他们！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">项燕看向项声，须发贲张，瞪大眼睛，说出了自己的遗言：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"项燕虽然死了，但只要项氏尚有子孙一息尚存，便要与楚国共存亡！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"项声知之，吾等定将与楚国相始终！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">项声哭泣出声，与周遭的卫士齐齐朝项燕顿首，为他们的家主，为楚国的上柱国送行！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">楚军溃散殆尽，秦人已蜂拥至百步之内，点着火把，与项燕亲卫展开鏖战，瞬息便至跟前。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">项燕不再犹豫，他双手持剑，横过脖颈。一股热血溅起，染红了他花白的胡须，这位高大的上柱国亦轰然倒于车舆！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"带长剑兮挟秦弓，首身离兮心不惩……"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">鲜血涌出喉咙，抽搐间，往事一幕幕闪过，最后定格在了年少时听着《国殇》，痛惜国事的时光。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"可惜啊，我最终只能追随沈尹戎和屈子，却做不了力挽狂澜的申包胥！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">项燕生气已绝，仅剩双目圆瞪不闭！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">御者默默摆好项燕的尸身，而后也从怀中抽出匕首，刺入了自己的心脏！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">周遭卫士，自杀为项燕送行者，不下十人！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">唯独项声等人受了项燕嘱托，只能咬着牙含着泪，双手颤抖着，高高举起自己的剑，斩下了那颗苍老的头颅！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"诚既勇兮又以武，终刚强兮不可凌。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"身既死兮神以灵，魂魄毅兮为鬼雄！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">低声唱完了一曲《国殇》，在数名项氏亲卫的掩护下，项声将自己的甲胄全部抛弃，脸也抹花，将项燕的头颅裹在衣裳中，弯着腰，乘着越来越深的夜色，跟着一股被秦人击溃乱窜的楚卒，向外奔去！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">就在项声向外奔逃时，秦军的东、南、西、北四支军队，几乎同时朝项燕的车舆发动了最后的进攻！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">南面一马当先的，正是黑夫所率的部队！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">……</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"项燕已死！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"项燕已死！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">战场上尸体横陈，血流成河，伴随着秦军彻底将最后一批顽抗的楚人杀死，并发现了项燕那来不及处理的尸身，这场持续了整整一天的鏖战，终于宣告结束。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">但随即，那些冲在最前方的兵卒，却因为争夺疑似项燕的尸身，开始相互推搡，这群杀红了眼的兵卒，竟爆发了一场争斗，在功爵的诱惑下，甚至对自己的袍泽举起了刀剑！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"利咸，快让共敖和东门豹回来！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫身上亦沾着一些血迹，这是在突进途中溅上的，本人却未受伤。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">因为他率众加入战场的时机挑的极好，千五百人里，伤亡不超过百名，而且伤员都被拖到后面去，让医护急救之兵救治了。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫却顾不上庆祝胜利，立刻让人将两个冲在最前面的家伙喊回来，因为黑夫已看到，王翦的帅旗，在朝这边移动，所到之处，秦兵纷纷避让。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">一同来的，还有许许多多脸色铁青的军法官！</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">秦国军法严明，私斗争首乃死罪！当年在外黄，共敖差点因这罪被杀了，怎么就不长记性呢？这种事情，是万万不能卷进去的。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">好在，在黑夫的阻拦下，他们没有卷入那数百人的混乱抢夺，很快就抽身而出了。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">气喘吁吁地回来后，共敖破口骂道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"那些河东兵真像一群野狗，明明是吾等先靠近项燕车舆的，却被他们推搡开来，若非利咸拦着，我定要让彼辈好看！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"军法吏会用斧钺，让那些人记住教训。"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">黑夫却不太在意，笑道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"吾等疾击项燕军后军，破其三千人，向内进攻时又连续击破了几个小阵，季婴也带着人在后面割首级，纵然未能得项燕尸首，也少不了汝等功劳！"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">就在这时候，东门豹也带着几个兵卒回来了，手里还扛着一样东西。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">不同于共敖的愤怒，他隔着老远，便一脸兴奋地喊道：</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">"率长，吾等虽没抢到项燕的头颅和断肢残骸，却抢到了他的帅旗！这算多大功绩？"</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">……</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">PS：关于项燕之死和秦破楚都、蕲南大战的顺序，《史记》有两种不同的记载。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">二十三年，秦王复召王翦，强起之，使将击荆。取陈以南至平舆，虏荆王。秦王游至郢陈。荆将项燕立昌平君为荆王，反秦于淮南。二十四年，王翦、蒙武攻荆，破荆军，昌平君死，项燕遂自杀。——《秦始皇本纪》</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">四年，秦将王翦破我军于蕲，而杀将军项燕。五年，秦将王翦、蒙武遂破楚国，虏楚王负刍……——《楚世家》</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">荆数挑战而秦不出，乃引而东。翦因举兵追之，令壮士击，大破荆军。至蕲南，杀其将军项燕，荆兵遂败走。秦因乘胜略定荆地城邑。岁余，虏荆王负刍，竟平荆地为郡县。因南征百越之君。而王翦子王贲，与李信破定燕、齐地。——《王翦列传》</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">按照太史公的习惯，一件事存在两种说法时，会在不同传纪中分别列出，让后人自己判断，这是保留疑论的负责任做法。</emotion>
+  </voice>
+</speak>
+
+<speak>
+  <voice name="zhifeng_emo">
+    <emotion category="neutral" intensity="1.0">所以分析之后，王翦率军先破楚主力，项燕自杀，而后再陷寿春虏楚王的顺序是合符逻辑的。至于在淮南拥立昌平君的，或是项氏族人借项燕之名为之，类似的事，十来年后，陈胜也干过一次。</emotion>
+  </voice>
+</speak>

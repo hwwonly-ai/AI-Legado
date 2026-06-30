@@ -239,7 +239,9 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
         private fun nextParagraph() {
             //跳过全标点段落
             do {
-                readAloudNumber += contentList[nowSpeak].length + 1 - paragraphStartPos
+                val currentIndex = nowSpeak
+                readAloudNumber = contentStartPosition(currentIndex + 1)
+                    ?: (readAloudNumber + contentPlainLength(currentIndex) + 1 - paragraphStartPos)
                 paragraphStartPos = 0
                 nowSpeak++
                 if (nowSpeak >= contentList.size) {
