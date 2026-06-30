@@ -36,15 +36,18 @@ import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.HttpTTS
 import io.legado.app.data.entities.BookReadAloudRole
 import io.legado.app.exception.NoStackTraceException
+import io.legado.app.help.LifecycleHelp
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.help.exoplayer.InputStreamDataSource
 import io.legado.app.help.http.okHttpClient
+import io.legado.app.lib.dialogs.alert
 import io.legado.app.model.AiDialogLabelProducerKey
 import io.legado.app.model.ReadAloud
 import io.legado.app.model.BookRoleAutoArchiveManager
 import io.legado.app.model.BookReadAloudRoleMatcher
 import io.legado.app.model.ReadAloudProviderSegment
+import io.legado.app.model.ReadAloudDebugStore
 import io.legado.app.model.ReadAloudRuleSegmenter
 import io.legado.app.model.ReadAloudRole
 import io.legado.app.model.ReadAloudSegment
@@ -53,6 +56,8 @@ import io.legado.app.model.ReadAloudSegmentCacheKey
 import io.legado.app.model.ReadBook
 import io.legado.app.model.selectSegments
 import io.legado.app.model.analyzeRule.AnalyzeUrl
+import io.legado.app.model.ai.AiDialogRoleContext
+import io.legado.app.model.tts.AliyunTtsTokenHelper
 import io.legado.app.model.tts.AliyunSsmlRenderer
 import io.legado.app.ui.book.read.page.entities.TextChapter
 import io.legado.app.utils.FileUtils
@@ -63,6 +68,7 @@ import io.legado.app.utils.readString
 import io.legado.app.utils.servicePendingIntent
 import io.legado.app.utils.toastOnUi
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers.Main
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -73,6 +79,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import okhttp3.Request
 import okhttp3.Response
 import org.mozilla.javascript.WrappedException
@@ -90,6 +97,8 @@ private const val MAX_SSML_PLAIN_TEXT_LENGTH = 280
 private const val PRE_DOWNLOAD_SEGMENT_LIMIT = 3
 private const val CURRENT_CHAPTER_PREFETCH_COUNT = 3
 private const val NEXT_CHAPTER_PREPARE_REMAINING_COUNT = 3
+private const val AI_ROLE_CONTEXT_LIMIT = 60
+private const val AI_NAME_CANDIDATE_LIMIT = 40
 private const val SSML_LOG_TAG = "SSML_TTS"
 private const val AUDIO_PREFETCH_TAG = "audioPrefetch"
 private const val AUDIO_PLAYBACK_TAG = "audioPlayback"
@@ -206,12 +215,18 @@ private fun logReadAloudResolved(
 
 private fun logSegmentQueued(
     mode: String,
+    chapterIndex: Int,
     index: Int,
     total: Int,
     text: String,
     segment: ReadAloudSegment? = null,
     providerSegment: ReadAloudProviderSegment? = null
 ) {
+    ReadAloudDebugStore.updateSegment(
+        chapterIndex = chapterIndex,
+        segmentIndex = index,
+        segment = segment
+    )
     if (index >= 20 && index != total - 1) return
     val role = segment?.role.orEmpty().ifBlank { "-" }
     val name = segment?.roleName.orEmpty().ifBlank { "-" }
@@ -233,6 +248,7 @@ private fun logTtsRequest(
     segment: ReadAloudSegment? = null,
     providerSegment: ReadAloudProviderSegment? = null
 ) {
+    ReadAloudDebugStore.updateTtsRequest(speakText, segment, providerSegment)
     logInfo(
         "request ${speakText.ssmlDebugSummary()} ${segment.debugSummary(providerSegment)} " +
                 "textLength=${speakText.length} " +
@@ -392,10 +408,10 @@ private fun HttpTTS.resolveRoleVoiceForDialog(
     val book = ReadBook.book ?: return null
     val matched = BookReadAloudRoleMatcher.findByNameOrAlias(book, roleName)
     if (matched == null) {
-        android.util.Log.i(
-            "roleMatch",
-            "miss chapter=$chapterIndex segment=$segmentIndex roleName=$roleName text=${segment.text.logPreview(40)}"
-        )
+        val message = "miss chapter=$chapterIndex segment=$segmentIndex roleName=$roleName " +
+            "textHash=${MD5Utils.md5Encode16(segment.text)}"
+        ReadAloudDebugStore.addRoleMatch(message)
+        android.util.Log.i("roleMatch", "$message text=${segment.text.logPreview(40)}")
         return null
     }
     val engineKey = id.toString()
@@ -408,20 +424,18 @@ private fun HttpTTS.resolveRoleVoiceForDialog(
         } else {
             "noRoleVoice"
         }
-        android.util.Log.i(
-            "roleMatch",
-            "fallbackVoice chapter=$chapterIndex segment=$segmentIndex roleId=${matched.id} " +
-                "category=${matched.roleCategory} attr=${matched.roleAttribute} reason=$reason " +
-                "text=${segment.text.logPreview(40)}"
-        )
+        val message = "fallbackVoice chapter=$chapterIndex segment=$segmentIndex roleId=${matched.id} " +
+            "category=${matched.roleCategory} attr=${matched.roleAttribute} reason=$reason " +
+            "textHash=${MD5Utils.md5Encode16(segment.text)}"
+        ReadAloudDebugStore.addRoleMatch(message)
+        android.util.Log.i("roleMatch", "$message text=${segment.text.logPreview(40)}")
         return null
     }
-    android.util.Log.i(
-        "roleMatch",
-        "hit chapter=$chapterIndex segment=$segmentIndex roleName=$roleName roleId=${matched.id} " +
-            "category=${matched.roleCategory} attr=${matched.roleAttribute} hasVoice=true " +
-            "text=${segment.text.logPreview(40)}"
-    )
+    val message = "hit chapter=$chapterIndex segment=$segmentIndex roleName=$roleName roleId=${matched.id} " +
+        "category=${matched.roleCategory} attr=${matched.roleAttribute} hasVoice=true " +
+        "textHash=${MD5Utils.md5Encode16(segment.text)}"
+    ReadAloudDebugStore.addRoleMatch(message)
+    android.util.Log.i("roleMatch", "$message text=${segment.text.logPreview(40)}")
     return voice
 }
 
@@ -627,6 +641,8 @@ class HttpReadAloudService : BaseReadAloudService(),
     private var playIndexJob: Job? = null
     private var downloadErrorNo: Int = 0
     private var playErrorNo = 0
+    private var aiFailureDialogShowing = false
+    private var ttsFailureDialogShowing = false
     private val downloadTaskActiveLock = Mutex()
     private val prefetchRequestLock = Mutex()
     private val loadingState = MutableStateFlow(false)
@@ -833,7 +849,15 @@ class HttpReadAloudService : BaseReadAloudService(),
                     readAloudSegment = segment,
                     readAloudProviderSegment = providerSegment
                 )
-                logSegmentQueued(mode, index, processContentList.size, finalSpeakText, segment, providerSegment)
+                logSegmentQueued(
+                    mode,
+                    chapterIndex,
+                    index,
+                    processContentList.size,
+                    finalSpeakText,
+                    segment,
+                    providerSegment
+                )
                 tasks.add(
                     ReadAloudAudioTask(
                         generation = generation,
@@ -1168,7 +1192,7 @@ class HttpReadAloudService : BaseReadAloudService(),
         val result = io.legado.app.model.ai.AiDialogLabeler.labelRuleSegments(
             chapterIndex = targetChapter,
             segments = nextRuleSegments,
-            candidates = buildAiDialogCandidates(book, nextContent)
+            roleContext = buildAiDialogRoleContext(book, nextContent)
         )
         if (generation != nextChapterPrepareGeneration) return
         val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
@@ -1237,6 +1261,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                     task.speakText.takeIf { hasSpeakableText(it) }.orEmpty(),
                     task.segment,
                     task.providerSegment,
+                    fallbackToSilent = false,
                     chapterIndex = task.chapterIndex,
                     segmentIndex = task.segmentIndex
                 )
@@ -1293,6 +1318,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                             task.speakText,
                             task.segment,
                             task.providerSegment,
+                            fallbackToSilent = false,
                             chapterIndex = task.chapterIndex,
                             segmentIndex = task.segmentIndex
                         )
@@ -1402,6 +1428,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                         task.speakText.takeIf { hasSpeakableText(it) }.orEmpty(),
                         task.segment,
                         task.providerSegment,
+                        fallbackToSilent = false,
                         chapterIndex = task.chapterIndex,
                         segmentIndex = task.segmentIndex
                     )
@@ -1578,6 +1605,17 @@ class HttpReadAloudService : BaseReadAloudService(),
                     "朗读下载出错\n${it.localizedMessage}",
                 it,
                 true
+            )
+            showTtsFailureDialog(
+                message = it.localizedMessage.orEmpty().ifBlank { it.javaClass.simpleName },
+                retryAction = {
+                    deleteCurrentSpeakFile()
+                    continueCurrentChapterFromIndex(nowSpeak)
+                },
+                skipAction = {
+                    deleteCurrentSpeakFile()
+                    continueCurrentChapterFromIndex(nowSpeak + 1)
+                }
             )
         }
     }
@@ -1986,25 +2024,35 @@ class HttpReadAloudService : BaseReadAloudService(),
         }
 
         // 3. 未命中：实时 AI 标注。成功非 fallback 写持久化缓存；fallback 返回 null 走规则回退。
-        val result = try {
-            AppLog.putDebug("aiChapterParse wakeLockScope stage=aiLabel acquire chapter=$chapterIndex")
-            acquireReadAloudPrepareWakeLock()
-            io.legado.app.model.ai.AiDialogLabeler.labelRuleSegments(
-                chapterIndex = chapterIndex,
-                segments = ruleSegments,
-                candidates = buildAiDialogCandidates(book, chapterContent)
+        var result: io.legado.app.model.ai.AiChapterParseResult
+        while (true) {
+            result = try {
+                AppLog.putDebug("aiChapterParse wakeLockScope stage=aiLabel acquire chapter=$chapterIndex")
+                acquireReadAloudPrepareWakeLock()
+                io.legado.app.model.ai.AiDialogLabeler.labelRuleSegments(
+                    chapterIndex = chapterIndex,
+                    segments = ruleSegments,
+                    roleContext = buildAiDialogRoleContext(book, chapterContent)
+                )
+            } finally {
+                AppLog.putDebug("aiChapterParse wakeLockScope stage=aiLabel release chapter=$chapterIndex")
+                releaseReadAloudPrepareWakeLock()
+            }
+            if (result.segments.isEmpty()) return null
+            logAiCache(
+                "aiLabel mode=$mode provider=${result.provider} model=${result.model} " +
+                    "fallback=${result.fallbackUsed} reason=${result.errorMessage ?: "ok"} " +
+                    "segments=${result.segments.size} elapsedMs=${result.elapsedMs}"
             )
-        } finally {
-            AppLog.putDebug("aiChapterParse wakeLockScope stage=aiLabel release chapter=$chapterIndex")
-            releaseReadAloudPrepareWakeLock()
+            ReadAloudDebugStore.addAiSummary(
+                "chapter=$chapterIndex mode=$mode provider=${result.provider} model=${result.model} " +
+                    "fallback=${result.fallbackUsed} reason=${result.errorMessage ?: "ok"} " +
+                    "segments=${result.segments.size} elapsedMs=${result.elapsedMs}"
+            )
+            if (!result.fallbackUsed) break
+            val retry = promptAiFailureChoice(result.errorMessage ?: "unknown")
+            if (!retry) return null
         }
-        if (result.segments.isEmpty()) return null
-        logAiCache(
-            "aiLabel mode=$mode provider=${result.provider} model=${result.model} " +
-                "fallback=${result.fallbackUsed} reason=${result.errorMessage ?: "ok"} " +
-                "segments=${result.segments.size} elapsedMs=${result.elapsedMs}"
-        )
-        if (result.fallbackUsed) return null
         segmentCacheRepository.saveAiDialogLabelSegments(
             book = book,
             chapter = chapter,
@@ -2027,22 +2075,68 @@ class HttpReadAloudService : BaseReadAloudService(),
     }
 
 
-    private fun buildAiDialogCandidates(
+    private fun buildAiDialogRoleContext(
         book: io.legado.app.data.entities.Book,
         chapterContent: String
-    ): List<String> {
-        val candidates = linkedSetOf<String>()
-        book.getReadAloudRoles().forEach { role ->
-            role.name.takeIf { it.isNotBlank() }?.let(candidates::add)
-            role.aliases.filter { it.isNotBlank() }.forEach(candidates::add)
+    ): AiDialogRoleContext {
+        val allRoles = book.getReadAloudRoles()
+        val roles = allRoles
+            .filter { safeRoleName(it).isNotBlank() }
+            .sortedWith(
+                compareBy<BookReadAloudRole> { aiRoleContextOrder(it) }
+                    .thenBy { safeRoleName(it) }
+            )
+            .take(AI_ROLE_CONTEXT_LIMIT)
+
+        val existingRoleKeys = linkedSetOf<String>()
+        allRoles.forEach { role ->
+            BookReadAloudRoleMatcher.normalizeRoleKey(safeRoleName(role))
+                .takeIf { it.isNotBlank() }
+                ?.let(existingRoleKeys::add)
+            safeRoleAliases(role).forEach { alias ->
+                BookReadAloudRoleMatcher.normalizeRoleKey(alias)
+                    .takeIf { it.isNotBlank() }
+                    ?.let(existingRoleKeys::add)
+            }
         }
         Regex("([\\u4e00-\\u9fa5]{1,6})(?:拱手|笑|问|说|道|喊|叫|答|看向|询问)")
             .findAll(chapterContent)
             .map { it.groupValues[1] }
             .filter { it !in setOf("说道", "问道", "笑道", "答道") }
-            .take(40)
-            .forEach(candidates::add)
-        return candidates.take(40)
+            .filter { BookReadAloudRoleMatcher.normalizeRoleKey(it) !in existingRoleKeys }
+            .distinct()
+            .take(AI_NAME_CANDIDATE_LIMIT)
+            .toList()
+            .let { nameCandidates ->
+                return AiDialogRoleContext.fromRoles(roles, nameCandidates)
+            }
+    }
+
+    private fun aiRoleContextOrder(role: BookReadAloudRole): Int {
+        val category = runCatching { role.roleCategory }.getOrNull()
+        val locked = runCatching { role.locked }.getOrDefault(false)
+        val hasAliases = safeRoleAliases(role).isNotEmpty()
+        return when {
+            category == BookReadAloudRole.RoleCategory.MALE_LEAD -> 0
+            category == BookReadAloudRole.RoleCategory.FEMALE_LEAD -> 1
+            category == BookReadAloudRole.RoleCategory.MAJOR_SUPPORTING -> 2
+            locked -> 3
+            hasAliases -> 4
+            category == BookReadAloudRole.RoleCategory.MINOR_SUPPORTING -> 5
+            category == BookReadAloudRole.RoleCategory.EXTRA -> 6
+            else -> 7
+        }
+    }
+
+    private fun safeRoleName(role: BookReadAloudRole): String {
+        return runCatching { role.name }.getOrNull()?.trim().orEmpty()
+    }
+
+    private fun safeRoleAliases(role: BookReadAloudRole): List<String> {
+        return runCatching { role.aliases }.getOrNull()
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            .orEmpty()
     }
 
     private fun buildRuleSegments(
@@ -2385,6 +2479,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                         task.speakText.takeIf { hasSpeakableText(it) }.orEmpty(),
                         task.segment,
                         task.providerSegment,
+                        fallbackToSilent = false,
                         chapterIndex = task.chapterIndex,
                         segmentIndex = task.segmentIndex
                     )
@@ -2427,7 +2522,7 @@ class HttpReadAloudService : BaseReadAloudService(),
         val upstreamFactory = DataSource.Factory {
             InputStreamDataSource {
                 val inputStream = if (!hasSpeakableText(speakText)) {
-                    null
+                    resources.openRawResource(R.raw.silent_sound)
                 } else {
                     kotlin.runCatching {
                         runBlocking(lifecycleScope.coroutineContext[Job]!!) {
@@ -2487,7 +2582,7 @@ class HttpReadAloudService : BaseReadAloudService(),
                 inputStream ?: if (fallbackToSilent) {
                     resources.openRawResource(R.raw.silent_sound)
                 } else {
-                    throw NoStackTraceException("下一章音频预处理未返回有效音频")
+                    throw NoStackTraceException("TTS 未返回有效音频")
                 }
             }
         }
@@ -2525,6 +2620,7 @@ class HttpReadAloudService : BaseReadAloudService(),
         chapterIndex: Int = -1,
         segmentIndex: Int = -1
     ): InputStream? {
+        var aliyunTokenRefreshRetried = false
         while (true) {
             try {
                 val providerSegment = readAloudProviderSegment
@@ -2539,8 +2635,9 @@ class HttpReadAloudService : BaseReadAloudService(),
                             "audioPath=${httpTts.audioPath.orEmpty()} " +
                             readAloudSegment.debugSummary(providerSegment)
                 )
-                
-                val analyzeUrl = AnalyzeUrl(
+
+                refreshAliyunTokenBeforeRequest(httpTts)
+                var analyzeUrl = AnalyzeUrl(
                     httpTts.url,
                     speakText = speakText,
                     speakSpeed = speechRate,
@@ -2562,7 +2659,45 @@ class HttpReadAloudService : BaseReadAloudService(),
                     } catch (ex: Exception) {
                         "Unable to read error body: ${ex.message}"
                     }
-                    throw NoStackTraceException("TTS服务器返回错误 code=${response.code}, body=$errorBody")
+                    if (!aliyunTokenRefreshRetried
+                        && AliyunTtsTokenHelper.isInvalidTokenResponse(httpTts, response.code, errorBody)
+                    ) {
+                        response.close()
+                        aliyunTokenRefreshRetried = true
+                        refreshAliyunToken(httpTts, "invalidToken", clearLoginHeader = true)
+                        analyzeUrl = AnalyzeUrl(
+                            httpTts.url,
+                            speakText = speakText,
+                            speakSpeed = speechRate,
+                            readAloudSegment = readAloudSegment,
+                            readAloudProviderSegment = providerSegment,
+                            source = httpTts,
+                            readTimeout = 300 * 1000L,
+                            coroutineContext = currentCoroutineContext()
+                        )
+                        response = analyzeUrl.getResponseAwait()
+                        currentCoroutineContext().ensureActive()
+                        logInfo(
+                            "responseAfterTokenRefresh contentType=${response.headers["Content-Type"].orEmpty()} " +
+                                    "code=${response.code} message=${response.message}"
+                        )
+                        if (!response.isSuccessful) {
+                            val retryErrorBody = try {
+                                response.body.string()
+                            } catch (ex: Exception) {
+                                "Unable to read error body: ${ex.message}"
+                            }
+                            throw NoStackTraceException(
+                                "TTS服务器返回错误 code=${response.code}, body=" +
+                                        AliyunTtsTokenHelper.redactSensitive(retryErrorBody)
+                            )
+                        }
+                    } else {
+                        throw NoStackTraceException(
+                            "TTS服务器返回错误 code=${response.code}, body=" +
+                                    AliyunTtsTokenHelper.redactSensitive(errorBody)
+                        )
+                    }
                 }
                 val checkJs = httpTts.loginCheckJs
                 if (checkJs?.isNotBlank() == true) {
@@ -2573,16 +2708,25 @@ class HttpReadAloudService : BaseReadAloudService(),
                     val ct = httpTts.contentType
                     if (contentType == "application/json" || contentType.startsWith("text/")) {
                         val bodyText = response.body.string()
+                        if (!aliyunTokenRefreshRetried
+                            && AliyunTtsTokenHelper.containsInvalidTokenSignal(bodyText)
+                            && AliyunTtsTokenHelper.isAliyunTTS(httpTts)
+                        ) {
+                            aliyunTokenRefreshRetried = true
+                            refreshAliyunToken(httpTts, "invalidToken", clearLoginHeader = true)
+                            continue
+                        }
                         val inputStream = getAudioStreamFromTextResponse(httpTts, bodyText)
                         if (inputStream != null) {
                             downloadErrorNo = 0
                             return inputStream
                         }
-                        throw NoStackTraceException(bodyText)
+                        throw NoStackTraceException(AliyunTtsTokenHelper.redactSensitive(bodyText))
                     } else if (ct?.isNotBlank() == true) {
                         if (!contentType.matches(ct.toRegex())) {
                             throw NoStackTraceException(
-                                "TTS服务器返回错误：" + response.body.string()
+                                "TTS服务器返回错误：" +
+                                        AliyunTtsTokenHelper.redactSensitive(response.body.string())
                             )
                         }
                     }
@@ -2803,6 +2947,24 @@ class HttpReadAloudService : BaseReadAloudService(),
         }
     }
 
+    private fun refreshAliyunTokenBeforeRequest(httpTts: HttpTTS) {
+        val reason = AliyunTtsTokenHelper.refreshReasonBeforeRequest(httpTts) ?: return
+        refreshAliyunToken(httpTts, reason, clearLoginHeader = reason == "missingHeader")
+    }
+
+    private fun refreshAliyunToken(
+        httpTts: HttpTTS,
+        reason: String,
+        clearLoginHeader: Boolean
+    ) {
+        if (!AliyunTtsTokenHelper.isAliyunTTS(httpTts)) return
+        if (clearLoginHeader) {
+            httpTts.removeLoginHeader()
+        }
+        logInfo("aliyunTokenRefresh reason=$reason ttsId=${httpTts.id}")
+        httpTts.login()
+    }
+
     /**
      * 移除缓存文件
      */
@@ -2972,6 +3134,72 @@ class HttpReadAloudService : BaseReadAloudService(),
         }
     }
 
+    private suspend fun promptAiFailureChoice(reason: String): Boolean {
+        return withContext(Main) {
+            if (aiFailureDialogShowing) return@withContext false
+            val activity = LifecycleHelp.currentActivity()
+            if (activity == null) {
+                toastOnUi("AI 标注失败，已使用本地规则：$reason")
+                return@withContext false
+            }
+            aiFailureDialogShowing = true
+            val result = CompletableDeferred<Boolean>()
+            activity.alert(
+                "AI 标注失败",
+                "AI 连接或解析失败：$reason\n\n请选择下一步。"
+            ) {
+                setCancelable(false)
+                positiveButton("重试") {
+                    aiFailureDialogShowing = false
+                    if (!result.isCompleted) result.complete(true)
+                }
+                negativeButton("使用本地规则") {
+                    aiFailureDialogShowing = false
+                    if (!result.isCompleted) result.complete(false)
+                }
+                onDismiss {
+                    aiFailureDialogShowing = false
+                    if (!result.isCompleted) result.complete(false)
+                }
+            }
+            result.await()
+        }
+    }
+
+    private fun showTtsFailureDialog(
+        message: String,
+        retryAction: () -> Unit,
+        skipAction: () -> Unit
+    ) {
+        lifecycleScope.launch(Main) {
+            if (ttsFailureDialogShowing) return@launch
+            val activity = LifecycleHelp.currentActivity()
+            if (activity == null) {
+                toastOnUi("TTS 播放失败，已暂停朗读：$message")
+                pauseReadAloud()
+                return@launch
+            }
+            ttsFailureDialogShowing = true
+            activity.alert(
+                "TTS 播放失败",
+                "TTS 合成或播放失败：$message\n\n请选择下一步。"
+            ) {
+                setCancelable(false)
+                positiveButton("重试") {
+                    ttsFailureDialogShowing = false
+                    retryAction()
+                }
+                negativeButton("跳过本段") {
+                    ttsFailureDialogShowing = false
+                    skipAction()
+                }
+                onDismiss {
+                    ttsFailureDialogShowing = false
+                }
+            }
+        }
+    }
+
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         val mediaId = mediaItem?.mediaId
         val tagIndex = mediaId?.let { mediaIdToSegmentIndex[it] }
@@ -3014,13 +3242,21 @@ class HttpReadAloudService : BaseReadAloudService(),
             AppLog.put("朗读连续5次错误, 最后一次错误代码(${error.localizedMessage})", error)
             pauseReadAloud()
         } else {
-            if (exoPlayer.hasNextMediaItem()) {
-                exoPlayer.seekToNextMediaItem()
-                exoPlayer.prepare()
-            } else {
-                exoPlayer.clearMediaItems()
-                continueCurrentChapterFromIndex(nowSpeak + 1)
-            }
+            showTtsFailureDialog(
+                message = error.localizedMessage.orEmpty().ifBlank { error.errorCodeName },
+                retryAction = {
+                    exoPlayer.prepare()
+                },
+                skipAction = {
+                    if (exoPlayer.hasNextMediaItem()) {
+                        exoPlayer.seekToNextMediaItem()
+                        exoPlayer.prepare()
+                    } else {
+                        exoPlayer.clearMediaItems()
+                        continueCurrentChapterFromIndex(nowSpeak + 1)
+                    }
+                }
+            )
         }
     }
 

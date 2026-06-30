@@ -27,7 +27,7 @@ import io.legado.app.databinding.ItemBookVoicePresetBinding
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.model.ReadAloud
-import io.legado.app.model.ReadAloudAudioCache
+import io.legado.app.model.ReadAloudCacheInvalidator
 import io.legado.app.model.ReadBook
 import io.legado.app.utils.gone
 import io.legado.app.utils.setLayout
@@ -361,10 +361,7 @@ class BookVoiceConfigDialog : BaseDialogFragment(R.layout.dialog_book_voice_conf
     }
 
     private fun clearChapterAudioCache() {
-        ReadAloudAudioCache.clearChapterAudioCache(
-            requireContext().cacheDir,
-            ReadBook.curTextChapter?.title
-        )
+        ReadAloudCacheInvalidator.clearCurrentChapterAudio("bookVoiceChanged")
     }
 
     private fun preview(preset: BookVoicePreset) {

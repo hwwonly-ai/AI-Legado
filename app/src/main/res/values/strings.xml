@@ -1423,6 +1423,27 @@
     <string name="book_role_profile_import_summary">Replace roles and role voice profile for this book from JSON</string>
     <string name="book_role_profile_import_success">Role profile imported</string>
     <string name="book_role_profile_import_failed">Role profile import failed</string>
+    <string name="read_aloud_audio_cache_stats">View read-aloud audio cache stats</string>
+    <string name="read_aloud_audio_cache_stats_summary">Show HTTP_TTS audio cache file count and storage usage</string>
+    <string name="read_aloud_audio_cache_stats_content">Files: %1$d\nSize: %2$s</string>
+    <string name="clear_current_chapter_audio_cache">Clear current chapter audio cache</string>
+    <string name="clear_current_chapter_audio_cache_summary">Only delete HTTP_TTS audio cache for the current chapter; roles and voices are kept</string>
+    <string name="clear_book_audio_cache">Clear this book audio cache</string>
+    <string name="clear_book_audio_cache_summary">Only delete HTTP_TTS audio cache for this book; roles and voices are kept</string>
+    <string name="clear_all_read_aloud_audio_cache">Clear all read-aloud audio cache</string>
+    <string name="clear_all_read_aloud_audio_cache_summary">Delete all HTTP_TTS audio cache; config and script cache are kept</string>
+    <string name="confirm_clear_current_chapter_audio_cache">Clear read-aloud audio cache for \"%1$s\"? Role profile, book voices and HTTP_TTS config will not be affected.</string>
+    <string name="confirm_clear_book_audio_cache">Clear read-aloud audio cache for this book? Role profile, book voices and HTTP_TTS config will not be affected.</string>
+    <string name="confirm_clear_all_audio_cache">Clear all HTTP_TTS read-aloud audio cache? Role profile, book voices, HTTP_TTS config and script cache will not be affected.</string>
+    <string name="clear_read_aloud_audio_cache_success">Cleared %1$d audio files, %2$s</string>
+    <string name="read_aloud_debug_segment">Current segment JSON</string>
+    <string name="read_aloud_debug_segment_summary">View structured JSON for the most recent read-aloud segment</string>
+    <string name="read_aloud_debug_tts">TTS request summary</string>
+    <string name="read_aloud_debug_tts_summary">View provider, voice, text hash and short preview for the latest TTS request</string>
+    <string name="read_aloud_debug_ai">AI response and mapping summary</string>
+    <string name="read_aloud_debug_ai_summary">View recent AI label result summary without Prompt or full text</string>
+    <string name="read_aloud_debug_role">Role matching and error log</string>
+    <string name="read_aloud_debug_role_summary">View recent role match hits, misses and fallback summaries</string>
     <string name="segment_cache_operation_failed">Segment cache operation failed</string>
     <string name="no_book_available">No book available</string>
 </resources>

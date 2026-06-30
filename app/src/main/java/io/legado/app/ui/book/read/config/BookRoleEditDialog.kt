@@ -14,7 +14,7 @@ import io.legado.app.data.entities.BookReadAloudRole
 import io.legado.app.databinding.DialogBookRoleEditBinding
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.model.ReadAloud
-import io.legado.app.model.ReadAloudAudioCache
+import io.legado.app.model.ReadAloudCacheInvalidator
 import io.legado.app.model.ReadBook
 import io.legado.app.utils.GSON
 import io.legado.app.utils.fromJsonObject
@@ -460,10 +460,7 @@ class BookRoleEditDialog : BaseDialogFragment(R.layout.dialog_book_role_edit) {
         // MVP7 测试期：音色变更后清理当前章节音频缓存（仅 MP3，不清 segment 缓存）。
         val newVoice = existingRole.voices[ttsEngine]
         if (newVoice != configuredVoiceBeforeSave) {
-            ReadAloudAudioCache.clearChapterAudioCache(
-                requireContext().cacheDir,
-                ReadBook.curTextChapter?.title
-            )
+            ReadAloudCacheInvalidator.clearCurrentChapterAudio("roleVoiceChanged")
         }
         ReadAloud.upReadAloudClass()
         dismissAllowingStateLoss()

@@ -8,6 +8,7 @@ import io.legado.app.help.http.getProxyClient
 import io.legado.app.help.http.newCallResponse
 import io.legado.app.model.ReadAloudProviderSegment
 import io.legado.app.model.analyzeRule.AnalyzeUrl
+import io.legado.app.model.tts.AliyunTtsTokenHelper
 import io.legado.app.utils.jsonPath
 import kotlinx.coroutines.Dispatchers.IO
 import org.json.JSONObject
@@ -26,31 +27,72 @@ object BookVoicePreviewHelper {
             provider = httpTts.providerName(),
             voice = preset.requestValue
         )
-        val analyzeUrl = AnalyzeUrl(
-            httpTts.url,
-            speakText = previewSpeakText(preset, previewText),
-            speakSpeed = AppConfig.speechRatePlay + 5,
-            readAloudProviderSegment = providerSegment,
-            source = httpTts,
-            readTimeout = 300 * 1000L,
-            coroutineContext = IO
-        )
         val file = File(context.cacheDir, "book_voice_preview.mp3")
-        analyzeUrl.getResponseAwait().use { response ->
-            if (!response.isSuccessful) {
-                throw IllegalStateException("HTTP ${response.code}")
-            }
-            val contentType = response.headers["Content-Type"].orEmpty().substringBefore(";")
-            if (contentType == "application/json" || contentType.startsWith("text/")) {
-                val bytes = decodePreviewAudio(httpTts, response.body.string())
-                file.writeBytes(bytes)
-            } else {
-                response.body.byteStream().use { input ->
-                    file.outputStream().use { output -> input.copyTo(output) }
+        val speakText = previewSpeakText(preset, previewText)
+        var tokenRefreshRetried = false
+        while (true) {
+            refreshAliyunTokenBeforeRequest(httpTts)
+            val analyzeUrl = AnalyzeUrl(
+                httpTts.url,
+                speakText = speakText,
+                speakSpeed = AppConfig.speechRatePlay + 5,
+                readAloudProviderSegment = providerSegment,
+                source = httpTts,
+                readTimeout = 300 * 1000L,
+                coroutineContext = IO
+            )
+            val response = analyzeUrl.getResponseAwait()
+            try {
+                if (!response.isSuccessful) {
+                    val errorBody = runCatching { response.body.string() }
+                        .getOrElse { "Unable to read error body: ${it.message}" }
+                    if (!tokenRefreshRetried
+                        && AliyunTtsTokenHelper.isInvalidTokenResponse(httpTts, response.code, errorBody)
+                    ) {
+                        tokenRefreshRetried = true
+                        refreshAliyunToken(httpTts, clearLoginHeader = true)
+                        continue
+                    }
+                    throw IllegalStateException(
+                        "HTTP ${response.code}: ${AliyunTtsTokenHelper.redactSensitive(errorBody)}"
+                    )
                 }
+                val contentType = response.headers["Content-Type"].orEmpty().substringBefore(";")
+                if (contentType == "application/json" || contentType.startsWith("text/")) {
+                    val bodyText = response.body.string()
+                    if (!tokenRefreshRetried
+                        && AliyunTtsTokenHelper.isAliyunTTS(httpTts)
+                        && AliyunTtsTokenHelper.containsInvalidTokenSignal(bodyText)
+                    ) {
+                        tokenRefreshRetried = true
+                        refreshAliyunToken(httpTts, clearLoginHeader = true)
+                        continue
+                    }
+                    val bytes = decodePreviewAudio(httpTts, bodyText)
+                    file.writeBytes(bytes)
+                } else {
+                    response.body.byteStream().use { input ->
+                        file.outputStream().use { output -> input.copyTo(output) }
+                    }
+                }
+                return file
+            } finally {
+                response.close()
             }
         }
-        return file
+    }
+
+    private fun refreshAliyunTokenBeforeRequest(httpTts: HttpTTS) {
+        val reason = AliyunTtsTokenHelper.refreshReasonBeforeRequest(httpTts) ?: return
+        refreshAliyunToken(httpTts, clearLoginHeader = reason == "missingHeader")
+    }
+
+    private fun refreshAliyunToken(httpTts: HttpTTS, clearLoginHeader: Boolean) {
+        if (!AliyunTtsTokenHelper.isAliyunTTS(httpTts)) return
+        if (clearLoginHeader) {
+            httpTts.removeLoginHeader()
+        }
+        httpTts.login()
     }
 
     private fun previewSpeakText(preset: BookVoicePreset, previewText: String): String {

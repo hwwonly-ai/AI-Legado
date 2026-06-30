@@ -21,7 +21,7 @@ object AiDialogLabeler {
     suspend fun labelRuleSegments(
         chapterIndex: Int,
         segments: List<ReadAloudSegment>,
-        candidates: List<String>
+        roleContext: AiDialogRoleContext
     ): AiChapterParseResult {
         val startNs = System.nanoTime()
         val promptConfig = AiPromptStore.load()
@@ -42,7 +42,8 @@ object AiDialogLabeler {
             .take(MAX_DIALOGS_PER_REQUEST)
         AppLog.putDebug(
             "aiChapterParse labelStart chapter=$chapterIndex dialogs=${dialogIndexes.size} " +
-                "segments=${segments.size} candidates=${candidates.size} model=${config.model}"
+                "segments=${segments.size} roles=${roleContext.roles.size} " +
+                "nameCandidates=${roleContext.nameCandidates.size} model=${config.model}"
         )
         if (dialogIndexes.isEmpty()) {
             return AiChapterParseResult(
@@ -58,7 +59,7 @@ object AiDialogLabeler {
 
         val messages = listOf(
             AiChatMessage(role = "system", content = promptConfig.promptText),
-            AiChatMessage(role = "user", content = buildUserPayload(segments, dialogIndexes, candidates))
+            AiChatMessage(role = "user", content = buildUserPayload(segments, dialogIndexes, roleContext))
         )
         val maxTokens = computeLabelMaxTokens(dialogIndexes.size)
         logLabelConfig(config, maxTokens, "primary")
@@ -94,7 +95,7 @@ object AiDialogLabeler {
             is AiChatResult.Success -> Unit
         }
 
-        val rawContent = (chatResult as AiChatResult.Success).content
+        val rawContent = chatResult.content
         val parseResult = AiDialogLabel.parse(rawContent)
         val labels = when (parseResult) {
             is AiDialogLabel.ParseResult.Ok -> parseResult.labels
@@ -196,12 +197,27 @@ object AiDialogLabeler {
     private fun buildUserPayload(
         segments: List<ReadAloudSegment>,
         dialogIndexes: List<Int>,
-        candidates: List<String>
+        roleContext: AiDialogRoleContext
     ): String {
         val root = JSONObject()
-        val candidatesJson = JSONArray()
-        candidates.take(40).forEach { candidatesJson.put(it) }
-        root.put("candidates", candidatesJson)
+        val rolesJson = JSONArray()
+        roleContext.roles.forEach { role ->
+            rolesJson.put(
+                JSONObject()
+                    .put("name", role.name)
+                    .put("aliases", JSONArray().apply {
+                        role.aliases.forEach { put(it) }
+                    })
+                    .put("roleCategory", role.roleCategory)
+                    .put("roleAttribute", role.roleAttribute)
+                    .put("locked", role.locked)
+                    .put("systemRole", role.systemRole)
+            )
+        }
+        root.put("roles", rolesJson)
+        root.put("nameCandidates", JSONArray().apply {
+            roleContext.nameCandidates.forEach { put(it) }
+        })
         val dialogsJson = JSONArray()
         dialogIndexes.forEachIndexed { dialogOrder, index ->
             val item = JSONObject()

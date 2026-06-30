@@ -24,11 +24,14 @@ import io.legado.app.lib.theme.primaryColor
 import io.legado.app.model.BookReadAloudExportManager
 import io.legado.app.model.ReadAloud
 import io.legado.app.model.ReadAloudAudioCache
+import io.legado.app.model.ReadAloudCacheInvalidator
+import io.legado.app.model.ReadAloudDebugStore
 import io.legado.app.model.BookRoleAutoArchiveManager
 import io.legado.app.model.ReadAloudSegmentCacheManager
 import io.legado.app.model.ReadBook
 import io.legado.app.service.BaseReadAloudService
 import io.legado.app.ui.file.HandleFileContract
+import io.legado.app.ui.widget.dialog.TextDialog
 import io.legado.app.utils.GSON
 import io.legado.app.utils.StringUtils
 import io.legado.app.utils.fromJsonObject
@@ -91,6 +94,14 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
             private const val KEY_IMPORT_CHAPTER_SCRIPT = "importCurrentChapterScript"
             private const val KEY_EXPORT_ROLE_PROFILE = "exportBookRoleProfile"
             private const val KEY_IMPORT_ROLE_PROFILE = "importBookRoleProfile"
+            private const val KEY_AUDIO_CACHE_STATS = "readAloudAudioCacheStats"
+            private const val KEY_CLEAR_CHAPTER_AUDIO = "clearCurrentChapterAudioCache"
+            private const val KEY_CLEAR_BOOK_AUDIO = "clearBookAudioCache"
+            private const val KEY_CLEAR_ALL_AUDIO = "clearAllReadAloudAudioCache"
+            private const val KEY_DEBUG_SEGMENT = "readAloudDebugSegment"
+            private const val KEY_DEBUG_TTS = "readAloudDebugTts"
+            private const val KEY_DEBUG_AI = "readAloudDebugAi"
+            private const val KEY_DEBUG_ROLE = "readAloudDebugRole"
         }
 
         private val cacheManager by lazy {
@@ -168,6 +179,34 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
                     mode = HandleFileContract.FILE
                     allowExtensions = arrayOf("json")
                 }
+                KEY_AUDIO_CACHE_STATS -> showAudioCacheStats()
+                KEY_CLEAR_CHAPTER_AUDIO -> handleClearCurrentChapterAudio()
+                KEY_CLEAR_BOOK_AUDIO -> handleClearBookAudio()
+                KEY_CLEAR_ALL_AUDIO -> handleClearAllAudio()
+                KEY_DEBUG_SEGMENT -> showDialogFragment(
+                    TextDialog(
+                        getString(R.string.read_aloud_debug_segment),
+                        ReadAloudDebugStore.currentSegmentJson()
+                    )
+                )
+                KEY_DEBUG_TTS -> showDialogFragment(
+                    TextDialog(
+                        getString(R.string.read_aloud_debug_tts),
+                        ReadAloudDebugStore.currentTtsRequestSummary()
+                    )
+                )
+                KEY_DEBUG_AI -> showDialogFragment(
+                    TextDialog(
+                        getString(R.string.read_aloud_debug_ai),
+                        ReadAloudDebugStore.currentAiSummary()
+                    )
+                )
+                KEY_DEBUG_ROLE -> showDialogFragment(
+                    TextDialog(
+                        getString(R.string.read_aloud_debug_role),
+                        ReadAloudDebugStore.currentRoleMatchSummary()
+                    )
+                )
             }
             return super.onPreferenceTreeClick(preference)
         }
@@ -181,6 +220,10 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
                     if (BaseReadAloudService.isRun) {
                         postEvent(EventBus.MEDIA_BUTTON, false)
                     }
+                }
+
+                PreferKey.ttsEngine -> {
+                    ReadAloudCacheInvalidator.clearCurrentChapterAudio("ttsEngineChanged")
                 }
 
                 PreferKey.ignoreAudioFocus -> {
@@ -406,10 +449,96 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
         }
 
         private fun clearCurrentChapterAudioCache() {
-            ReadAloudAudioCache.clearChapterAudioCache(
-                requireContext().cacheDir,
-                ReadBook.curTextChapter?.title
+            ReadAloudCacheInvalidator.clearCurrentChapterAudio("scriptOrProfileChanged")
+        }
+
+        private fun showAudioCacheStats() {
+            val stats = ReadAloudAudioCache.stats(requireContext().cacheDir)
+            showDialogFragment(
+                TextDialog(
+                    getString(R.string.read_aloud_audio_cache_stats),
+                    getString(
+                        R.string.read_aloud_audio_cache_stats_content,
+                        stats.fileCount,
+                        formatBytes(stats.totalBytes)
+                    )
+                )
             )
+        }
+
+        private fun handleClearCurrentChapterAudio() {
+            val (_, chapter) = currentBookAndChapter() ?: return
+            alert(
+                getString(R.string.draw),
+                getString(R.string.confirm_clear_current_chapter_audio_cache, chapter.title)
+            ) {
+                positiveButton(R.string.dialog_confirm) {
+                    lifecycleScope.launch {
+                        val result = withContext(Dispatchers.IO) {
+                            ReadAloudAudioCache.clearChapterAudioCache(
+                                requireContext().cacheDir,
+                                chapter.title
+                            )
+                        }
+                        context?.toastOnUi(formatAudioClearResult(result))
+                    }
+                }
+                cancelButton()
+            }
+        }
+
+        private fun handleClearBookAudio() {
+            val book = ReadBook.book ?: run {
+                context?.toastOnUi(R.string.no_book_available)
+                return
+            }
+            alert(getString(R.string.draw), getString(R.string.confirm_clear_book_audio_cache)) {
+                positiveButton(R.string.dialog_confirm) {
+                    lifecycleScope.launch {
+                        val result = withContext(Dispatchers.IO) {
+                            val titles = appDb.bookChapterDao.getChapterList(book.bookUrl)
+                                .map { it.title }
+                            ReadAloudAudioCache.clearBookAudioCache(
+                                requireContext().cacheDir,
+                                titles
+                            )
+                        }
+                        context?.toastOnUi(formatAudioClearResult(result))
+                    }
+                }
+                cancelButton()
+            }
+        }
+
+        private fun handleClearAllAudio() {
+            alert(getString(R.string.draw), getString(R.string.confirm_clear_all_audio_cache)) {
+                positiveButton(R.string.dialog_confirm) {
+                    lifecycleScope.launch {
+                        val result = withContext(Dispatchers.IO) {
+                            ReadAloudAudioCache.clearAllAudioCache(requireContext().cacheDir)
+                        }
+                        context?.toastOnUi(formatAudioClearResult(result))
+                    }
+                }
+                cancelButton()
+            }
+        }
+
+        private fun formatAudioClearResult(result: ReadAloudAudioCache.ClearResult): String {
+            return getString(
+                R.string.clear_read_aloud_audio_cache_success,
+                result.fileCount,
+                formatBytes(result.totalBytes)
+            )
+        }
+
+        private fun formatBytes(bytes: Long): String {
+            if (bytes < 1024) return "${bytes}B"
+            val kb = bytes / 1024.0
+            if (kb < 1024) return String.format(java.util.Locale.ROOT, "%.1fKB", kb)
+            val mb = kb / 1024.0
+            if (mb < 1024) return String.format(java.util.Locale.ROOT, "%.1fMB", mb)
+            return String.format(java.util.Locale.ROOT, "%.1fGB", mb / 1024.0)
         }
 
         private fun safeExportFileName(name: String): String {
@@ -429,7 +558,9 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
             cacheJob = lifecycleScope.launch {
                 try {
                     val deleted = withContext(Dispatchers.IO) {
-                        cacheManager.refreshChapter(book, chapter)
+                        cacheManager.refreshChapter(book, chapter).also {
+                            ReadAloudCacheInvalidator.clearCurrentChapterAudio("refreshSegmentCache")
+                        }
                     }
                     restartReadAloudIfNeeded(savedProgress, "manualRefresh")
 
@@ -462,7 +593,9 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
             cacheJob = lifecycleScope.launch {
                 try {
                     val deleted = withContext(Dispatchers.IO) {
-                        cacheManager.refreshChapterAiLabels(book, chapter)
+                        cacheManager.refreshChapterAiLabels(book, chapter).also {
+                            ReadAloudCacheInvalidator.clearCurrentChapterAudio("refreshAiLabelCache")
+                        }
                     }
                     restartReadAloudIfNeeded(savedProgress, "manualRefreshAi")
 
@@ -491,7 +624,9 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
             cacheJob = lifecycleScope.launch {
                 try {
                     val deleted = withContext(Dispatchers.IO) {
-                        cacheManager.clearBook(book)
+                        cacheManager.clearBook(book).also {
+                            ReadAloudCacheInvalidator.clearCurrentChapterAudio("clearBookSegmentCache")
+                        }
                     }
                     withContext(Dispatchers.Main) {
                         context?.toastOnUi(getString(R.string.clear_book_segment_cache_success, deleted))
@@ -514,7 +649,9 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
             cacheJob = lifecycleScope.launch {
                 try {
                     val deleted = withContext(Dispatchers.IO) {
-                        cacheManager.clearBookAiLabels(book)
+                        cacheManager.clearBookAiLabels(book).also {
+                            ReadAloudCacheInvalidator.clearCurrentChapterAudio("clearBookAiLabelCache")
+                        }
                     }
                     withContext(Dispatchers.Main) {
                         context?.toastOnUi(getString(R.string.clear_book_ai_label_cache_success, deleted))
@@ -574,7 +711,15 @@ class ReadAloudConfigDialog : BasePrefDialogFragment() {
                 KEY_EXPORT_CHAPTER_SCRIPT,
                 KEY_IMPORT_CHAPTER_SCRIPT,
                 KEY_EXPORT_ROLE_PROFILE,
-                KEY_IMPORT_ROLE_PROFILE
+                KEY_IMPORT_ROLE_PROFILE,
+                KEY_AUDIO_CACHE_STATS,
+                KEY_CLEAR_CHAPTER_AUDIO,
+                KEY_CLEAR_BOOK_AUDIO,
+                KEY_CLEAR_ALL_AUDIO,
+                KEY_DEBUG_SEGMENT,
+                KEY_DEBUG_TTS,
+                KEY_DEBUG_AI,
+                KEY_DEBUG_ROLE
             ).forEach { key ->
                 findPreference<Preference>(key)?.isEnabled = enabled
             }

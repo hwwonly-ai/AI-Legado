@@ -1418,6 +1418,27 @@
     <string name="book_role_profile_import_summary">从 JSON 替换当前书的角色与音色档案</string>
     <string name="book_role_profile_import_success">角色档案已导入</string>
     <string name="book_role_profile_import_failed">角色档案导入失败</string>
+    <string name="read_aloud_audio_cache_stats">查看朗读音频缓存统计</string>
+    <string name="read_aloud_audio_cache_stats_summary">查看 HTTP_TTS 音频缓存文件数和空间占用</string>
+    <string name="read_aloud_audio_cache_stats_content">文件数：%1$d\n占用：%2$s</string>
+    <string name="clear_current_chapter_audio_cache">清理当前章音频缓存</string>
+    <string name="clear_current_chapter_audio_cache_summary">只删除当前章节 HTTP_TTS 音频缓存，不影响角色和音色</string>
+    <string name="clear_book_audio_cache">清理本书音频缓存</string>
+    <string name="clear_book_audio_cache_summary">只删除本书各章节 HTTP_TTS 音频缓存，不影响角色和音色</string>
+    <string name="clear_all_read_aloud_audio_cache">清理全部朗读音频缓存</string>
+    <string name="clear_all_read_aloud_audio_cache_summary">删除全部 HTTP_TTS 音频缓存，不影响配置和剧本缓存</string>
+    <string name="confirm_clear_current_chapter_audio_cache">确认清理「%1$s」的朗读音频缓存？角色档案、书籍音色和 HTTP_TTS 配置不会受影响。</string>
+    <string name="confirm_clear_book_audio_cache">确认清理本书朗读音频缓存？角色档案、书籍音色和 HTTP_TTS 配置不会受影响。</string>
+    <string name="confirm_clear_all_audio_cache">确认清理全部 HTTP_TTS 朗读音频缓存？角色档案、书籍音色、HTTP_TTS 配置和剧本缓存不会受影响。</string>
+    <string name="clear_read_aloud_audio_cache_success">已清理 %1$d 个音频文件，占用 %2$s</string>
+    <string name="read_aloud_debug_segment">当前段 Segment JSON</string>
+    <string name="read_aloud_debug_segment_summary">查看最近一次朗读段的结构化 JSON</string>
+    <string name="read_aloud_debug_tts">TTS 请求摘要</string>
+    <string name="read_aloud_debug_tts_summary">查看最近一次 TTS provider、voice、文本 hash 和短预览</string>
+    <string name="read_aloud_debug_ai">AI 返回与映射摘要</string>
+    <string name="read_aloud_debug_ai_summary">查看最近 AI 标注结果摘要，不含 Prompt 或正文</string>
+    <string name="read_aloud_debug_role">角色匹配与错误日志</string>
+    <string name="read_aloud_debug_role_summary">查看最近角色匹配命中、未命中和回退摘要</string>
     <string name="segment_cache_operation_failed">Segment 缓存操作失败</string>
     <string name="no_book_available">暂无可用书籍</string>
 </resources>

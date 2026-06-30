@@ -78,11 +78,7 @@ class HandleFileActivity :
             HandleFileContract.DIR_SYS -> getDirActions(true)
             HandleFileContract.DIR -> getDirActions()
             HandleFileContract.FILE -> getFileActions()
-            HandleFileContract.EXPORT -> arrayListOf(
-                SelectItem(getString(R.string.upload_url), 111)
-            ).apply {
-                addAll(getDirActions())
-            }
+            HandleFileContract.EXPORT -> getDirActions()
 
             HandleFileContract.IMAGE -> getImageActions()
             else -> arrayListOf()
@@ -148,14 +144,6 @@ class HandleFileActivity :
                                 mode = HandleFileContract.FILE,
                                 allowExtensions = allowExtensions
                             )
-                        }
-                    }
-
-                    111 -> getFileData()?.let {
-                        viewModel.upload(it.first, it.second, it.third) { url ->
-                            val uri = url.toUri()
-                            setResult(RESULT_OK, Intent().setData(uri))
-                            finish()
                         }
                     }
 
