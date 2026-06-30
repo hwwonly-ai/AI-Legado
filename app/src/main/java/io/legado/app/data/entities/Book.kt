@@ -1,0 +1,653 @@
+package io.legado.app.data.entities
+
+import android.os.Parcelable
+import androidx.room.ColumnInfo
+import androidx.room.Entity
+import androidx.room.Ignore
+import androidx.room.Index
+import androidx.room.PrimaryKey
+import androidx.room.TypeConverter
+import androidx.room.TypeConverters
+import io.legado.app.constant.AppPattern
+import io.legado.app.constant.BookType
+import io.legado.app.constant.PageAnim
+import io.legado.app.data.appDb
+import io.legado.app.help.book.BookHelp
+import io.legado.app.help.book.ContentProcessor
+import io.legado.app.help.book.getFolderNameNoCache
+import io.legado.app.help.book.isEpub
+import io.legado.app.help.book.isImage
+import io.legado.app.help.book.simulatedTotalChapterNum
+import io.legado.app.help.config.AppConfig
+import io.legado.app.help.config.ReadBookConfig
+import io.legado.app.model.ReadBook
+import io.legado.app.utils.GSON
+import io.legado.app.utils.fromJsonObject
+import kotlinx.parcelize.IgnoredOnParcel
+import kotlinx.parcelize.Parcelize
+import java.nio.charset.Charset
+import java.time.LocalDate
+import kotlin.math.max
+
+/**
+ * 8 个固定龙套角色定义：(角色名, 角色属性)。
+ * 龙套为系统角色，不可删除、不可改名、不可改分类和属性。
+ * 放在文件顶层避免被 Room 识别为 Book 实体的列。
+ */
+private val SYSTEM_EXTRA_ROLE_DEFS: List<Pair<String, String>> = listOf(
+    "龙套·男童" to BookReadAloudRole.RoleAttribute.BOY,
+    "龙套·少年男性" to BookReadAloudRole.RoleAttribute.YOUNG_MALE,
+    "龙套·中年男性" to BookReadAloudRole.RoleAttribute.MIDDLE_MALE,
+    "龙套·老年男性" to BookReadAloudRole.RoleAttribute.ELDER_MALE,
+    "龙套·女童" to BookReadAloudRole.RoleAttribute.GIRL,
+    "龙套·少年女性" to BookReadAloudRole.RoleAttribute.YOUNG_FEMALE,
+    "龙套·中年女性" to BookReadAloudRole.RoleAttribute.MIDDLE_FEMALE,
+    "龙套·老年女性" to BookReadAloudRole.RoleAttribute.ELDER_FEMALE
+)
+
+enum class RoleMentionStatWindow {
+    ALL_BOOK,
+    RECENT_20_CHAPTERS
+}
+
+@Parcelize
+data class BookRoleMentionStat(
+    val roleKey: String,
+    var displayName: String,
+    var roleAttribute: String,
+    var totalDialogCount: Int,
+    var chapterDialogCounts: MutableMap<Int, Int>,
+    var lastSeenChapter: Int,
+    var roleId: String? = null
+) : Parcelable
+
+@Parcelize
+@TypeConverters(Book.Converters::class)
+@Entity(
+    tableName = "books",
+    indices = [Index(value = ["name", "author"], unique = true)]
+)
+data class Book(
+    // 详情页Url(本地书源存储完整文件路径)
+    @PrimaryKey
+    @ColumnInfo(defaultValue = "")
+    override var bookUrl: String = "",
+    // 目录页Url (toc=table of Contents)
+    @ColumnInfo(defaultValue = "")
+    var tocUrl: String = "",
+    // 书源URL(默认BookType.local)
+    @ColumnInfo(defaultValue = BookType.localTag)
+    var origin: String = BookType.localTag,
+    //书源名称 or 本地书籍文件名
+    @ColumnInfo(defaultValue = "")
+    var originName: String = "",
+    // 书籍名称(书源获取)
+    @ColumnInfo(defaultValue = "")
+    override var name: String = "",
+    // 作者名称(书源获取)
+    @ColumnInfo(defaultValue = "")
+    override var author: String = "",
+    // 分类信息(书源获取)
+    override var kind: String? = null,
+    // 分类信息(用户修改)
+    var customTag: String? = null,
+    // 封面Url(书源获取)
+    var coverUrl: String? = null,
+    // 封面Url(用户修改)
+    var customCoverUrl: String? = null,
+    // 简介内容(书源获取)
+    var intro: String? = null,
+    // 简介内容(用户修改)
+    var customIntro: String? = null,
+    // 自定义字符集名称(仅适用于本地书籍)
+    var charset: String? = null,
+    // 类型,详见BookType
+    @ColumnInfo(defaultValue = "0")
+    var type: Int = BookType.text,
+    // 自定义分组索引号
+    @ColumnInfo(defaultValue = "0")
+    var group: Long = 0,
+    // 最新章节标题
+    var latestChapterTitle: String? = null,
+    // 最新章节标题更新时间
+    @ColumnInfo(defaultValue = "0")
+    var latestChapterTime: Long = System.currentTimeMillis(),
+    // 最近一次更新书籍信息的时间
+    @ColumnInfo(defaultValue = "0")
+    var lastCheckTime: Long = System.currentTimeMillis(),
+    // 最近一次发现新章节的数量
+    @ColumnInfo(defaultValue = "0")
+    var lastCheckCount: Int = 0,
+    // 书籍目录总数
+    @ColumnInfo(defaultValue = "0")
+    var totalChapterNum: Int = 0,
+    // 当前章节名称
+    var durChapterTitle: String? = null,
+    // 当前章节索引
+    @ColumnInfo(defaultValue = "0")
+    var durChapterIndex: Int = 0,
+    // 当前阅读的进度(首行字符的索引位置)
+    @ColumnInfo(defaultValue = "0")
+    var durChapterPos: Int = 0,
+    // 最近一次阅读书籍的时间(打开正文的时间)
+    @ColumnInfo(defaultValue = "0")
+    var durChapterTime: Long = System.currentTimeMillis(),
+    //字数
+    override var wordCount: String? = null,
+    // 刷新书架时更新书籍信息
+    @ColumnInfo(defaultValue = "1")
+    var canUpdate: Boolean = true,
+    // 手动排序
+    @ColumnInfo(defaultValue = "0")
+    var order: Int = 0,
+    //书源排序
+    @ColumnInfo(defaultValue = "0")
+    var originOrder: Int = 0,
+    // 自定义书籍变量信息(用于书源规则检索书籍信息)
+    override var variable: String? = null,
+    //阅读设置
+    var readConfig: ReadConfig? = null,
+    //同步时间
+    @ColumnInfo(defaultValue = "0")
+    var syncTime: Long = 0L
+) : Parcelable, BaseBook {
+
+    override fun equals(other: Any?): Boolean {
+        if (other is Book) {
+            return other.bookUrl == bookUrl
+        }
+        return false
+    }
+
+    override fun hashCode(): Int {
+        return bookUrl.hashCode()
+    }
+
+    @delegate:Transient
+    @delegate:Ignore
+    @IgnoredOnParcel
+    override val variableMap: HashMap<String, String> by lazy {
+        GSON.fromJsonObject<HashMap<String, String>>(variable).getOrNull() ?: hashMapOf()
+    }
+
+    @Ignore
+    @IgnoredOnParcel
+    override var infoHtml: String? = null
+
+    @Ignore
+    @IgnoredOnParcel
+    override var tocHtml: String? = null
+
+    @Ignore
+    @IgnoredOnParcel
+    var downloadUrls: List<String>? = null
+
+    @Ignore
+    @IgnoredOnParcel
+    private var folderName: String? = null
+
+    @get:Ignore
+    @IgnoredOnParcel
+    val lastChapterIndex get() = totalChapterNum - 1
+
+    fun getRealAuthor() = author.replace(AppPattern.authorRegex, "")
+
+    fun getUnreadChapterNum() = max(simulatedTotalChapterNum() - durChapterIndex - 1, 0)
+
+    fun getDisplayCover() = if (customCoverUrl.isNullOrEmpty()) coverUrl else customCoverUrl
+
+    fun getDisplayIntro() = if (customIntro.isNullOrEmpty()) intro else customIntro
+
+    //自定义简介有自动更新的需求时，可通过更新intro再调用upCustomIntro()完成
+    @Suppress("unused")
+    fun upCustomIntro() {
+        customIntro = intro
+    }
+
+    fun fileCharset(): Charset {
+        return charset(charset ?: "UTF-8")
+    }
+
+    @IgnoredOnParcel
+    val config: ReadConfig
+        get() {
+            if (readConfig == null) {
+                readConfig = ReadConfig()
+            }
+            return readConfig!!
+        }
+
+    fun setReverseToc(reverseToc: Boolean) {
+        config.reverseToc = reverseToc
+    }
+
+    fun getReverseToc(): Boolean {
+        return config.reverseToc
+    }
+
+    fun setUseReplaceRule(useReplaceRule: Boolean) {
+        config.useReplaceRule = useReplaceRule
+    }
+
+    fun getUseReplaceRule(): Boolean {
+        val useReplaceRule = config.useReplaceRule
+        if (useReplaceRule != null) {
+            return useReplaceRule
+        }
+        //图片类书源 epub本地 默认关闭净化
+        if (isImage || isEpub) {
+            return false
+        }
+        return AppConfig.replaceEnableDefault
+    }
+
+    fun setReSegment(reSegment: Boolean) {
+        config.reSegment = reSegment
+    }
+
+    fun getReSegment(): Boolean {
+        return config.reSegment
+    }
+
+    fun setPageAnim(pageAnim: Int?) {
+        config.pageAnim = pageAnim
+    }
+
+    fun getPageAnim(): Int {
+        var pageAnim = config.pageAnim
+            ?: if (isImage) PageAnim.scrollPageAnim else ReadBookConfig.pageAnim
+        if (pageAnim < 0) {
+            pageAnim = ReadBookConfig.pageAnim
+        }
+        return pageAnim
+    }
+
+    fun setImageStyle(imageStyle: String?) {
+        config.imageStyle = imageStyle
+    }
+
+    fun getImageStyle(): String? {
+        return config.imageStyle
+    }
+
+    fun setTtsEngine(ttsEngine: String?) {
+        config.ttsEngine = ttsEngine
+    }
+
+    fun getTtsEngine(): String? {
+        return config.ttsEngine
+    }
+
+    fun setTtsVoices(ttsEngine: String?, narratorVoice: String?, dialogVoice: String?) {
+        val engineKey = ttsEngine?.takeIf { it.isNotBlank() } ?: return
+        migrateLegacyTtsVoices()
+        config.narratorVoices?.updateVoice(engineKey, narratorVoice)
+        config.dialogVoices?.updateVoice(engineKey, dialogVoice)
+    }
+
+    fun getNarratorVoice(ttsEngine: String?): String? {
+        val engineKey = ttsEngine?.takeIf { it.isNotBlank() } ?: return null
+        migrateLegacyTtsVoices()
+        return config.narratorVoices?.get(engineKey)?.takeIf { it.isNotBlank() }
+    }
+
+    fun getDialogVoice(ttsEngine: String?): String? {
+        val engineKey = ttsEngine?.takeIf { it.isNotBlank() } ?: return null
+        migrateLegacyTtsVoices()
+        return config.dialogVoices?.get(engineKey)?.takeIf { it.isNotBlank() }
+    }
+
+    private fun migrateLegacyTtsVoices() {
+        if (config.narratorVoices == null) config.narratorVoices = hashMapOf()
+        if (config.dialogVoices == null) config.dialogVoices = hashMapOf()
+        val engineKey = config.voiceTtsEngine?.takeIf { it.isNotBlank() }
+        if (engineKey != null) {
+            config.narratorVoice?.takeIf { it.isNotBlank() }?.let {
+                config.narratorVoices?.putIfAbsent(engineKey, it)
+            }
+            config.dialogVoice?.takeIf { it.isNotBlank() }?.let {
+                config.dialogVoices?.putIfAbsent(engineKey, it)
+            }
+        }
+        config.voiceTtsEngine = null
+        config.narratorVoice = null
+        config.dialogVoice = null
+    }
+
+    private fun HashMap<String, String>.updateVoice(engineKey: String, voice: String?) {
+        voice?.takeIf { it.isNotBlank() }?.let {
+            this[engineKey] = it
+        } ?: remove(engineKey)
+    }
+
+    // region 角色管理
+
+    fun getReadAloudRoles(): MutableList<BookReadAloudRole> {
+        if (config.readAloudRoles == null) config.readAloudRoles = mutableListOf()
+        return config.readAloudRoles!!
+    }
+
+    fun getReadAloudRoleById(id: String): BookReadAloudRole? {
+        return getReadAloudRoles().find { it.id == id }
+    }
+
+    fun addOrUpdateReadAloudRole(role: BookReadAloudRole) {
+        val roles = getReadAloudRoles()
+        val idx = roles.indexOfFirst { it.id == role.id }
+        if (idx >= 0) {
+            roles[idx] = role
+        } else {
+            roles.add(role)
+        }
+    }
+
+    fun deleteReadAloudRole(id: String) {
+        getReadAloudRoles().removeAll { it.id == id }
+    }
+
+    fun getRoleVoice(roleId: String, ttsEngine: String?): String? {
+        val engineKey = ttsEngine?.takeIf { it.isNotBlank() } ?: return null
+        return when (val voice = getReadAloudRoleById(roleId)?.voices?.get(engineKey)) {
+            BookReadAloudRole.VOICE_BOOK_NARRATOR -> getNarratorVoice(engineKey)
+            BookReadAloudRole.VOICE_BOOK_DIALOG -> getDialogVoice(engineKey)
+            else -> if (voice?.startsWith(BookReadAloudRole.VOICE_EXTRA_PREFIX) == true) {
+                val attr = voice.removePrefix(BookReadAloudRole.VOICE_EXTRA_PREFIX)
+                getExtraRoleVoiceByAttribute(attr, engineKey)
+            } else {
+                voice?.takeIf { it.isNotBlank() }
+            }
+        }
+    }
+
+    private fun getExtraRoleVoiceByAttribute(roleAttribute: String, engineKey: String): String? {
+        val extraRole = getReadAloudRoles().find {
+            it.roleCategory == BookReadAloudRole.RoleCategory.EXTRA &&
+                it.systemRole &&
+                it.roleAttribute == roleAttribute
+        } ?: return null
+        return when (val voice = extraRole.voices[engineKey]) {
+            BookReadAloudRole.VOICE_BOOK_NARRATOR -> getNarratorVoice(engineKey)
+            BookReadAloudRole.VOICE_BOOK_DIALOG -> getDialogVoice(engineKey)
+            else -> voice?.takeIf { it.isNotBlank() }
+        }
+    }
+
+    fun setRoleVoice(roleId: String, ttsEngine: String?, voice: String?) {
+        val engineKey = ttsEngine?.takeIf { it.isNotBlank() } ?: return
+        val role = getReadAloudRoleById(roleId) ?: return
+        voice?.takeIf { it.isNotBlank() }?.let {
+            role.voices[engineKey] = it
+        } ?: role.voices.remove(engineKey)
+    }
+
+    fun validateRoleName(name: String, excludeId: String? = null): String? {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) return "Name cannot be empty"
+        val roles = getReadAloudRoles()
+        val conflict = roles.any { it.id != excludeId && it.name.trim().equals(trimmed, ignoreCase = true) }
+        if (conflict) return "Name already exists"
+        val aliasConflict = roles.any { it.id != excludeId && it.aliases.any { a -> a.trim().equals(trimmed, ignoreCase = true) } }
+        if (aliasConflict) return "Name conflicts with an existing alias"
+        return null
+    }
+
+    fun validateRoleAlias(
+        alias: String,
+        excludeId: String? = null,
+        currentRoleName: String? = null
+    ): String? {
+        val trimmed = alias.trim()
+        if (trimmed.isBlank()) return null
+        if (currentRoleName?.trim()?.equals(trimmed, ignoreCase = true) == true) {
+            return "Alias conflicts with the role name"
+        }
+        val roles = getReadAloudRoles()
+        val nameConflict = roles.any { it.id != excludeId && it.name.trim().equals(trimmed, ignoreCase = true) }
+        if (nameConflict) return "Alias conflicts with an existing name"
+        val aliasConflict = roles.any { it.id != excludeId && it.aliases.any { a -> a.trim().equals(trimmed, ignoreCase = true) } }
+        if (aliasConflict) return "Alias already used by another role"
+        return null
+    }
+
+    fun normalizeAliases(aliases: List<String>): MutableList<String> {
+        return aliases.map { it.trim() }.filter { it.isNotBlank() }.distinctBy { it.lowercase() }.toMutableList()
+    }
+
+    fun getRoleMentionStats(): MutableList<BookRoleMentionStat> {
+        if (config.roleMentionStats == null) config.roleMentionStats = mutableListOf()
+        return config.roleMentionStats!!
+    }
+
+    fun getRoleMentionStatWindow(): RoleMentionStatWindow {
+        return config.roleMentionStatWindow ?: RoleMentionStatWindow.ALL_BOOK
+    }
+
+    fun setRoleMentionStatWindow(window: RoleMentionStatWindow) {
+        config.roleMentionStatWindow = window
+    }
+
+    fun findSystemExtraRoleByAttribute(roleAttribute: String): BookReadAloudRole? {
+        return getReadAloudRoles().find {
+            it.roleCategory == BookReadAloudRole.RoleCategory.EXTRA &&
+                it.systemRole &&
+                it.roleAttribute == roleAttribute
+        }
+    }
+
+    /**
+     * 确保当前书存在 8 个固定龙套。幂等：按 name 去重，已存在则跳过，
+     * 不覆盖用户已配置的别名/音色。返回 true 表示新增了角色（调用方需 save）。
+     */
+    fun ensureSystemExtraRoles(): Boolean {
+        val roles = getReadAloudRoles()
+        val existingNames = roles.map { it.name.trim() }.toHashSet()
+        var changed = false
+        for ((name, attr) in SYSTEM_EXTRA_ROLE_DEFS) {
+            if (existingNames.contains(name)) continue
+            roles.add(
+                BookReadAloudRole(
+                    id = java.util.UUID.randomUUID().toString(),
+                    name = name,
+                    roleCategory = BookReadAloudRole.RoleCategory.EXTRA,
+                    roleAttribute = attr,
+                    autoManaged = true,
+                    systemRole = true,
+                    locked = false
+                )
+            )
+            changed = true
+        }
+        return changed
+    }
+
+    /**
+     * 校验将某角色归入 targetCategory 是否超出上限。excludeId 为正在编辑的角色 id。
+     * 返回非 null 表示超限，调用方应拒绝保存。
+     */
+    fun validateRoleCategoryCap(targetCategory: String, excludeId: String? = null): String? {
+        val max = BookReadAloudRole.RoleCategory.MAX_COUNT[targetCategory] ?: return null
+        if (max == Int.MAX_VALUE) return null
+        val count = getReadAloudRoles()
+            .count { it.id != excludeId && it.roleCategory == targetCategory }
+        return if (count >= max) "category_cap_exceeded" else null
+    }
+
+    // endregion
+
+    fun setSplitLongChapter(limitLongContent: Boolean) {
+        config.splitLongChapter = limitLongContent
+    }
+
+    fun getSplitLongChapter(): Boolean {
+        return config.splitLongChapter
+    }
+
+    // readSimulating 的 setter 和 getter
+    fun setReadSimulating(readSimulating: Boolean) {
+        config.readSimulating = readSimulating
+    }
+
+    fun getReadSimulating(): Boolean {
+        return config.readSimulating
+    }
+
+    // startDate 的 setter 和 getter
+    fun setStartDate(startDate: LocalDate?) {
+        config.startDate = startDate
+    }
+
+    fun getStartDate(): LocalDate? {
+        if (!config.readSimulating || config.startDate == null) {
+            return LocalDate.now()
+        }
+        return config.startDate
+    }
+
+    // startChapter 的 setter 和 getter
+    fun setStartChapter(startChapter: Int) {
+        config.startChapter = startChapter
+    }
+
+    fun getStartChapter(): Int {
+        if (config.readSimulating) return config.startChapter ?: 0
+        return this.durChapterIndex
+    }
+
+    // dailyChapters 的 setter 和 getter
+    fun setDailyChapters(dailyChapters: Int) {
+        config.dailyChapters = dailyChapters
+    }
+
+    fun getDailyChapters(): Int {
+        return config.dailyChapters
+    }
+
+    fun getDelTag(tag: Long): Boolean {
+        return config.delTag and tag == tag
+    }
+
+    fun addDelTag(tag: Long) {
+        config.delTag = config.delTag and tag
+    }
+
+    fun removeDelTag(tag: Long) {
+        config.delTag = config.delTag and tag.inv()
+    }
+
+    fun getFolderName(): String {
+        folderName?.let {
+            return it
+        }
+        //防止书名过长,只取9位
+        folderName = getFolderNameNoCache()
+        return folderName!!
+    }
+
+    fun toSearchBook() = SearchBook(
+        name = name,
+        author = author,
+        kind = kind,
+        bookUrl = bookUrl,
+        origin = origin,
+        originName = originName,
+        type = type,
+        wordCount = wordCount,
+        latestChapterTitle = latestChapterTitle,
+        coverUrl = coverUrl,
+        intro = intro,
+        tocUrl = tocUrl,
+        originOrder = originOrder,
+        variable = variable
+    ).apply {
+        this.infoHtml = this@Book.infoHtml
+        this.tocHtml = this@Book.tocHtml
+    }
+
+    /**
+     * 迁移旧的书籍的一些信息到新的书籍中
+     */
+    fun migrateTo(newBook: Book, toc: List<BookChapter>): Book {
+        newBook.durChapterIndex = BookHelp
+            .getDurChapter(durChapterIndex, durChapterTitle, toc, totalChapterNum)
+        newBook.durChapterTitle = toc[newBook.durChapterIndex].getDisplayTitle(
+            ContentProcessor.get(newBook.name, newBook.origin).getTitleReplaceRules(),
+            getUseReplaceRule()
+        )
+        newBook.durChapterPos = durChapterPos
+        newBook.durChapterTime = durChapterTime
+        newBook.group = group
+        newBook.order = order
+        newBook.customCoverUrl = customCoverUrl
+        newBook.customIntro = customIntro
+        newBook.customTag = customTag
+        newBook.canUpdate = canUpdate
+        newBook.readConfig = readConfig
+        return newBook
+    }
+
+    fun createBookMark(): Bookmark {
+        return Bookmark(
+            bookName = name,
+            bookAuthor = author,
+        )
+    }
+
+    fun save() {
+        if (appDb.bookDao.has(bookUrl)) {
+            appDb.bookDao.update(this)
+        } else {
+            appDb.bookDao.insert(this)
+        }
+    }
+
+    fun delete() {
+        if (ReadBook.book?.bookUrl == bookUrl) {
+            ReadBook.book = null
+        }
+        appDb.bookDao.delete(this)
+    }
+
+    @Suppress("ConstPropertyName")
+    companion object {
+        const val hTag = 2L
+        const val rubyTag = 4L
+        const val imgStyleDefault = "DEFAULT"
+        const val imgStyleFull = "FULL"
+        const val imgStyleText = "TEXT"
+        const val imgStyleSingle = "SINGLE"
+    }
+
+    @Parcelize
+    data class ReadConfig(
+        var reverseToc: Boolean = false,
+        var pageAnim: Int? = null,
+        var reSegment: Boolean = false,
+        var imageStyle: String? = null,
+        var useReplaceRule: Boolean? = null,// 正文使用净化替换规则
+        var delTag: Long = 0L,//去除标签
+        var ttsEngine: String? = null,
+        var narratorVoices: HashMap<String, String>? = hashMapOf(),
+        var dialogVoices: HashMap<String, String>? = hashMapOf(),
+        // 兼容旧版单引擎音色配置，读取后迁移到上面的映射。
+        var voiceTtsEngine: String? = null,
+        var narratorVoice: String? = null,
+        var dialogVoice: String? = null,
+        var splitLongChapter: Boolean = true,
+        var readSimulating: Boolean = false,
+        var readAloudRoles: MutableList<BookReadAloudRole>? = mutableListOf(),
+        var roleMentionStatWindow: RoleMentionStatWindow? = RoleMentionStatWindow.ALL_BOOK,
+        var roleMentionStats: MutableList<BookRoleMentionStat>? = mutableListOf(),
+        var startDate: LocalDate? = null,
+        var startChapter: Int? = null,     // 用户设置的起始章节
+        var dailyChapters: Int = 3    // 用户设置的每日更新章节数
+    ) : Parcelable
+
+    class Converters {
+
+        @TypeConverter
+        fun readConfigToString(config: ReadConfig?): String = GSON.toJson(config)
+
+        @TypeConverter
+        fun stringToReadConfig(json: String?) = GSON.fromJsonObject<ReadConfig>(json).getOrNull()
+    }
+}

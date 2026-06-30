@@ -1,0 +1,71 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+
+# Gradle / Kotlin / Android build outputs
+.gradle/
+.kotlin/
+build/
+**/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+
+# Generated APKs / release artifacts
+/release/
+*.apk
+*.ap_
+*.aab
+*.aar
+*.dex
+*.class
+
+# Local environment and signing secrets
+local.properties
+keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pem
+
+# Project-local private config
+/.claude/settings.local.json
+/app/app/
+/app/google/
+/app/gradle.properties
+TTS config.md
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.bak
+*.orig
+/tmp/
+logs/
+
+# Node / web tooling
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.tsbuildinfo
+dist/
+dist-ssr/
+coverage/
+
+# Test / tooling artifacts
+/test-results/
+/reports/
+/.scannerwork/

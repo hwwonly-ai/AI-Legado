@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.preference.PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <io.legado.app.lib.prefs.PreferenceCategory
+        android:title="@string/aloud_config"
+        app:allowDividerAbove="false"
+        app:allowDividerBelow="false"
+        app:iconSpaceReserved="false">
+
+        <io.legado.app.lib.prefs.SwitchPreference
+            android:defaultValue="false"
+            android:key="ignoreAudioFocus"
+            android:summary="@string/ignore_audio_focus_summary"
+            android:title="@string/ignore_audio_focus_title" />
+
+        <io.legado.app.lib.prefs.SwitchPreference
+            android:defaultValue="false"
+            android:key="pauseReadAloudWhilePhoneCalls"
+            android:summary="@string/pause_read_aloud_while_phone_calls_summary"
+            android:title="@string/pause_read_aloud_while_phone_calls_title" />
+
+        <io.legado.app.lib.prefs.SwitchPreference
+            android:defaultValue="false"
+            android:title="@string/read_aloud_wake_lock"
+            android:summary="@string/read_aloud_wake_lock_summary"
+            android:key="readAloudWakeLock"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.SwitchPreference
+            android:defaultValue="false"
+            android:title="@string/system_media_control_compatibility_change"
+            android:summary="@string/system_media_control_compatibility_change_summary"
+            android:key="systemMediaControlCompatibilityChange"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.SwitchPreference
+            android:defaultValue="false"
+            android:title="@string/pref_media_button_per_next"
+            android:summary="@string/pref_media_button_per_next_summary"
+            android:key="mediaButtonPerNext"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.SwitchPreference
+            android:defaultValue="false"
+            android:title="@string/read_aloud_by_page"
+            android:summary="@string/read_aloud_by_page_summary"
+            android:key="readAloudByPage"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.SwitchPreference
+            android:defaultValue="false"
+            android:title="@string/stream_read_aloud_audio"
+            android:summary="@string/stream_read_aloud_audio_summary"
+            android:key="streamReadAloudAudio"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:title="@string/speak_engine"
+            android:summary="TTS"
+            android:key="appTtsEngine"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:title="@string/sys_tts_config"
+            android:summary="@string/sys_tts_config_summary"
+            android:key="sysTtsConfig"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:title="@string/ai_service_config"
+            android:summary="@string/ai_service_config_summary"
+            android:key="aiServiceConfig"
+            app:iconSpaceReserved="false" />
+
+    </io.legado.app.lib.prefs.PreferenceCategory>
+
+    <io.legado.app.lib.prefs.PreferenceCategory
+        android:title="@string/read_aloud_segment_cache"
+        app:allowDividerAbove="false"
+        app:allowDividerBelow="false"
+        app:iconSpaceReserved="false">
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="refreshCurrentChapterSegmentCache"
+            android:title="@string/refresh_current_chapter_segment_cache"
+            android:summary="@string/refresh_current_chapter_segment_cache_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="clearBookSegmentCache"
+            android:title="@string/clear_book_segment_cache"
+            android:summary="@string/clear_book_segment_cache_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="refreshCurrentChapterAiLabelCache"
+            android:title="@string/refresh_current_chapter_ai_label_cache"
+            android:summary="@string/refresh_current_chapter_ai_label_cache_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="clearBookAiLabelCache"
+            android:title="@string/clear_book_ai_label_cache"
+            android:summary="@string/clear_book_ai_label_cache_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="resetBookRoleAutoArchive"
+            android:title="@string/reset_book_role_auto_archive"
+            android:summary="@string/reset_book_role_auto_archive_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="exportCurrentChapterScript"
+            android:title="@string/book_script_export_current_chapter"
+            android:summary="@string/book_script_export_current_chapter_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="importCurrentChapterScript"
+            android:title="@string/book_script_import_current_chapter"
+            android:summary="@string/book_script_import_current_chapter_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="exportBookRoleProfile"
+            android:title="@string/book_role_profile_export"
+            android:summary="@string/book_role_profile_export_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="importBookRoleProfile"
+            android:title="@string/book_role_profile_import"
+            android:summary="@string/book_role_profile_import_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="readAloudAudioCacheStats"
+            android:title="@string/read_aloud_audio_cache_stats"
+            android:summary="@string/read_aloud_audio_cache_stats_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="clearCurrentChapterAudioCache"
+            android:title="@string/clear_current_chapter_audio_cache"
+            android:summary="@string/clear_current_chapter_audio_cache_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="clearBookAudioCache"
+            android:title="@string/clear_book_audio_cache"
+            android:summary="@string/clear_book_audio_cache_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="clearAllReadAloudAudioCache"
+            android:title="@string/clear_all_read_aloud_audio_cache"
+            android:summary="@string/clear_all_read_aloud_audio_cache_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="readAloudDebugSegment"
+            android:title="@string/read_aloud_debug_segment"
+            android:summary="@string/read_aloud_debug_segment_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="readAloudDebugTts"
+            android:title="@string/read_aloud_debug_tts"
+            android:summary="@string/read_aloud_debug_tts_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="readAloudDebugAi"
+            android:title="@string/read_aloud_debug_ai"
+            android:summary="@string/read_aloud_debug_ai_summary"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="readAloudDebugRole"
+            android:title="@string/read_aloud_debug_role"
+            android:summary="@string/read_aloud_debug_role_summary"
+            app:iconSpaceReserved="false" />
+
+    </io.legado.app.lib.prefs.PreferenceCategory>
+
+</androidx.preference.PreferenceScreen>
