@@ -1,6 +1,6 @@
 #!/bin/bash
 # 豆包 TTS V3 接口测试脚本
-# 用法: ./test_doubao_tts.sh [app_id] [access_token] [speaker]
+# 用法: ./scripts/test_doubao_tts.sh [app_id] [access_token] [speaker]
 
 set -e
 

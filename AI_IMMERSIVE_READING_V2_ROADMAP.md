@@ -3,7 +3,7 @@
 本文档记录 **V1 之后的功能规划**，包括 V1.1、V2、V3 等版本的目标和特性分布。
 配套文档：
 - [PRD](AI_IMMERSIVE_READING_PRD.md) — 产品需求和验收标准
-- [MVP PLAN](MVP PLAN.md) — V1 的技术实现计划
+- [MVP PLAN](docs/mvp/MVP PLAN.md) — V1 的技术实现计划
 
 ---
 

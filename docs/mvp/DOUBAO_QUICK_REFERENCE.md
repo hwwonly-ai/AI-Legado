@@ -8,16 +8,16 @@
 cd /Users/huiweiwei/Documents/Coding/legado/legado
 
 # 查看帮助
-./test_doubao_tts.sh -h
+./scripts/test_doubao_tts.sh -h
 
 # 使用参数运行
-./test_doubao_tts.sh your_app_id your_access_token
+./scripts/test_doubao_tts.sh your_app_id your_access_token
 
 # 使用环境变量运行
 export DOUBAO_TTS_APP_ID="your_app_id"
 export DOUBAO_TTS_ACCESS_TOKEN="your_access_token"
 export DOUBAO_TTS_SPEAKER="zh_female_vv_uranus_bigtts"
-./test_doubao_tts.sh
+./scripts/test_doubao_tts.sh
 ```
 
 ### 方式 2：使用 Gradle 命令
@@ -72,7 +72,7 @@ curl -X POST \
 
 | 测试 | 说明 | 文件 |
 |------|------|------|
-| `renderKeepsDoubaoRequestFreeFromAliyunSsml` | 验证无 SSML 标签 | [DoubaoTtsClientTest.kt](app/src/test/java/io/legado/app/model/tts/DoubaoTtsClientTest.kt) |
+| `renderKeepsDoubaoRequestFreeFromAliyunSsml` | 验证无 SSML 标签 | [DoubaoTtsClientTest.kt](../../app/src/test/java/io/legado/app/model/tts/DoubaoTtsClientTest.kt) |
 | `buildPayloadV3AddsContextTextsAndTagParserIntoAdditions` | 验证 additions 字段 | 同上 |
 | `buildPayloadV3UsesReqParamsShape` | 验证请求结构 | 同上 |
 | `doubaoSettingsDefaultsToV3Speakers` | 验证默认配置 | 同上 |
@@ -109,7 +109,7 @@ mp3, ogg_opus, pcm, wav
 
 ### 1. 查看请求详情
 
-修改 [DoubaoTtsClientV3.kt](app/src/main/java/io/legado/app/model/tts/DoubaoTtsClientV3.kt)：
+修改 [DoubaoTtsClientV3.kt](../../app/src/main/java/io/legado/app/model/tts/DoubaoTtsClientV3.kt)：
 
 ```kotlin
 // 在发送请求前
@@ -178,10 +178,10 @@ X-Api-Request-Id: {uuid}
 ## 📚 相关文件
 
 - 完整指南：[DOUBAO_TTS_V3_TESTING_GUIDE.md](DOUBAO_TTS_V3_TESTING_GUIDE.md)
-- 客户端实现：[DoubaoTtsClientV3.kt](app/src/main/java/io/legado/app/model/tts/DoubaoTtsClientV3.kt)
-- 单元测试：[DoubaoTtsClientTest.kt](app/src/test/java/io/legado/app/model/tts/DoubaoTtsClientTest.kt)
-- API 配置：[DoubaoApiConfig.kt](app/src/main/java/io/legado/app/model/tts/DoubaoApiConfig.kt)
-- 测试脚本：[test_doubao_tts.sh](test_doubao_tts.sh)
+- 客户端实现：[DoubaoTtsClientV3.kt](../../app/src/main/java/io/legado/app/model/tts/DoubaoTtsClientV3.kt)
+- 单元测试：[DoubaoTtsClientTest.kt](../../app/src/test/java/io/legado/app/model/tts/DoubaoTtsClientTest.kt)
+- API 配置：[DoubaoApiConfig.kt](../../app/src/main/java/io/legado/app/model/tts/DoubaoApiConfig.kt)
+- 测试脚本：[test_doubao_tts.sh](../../scripts/test_doubao_tts.sh)
 
 ## ✅ 检查清单
 
