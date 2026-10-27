@@ -1446,4 +1446,26 @@
     <string name="read_aloud_debug_role_summary">View recent role match hits, misses and fallback summaries</string>
     <string name="segment_cache_operation_failed">Segment cache operation failed</string>
     <string name="no_book_available">No book available</string>
+    <string name="map_image">Map image</string>
+    <string name="view_map_image">View current map</string>
+    <string name="historical_map">Historical map</string>
+    <string name="select_dynasty">Select dynasty</string>
+    <string name="recommended_dynasty">Recommended: %1$s</string>
+    <string name="map_load_failed">Failed to load maps</string>
+    <string name="map_no_candidates">No map candidates found</string>
+    <string name="map_downloading">Downloading map…</string>
+    <string name="map_download_failed">Failed to download map</string>
+    <string name="rotate_image">Rotate image</string>
+    <string name="feiyun_bridge_enabled">飞鸟服务器桥接</string>
+    <string name="feiyun_bridge_enabled_summary">允许书源通过 java.feiyunPlayUrl 动态获取播放地址</string>
+    <string name="feiyun_bridge_base_url">飞鸟服务器地址</string>
+    <string name="feiyun_bridge_base_url_summary">默认 http://81.70.179.142</string>
+    <string name="feiyun_bridge_user_id">飞鸟用户标识 ud/userId</string>
+    <string name="feiyun_bridge_user_id_summary">用于请求飞鸟播放接口</string>
+    <string name="feiyun_bridge_bly">飞鸟 bly</string>
+    <string name="feiyun_bridge_bly_summary">用于请求飞鸟播放接口</string>
+    <string name="feiyun_bridge_test">测试飞鸟连接</string>
+    <string name="feiyun_bridge_test_summary">用内置懒人样例请求一次播放地址</string>
+    <string name="feiyun_bridge_clear_cache">清除飞鸟缓存</string>
+    <string name="feiyun_bridge_clear_cache_summary">清除已缓存的懒人 Cookie</string>
 </resources>

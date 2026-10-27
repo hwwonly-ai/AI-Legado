@@ -243,6 +243,31 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
             appCtx.putPrefLong(PreferKey.remoteServerId, value)
         }
 
+    var feiyunBridgeEnabled: Boolean
+        get() = appCtx.getPrefBoolean(PreferKey.feiyunBridgeEnabled, false)
+        set(value) {
+            appCtx.putPrefBoolean(PreferKey.feiyunBridgeEnabled, value)
+        }
+
+    var feiyunBridgeBaseUrl: String
+        get() = appCtx.getPrefString(PreferKey.feiyunBridgeBaseUrl, "http://81.70.179.142")
+            ?: "http://81.70.179.142"
+        set(value) {
+            appCtx.putPrefString(PreferKey.feiyunBridgeBaseUrl, value)
+        }
+
+    var feiyunBridgeUserId: String
+        get() = appCtx.getPrefString(PreferKey.feiyunBridgeUserId, "hfo8icxuujeo") ?: "hfo8icxuujeo"
+        set(value) {
+            appCtx.putPrefString(PreferKey.feiyunBridgeUserId, value)
+        }
+
+    var feiyunBridgeBly: String
+        get() = appCtx.getPrefString(PreferKey.feiyunBridgeBly, "89ebaa914cb4ab1f") ?: "89ebaa914cb4ab1f"
+        set(value) {
+            appCtx.putPrefString(PreferKey.feiyunBridgeBly, value)
+        }
+
     // 添加本地选择的目录
     var importBookPath: String?
         get() = appCtx.getPrefString("importBookPath")

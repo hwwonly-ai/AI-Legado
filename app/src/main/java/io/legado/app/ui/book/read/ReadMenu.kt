@@ -195,6 +195,8 @@ class ReadMenu @JvmOverloads constructor(
         }
         fabSearch.backgroundTintList = bottomBackgroundList
         fabSearch.setColorFilter(textColor)
+        fabMapImage.backgroundTintList = bottomBackgroundList
+        fabMapImage.setColorFilter(textColor)
         fabAutoPage.backgroundTintList = bottomBackgroundList
         fabAutoPage.setColorFilter(textColor)
         fabReplaceRule.backgroundTintList = bottomBackgroundList
@@ -439,6 +441,10 @@ class ReadMenu @JvmOverloads constructor(
             }
         }
 
+        fabMapImage.setOnClickListener {
+            runMenuOut { callBack.openMapImage() }
+        }
+
         //自动翻页
         fabAutoPage.setOnClickListener {
             runMenuOut {
@@ -571,6 +577,7 @@ class ReadMenu @JvmOverloads constructor(
         fun openReplaceRule()
         fun openChapterList()
         fun openSearchActivity(searchWord: String?)
+        fun openMapImage()
         fun openSourceEditActivity()
         fun openBookInfoActivity()
         fun showReadStyle()

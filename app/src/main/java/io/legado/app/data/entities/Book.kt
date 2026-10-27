@@ -639,7 +639,10 @@ data class Book(
         var roleMentionStats: MutableList<BookRoleMentionStat>? = mutableListOf(),
         var startDate: LocalDate? = null,
         var startChapter: Int? = null,     // 用户设置的起始章节
-        var dailyChapters: Int = 3    // 用户设置的每日更新章节数
+        var dailyChapters: Int = 3,    // 用户设置的每日更新章节数
+        var mapImagePath: String? = null,
+        var mapImageSource: String? = null,
+        var mapImageTitle: String? = null
     ) : Parcelable
 
     class Converters {

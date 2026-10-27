@@ -1441,4 +1441,14 @@
     <string name="read_aloud_debug_role_summary">查看最近角色匹配命中、未命中和回退摘要</string>
     <string name="segment_cache_operation_failed">Segment 缓存操作失败</string>
     <string name="no_book_available">暂无可用书籍</string>
+    <string name="map_image">地图图片</string>
+    <string name="view_map_image">查看当前地图</string>
+    <string name="historical_map">历史地图</string>
+    <string name="select_dynasty">选择朝代</string>
+    <string name="recommended_dynasty">推荐朝代：%1$s</string>
+    <string name="map_load_failed">地图加载失败</string>
+    <string name="map_no_candidates">未找到地图候选</string>
+    <string name="map_downloading">正在下载地图…</string>
+    <string name="map_download_failed">地图下载失败</string>
+    <string name="rotate_image">旋转图片</string>
 </resources>

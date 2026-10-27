@@ -203,4 +203,10 @@ object PreferKey {
     const val aiPromptVersion = "aiPromptVersion"
     const val aiPromptHash = "aiPromptHash"
     const val aiPromptUpdatedAt = "aiPromptUpdatedAt"
+
+    const val feiyunBridgeEnabled = "feiyunBridgeEnabled"
+    const val feiyunBridgeInitialized = "feiyunBridgeInitialized"
+    const val feiyunBridgeBaseUrl = "feiyunBridgeBaseUrl"
+    const val feiyunBridgeUserId = "feiyunBridgeUserId"
+    const val feiyunBridgeBly = "feiyunBridgeBly"
 }

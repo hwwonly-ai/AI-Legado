@@ -94,6 +94,43 @@
 
         <io.legado.app.lib.prefs.SwitchPreference
             android:defaultValue="false"
+            android:key="feiyunBridgeEnabled"
+            android:summary="@string/feiyun_bridge_enabled_summary"
+            android:title="@string/feiyun_bridge_enabled"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.EditTextPreference
+            android:key="feiyunBridgeBaseUrl"
+            android:summary="@string/feiyun_bridge_base_url_summary"
+            android:title="@string/feiyun_bridge_base_url"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.EditTextPreference
+            android:key="feiyunBridgeUserId"
+            android:summary="@string/feiyun_bridge_user_id_summary"
+            android:title="@string/feiyun_bridge_user_id"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.EditTextPreference
+            android:key="feiyunBridgeBly"
+            android:summary="@string/feiyun_bridge_bly_summary"
+            android:title="@string/feiyun_bridge_bly"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="feiyunBridgeTest"
+            android:summary="@string/feiyun_bridge_test_summary"
+            android:title="@string/feiyun_bridge_test"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.Preference
+            android:key="feiyunBridgeClearCache"
+            android:summary="@string/feiyun_bridge_clear_cache_summary"
+            android:title="@string/feiyun_bridge_clear_cache"
+            app:iconSpaceReserved="false" />
+
+        <io.legado.app.lib.prefs.SwitchPreference
+            android:defaultValue="false"
             android:key="Cronet"
             android:summary="@string/pref_cronet_summary"
             android:title="Cronet" />

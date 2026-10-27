@@ -176,7 +176,7 @@ class PhotoView @JvmOverloads constructor(
      * 设置最大可以缩放的倍数
      */
     fun setMaxScale(maxScale: Float) {
-        mMaxScale = maxScale
+        mMaxScale = maxScale.coerceAtLeast(1f)
     }
 
     /**
@@ -1076,6 +1076,27 @@ class PhotoView @JvmOverloads constructor(
         executeTranslate()
     }
 
+    /** 旋转到下一个方向，并将图片重新缩放到屏幕内。 */
+    fun rotateAndFit(degrees: Float) {
+        if (!hasDrawable || !isKnowSize || mWidgetRect.width() <= 0f || mWidgetRect.height() <= 0f) return
+        mTranslate.stop()
+        mDegrees = (mDegrees + degrees) % 360f
+        mScale = 1f
+        mTranslateX = 0
+        mTranslateY = 0
+        mAnimMatrix.reset()
+        mAnimMatrix.postRotate(mDegrees, mScreenCenter.x, mScreenCenter.y)
+        executeTranslate()
+        val scaleX = mWidgetRect.width() / mImgRect.width()
+        val scaleY = mWidgetRect.height() / mImgRect.height()
+        val scale = minOf(1f, scaleX, scaleY)
+        if (scale < 1f) {
+            mAnimMatrix.postScale(scale, scale, mScreenCenter.x, mScreenCenter.y)
+            executeTranslate()
+        }
+        invalidate()
+    }
+
     inner class RotateListener : OnRotateListener {
         override fun onRotate(
             degrees: Float,
@@ -1238,12 +1259,15 @@ class PhotoView @JvmOverloads constructor(
     inner class ScaleGestureListener : OnScaleGestureListener {
         override fun onScale(detector: ScaleGestureDetector): Boolean {
             val scaleFactor = detector.scaleFactor
-            if (java.lang.Float.isNaN(scaleFactor) || java.lang.Float.isInfinite(scaleFactor)) return false
-            mScale *= scaleFactor
-            //mScaleCenter.set(detector.getFocusX(), detector.getFocusY());
+            if (scaleFactor.isNaN() || scaleFactor.isInfinite() || scaleFactor <= 0f) return true
+            val currentScale = mScale
+            val targetScale = (currentScale * scaleFactor).coerceIn(1f, mMaxScale)
+            if (abs(targetScale - currentScale) < 0.0001f) return true
+            val appliedFactor = targetScale / currentScale
+            mScale = targetScale
             mAnimMatrix.postScale(
-                scaleFactor,
-                scaleFactor,
+                appliedFactor,
+                appliedFactor,
                 detector.focusX,
                 detector.focusY
             )
@@ -1252,6 +1276,8 @@ class PhotoView @JvmOverloads constructor(
         }
 
         override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+            // 上一轮手势结束后的回弹动画不能覆盖新一轮缩放。
+            mTranslate.stop()
             return true
         }
 

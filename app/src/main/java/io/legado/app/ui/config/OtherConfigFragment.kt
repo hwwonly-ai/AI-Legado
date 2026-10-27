@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.view.View
 import androidx.core.view.postDelayed
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.preference.ListPreference
 import androidx.preference.Preference
 import com.jeremyliao.liveeventbus.LiveEventBus
@@ -23,6 +24,7 @@ import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.prefs.fragment.PreferenceFragment
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.model.CheckSource
+import io.legado.app.model.FeiyunTokenBridge
 import io.legado.app.model.ImageProvider
 import io.legado.app.receiver.SharedReceiverActivity
 import io.legado.app.service.WebService
@@ -37,6 +39,10 @@ import io.legado.app.utils.removePref
 import io.legado.app.utils.restart
 import io.legado.app.utils.setEdgeEffectColor
 import io.legado.app.utils.showDialogFragment
+import io.legado.app.utils.toastOnUi
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import splitties.init.appCtx
 
 /**
@@ -59,11 +65,15 @@ class OtherConfigFragment : PreferenceFragment(),
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         putPrefBoolean(PreferKey.processText, isProcessTextEnabled())
+        FeiyunTokenBridge.ensureDefaultConfig()
         addPreferencesFromResource(R.xml.pref_config_other)
         upPreferenceSummary(PreferKey.userAgent, AppConfig.userAgent)
         upPreferenceSummary(PreferKey.preDownloadNum, AppConfig.preDownloadNum.toString())
         upPreferenceSummary(PreferKey.threadCount, AppConfig.threadCount.toString())
         upPreferenceSummary(PreferKey.webPort, AppConfig.webPort.toString())
+        upPreferenceSummary(PreferKey.feiyunBridgeBaseUrl, AppConfig.feiyunBridgeBaseUrl)
+        upPreferenceSummary(PreferKey.feiyunBridgeUserId, AppConfig.feiyunBridgeUserId)
+        upPreferenceSummary(PreferKey.feiyunBridgeBly, AppConfig.feiyunBridgeBly)
         AppConfig.defaultBookTreeUri?.let {
             upPreferenceSummary(PreferKey.defaultBookTreeUri, it)
         }
@@ -123,6 +133,8 @@ class OtherConfigFragment : PreferenceFragment(),
             PreferKey.cleanCache -> clearCache()
             PreferKey.uploadRule -> showDialogFragment<DirectLinkUploadConfig>()
             PreferKey.checkSource -> showDialogFragment<CheckSourceConfig>()
+            "feiyunBridgeTest" -> testFeiyunBridge()
+            "feiyunBridgeClearCache" -> clearFeiyunBridgeCache()
             PreferKey.bitmapCacheSize -> {
                 NumberPickerDialog(requireContext())
                     .setTitle(getString(R.string.bitmap_cache_size))
@@ -206,6 +218,12 @@ class OtherConfigFragment : PreferenceFragment(),
                 upPreferenceSummary(PreferKey.userAgent, AppConfig.userAgent)
             }
 
+            PreferKey.feiyunBridgeBaseUrl,
+            PreferKey.feiyunBridgeUserId,
+            PreferKey.feiyunBridgeBly -> listView.post {
+                upPreferenceSummary(key, sharedPreferences?.getString(key, null))
+            }
+
             PreferKey.checkSource -> listView.post {
                 upPreferenceSummary(PreferKey.checkSource, CheckSource.summary)
             }
@@ -240,6 +258,15 @@ class OtherConfigFragment : PreferenceFragment(),
             PreferKey.sourceEditMaxLine -> preference.summary =
                 getString(R.string.source_edit_max_line_summary, value)
 
+            PreferKey.feiyunBridgeBaseUrl -> preference.summary =
+                value?.takeIf { it.isNotBlank() } ?: FeiyunTokenBridge.defaultBaseUrl
+
+            PreferKey.feiyunBridgeUserId -> preference.summary =
+                value?.takeIf { it.isNotBlank() } ?: FeiyunTokenBridge.defaultUserId
+
+            PreferKey.feiyunBridgeBly -> preference.summary =
+                value?.takeIf { it.isNotBlank() } ?: FeiyunTokenBridge.defaultBly
+
             else -> if (preference is ListPreference) {
                 val index = preference.findIndexOfValue(value)
                 // Set the summary to reflect the new value.
@@ -248,6 +275,27 @@ class OtherConfigFragment : PreferenceFragment(),
                 preference.summary = value
             }
         }
+    }
+
+    private fun testFeiyunBridge() {
+        lifecycleScope.launch {
+            val previous = AppConfig.feiyunBridgeEnabled
+            AppConfig.feiyunBridgeEnabled = true
+            val message = withContext(IO) {
+                kotlin.runCatching {
+                    FeiyunTokenBridge.testConnection()
+                }.getOrElse {
+                    "连接失败: ${it.localizedMessage}"
+                }
+            }
+            AppConfig.feiyunBridgeEnabled = previous
+            appCtx.toastOnUi(message)
+        }
+    }
+
+    private fun clearFeiyunBridgeCache() {
+        FeiyunTokenBridge.clearCache()
+        appCtx.toastOnUi(R.string.clear_cache_success)
     }
 
     @SuppressLint("InflateParams")

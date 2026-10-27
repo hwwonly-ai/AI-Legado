@@ -31,6 +31,7 @@ import io.legado.app.ui.about.AppLogDialog
 import io.legado.app.ui.book.changesource.ChangeBookSourceDialog
 import io.legado.app.ui.book.source.edit.BookSourceEditActivity
 import io.legado.app.ui.book.toc.TocActivityResult
+import io.legado.app.ui.book.map.BookMapDialog
 import io.legado.app.ui.login.SourceLoginActivity
 import io.legado.app.ui.widget.seekbar.SeekBarChangeListener
 import io.legado.app.utils.StartActivityContract
@@ -186,6 +187,9 @@ class AudioPlayActivity :
         }
         binding.ivTimer.setOnClickListener {
             timerSliderPopup.showAsDropDown(it, 0, (-100).dpToPx(), Gravity.TOP)
+        }
+        binding.ivMapImage.setOnClickListener {
+            AudioPlay.book?.let { book -> BookMapDialog.open(this, book) }
         }
         binding.llPlayMenu.applyNavigationBarPadding()
     }

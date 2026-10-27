@@ -21,6 +21,7 @@ import io.legado.app.help.http.StrResponse
 import io.legado.app.help.source.SourceVerificationHelp
 import io.legado.app.help.source.getSourceType
 import io.legado.app.model.Debug
+import io.legado.app.model.FeiyunTokenBridge
 import io.legado.app.model.analyzeRule.AnalyzeUrl
 import io.legado.app.model.analyzeRule.QueryTTF
 import io.legado.app.ui.association.OpenUrlConfirmActivity
@@ -104,6 +105,16 @@ interface JsExtensions : JsEncodeUtils {
             AppLog.put("ajax(${urlStr}) error\n${it.localizedMessage}", it)
         }.getOrElse {
             it.stackTraceStr
+        }
+    }
+
+    /**
+     * 通过飞鸟服务器获取最终播放地址.
+     */
+    fun feiyunPlayUrl(json: String): String {
+        rhinoContext.ensureActive()
+        return runBlocking(context) {
+            FeiyunTokenBridge.playUrl(json)
         }
     }
 
